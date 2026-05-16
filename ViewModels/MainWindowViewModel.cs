@@ -5,11 +5,19 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using System.Windows.Input;
 
 namespace Github_Trend;
 
 public sealed class MainWindowViewModel : INotifyPropertyChanged
 {
+    // Constructor to initialize commands
+    public MainWindowViewModel()
+    {
+        RefreshCommand = new RelayCommand(async _ => await RefreshColorsAsync(), _ => !_isInitializing && !_isRefreshing);
+    }
+
+    private bool _isRefreshing;
     private readonly SelectedLanguagesStore _selectedLanguagesStore = new();
     private readonly ObservableCollection<LanguageOptionViewModel> _filteredLanguages = new();
     private readonly ObservableCollection<LanguageOptionViewModel> _selectedLanguages = new();
@@ -20,6 +28,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _statusMessage = "Chargement des couleurs...";
 
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    public ICommand RefreshCommand { get; }
 
     public GithubColorsCatalog? GithubColors
     {
@@ -105,6 +115,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(SelectionSummary));
             OnPropertyChanged(nameof(SelectedCount));
             OnPropertyChanged(nameof(VisibleCount));
+            (RefreshCommand as RelayCommand)?.RaiseCanExecuteChanged();
         }
         catch (Exception ex)
         {
@@ -113,6 +124,44 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         finally
         {
             _isInitializing = false;
+            (RefreshCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        }
+    }
+
+    private async Task RefreshColorsAsync()
+    {
+        if (_isInitializing || _isRefreshing)
+            return;
+
+        try
+        {
+            _isRefreshing = true;
+            StatusMessage = "Rafraîchissement des couleurs...";
+            (RefreshCommand as RelayCommand)?.RaiseCanExecuteChanged();
+
+            var newCatalog = await GithubColorsService.FetchAsync(force: true);
+            GithubColors = newCatalog;
+
+            // preserve current selections
+            var currentSelected = _allLanguages.Where(l => l.IsSelected).Select(l => l.Language).ToArray();
+            RebuildLanguages(GithubColors, currentSelected);
+            RefreshSelectedLanguages();
+            ApplyFilter();
+
+            StatusMessage = $"Couleurs rafraîchies: {ColorCount}";
+            OnPropertyChanged(nameof(ColorCount));
+            OnPropertyChanged(nameof(VisibleCount));
+            OnPropertyChanged(nameof(SelectedCount));
+            (RefreshCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Erreur rafraîchissement: {ex.Message}";
+        }
+        finally
+        {
+            _isRefreshing = false;
+            (RefreshCommand as RelayCommand)?.RaiseCanExecuteChanged();
         }
     }
 

@@ -1,3 +1,7 @@
+...existing code...
+
+<!-- Backup of MainWindow.axaml before progressive rewrite -->
+
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Github_Trend"
@@ -99,7 +103,7 @@
                             CornerRadius="18"
                             Padding="14">
                         <StackPanel Spacing="10">
-                            <Grid ColumnDefinitions="*,Auto,Auto">
+                            <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Text="Suggestions"
                                            Foreground="White"
                                            FontWeight="SemiBold"
@@ -112,27 +116,6 @@
                                                Foreground="White"
                                                FontWeight="SemiBold"/>
                                 </Border>
-                                <Button Grid.Column="2"
-                                        Command="{Binding RefreshCommand}"
-                                        Margin="8,0,0,0"
-                                        Padding="8,4"
-                                        Background="#FF1F2937"
-                                        Foreground="White"
-                                        BorderBrush="#FF334155"
-                                        BorderThickness="1"
-                                        CornerRadius="8"
-                                        Classes="refresh-button">
-                                    <Button.Styles>
-                                        <Style Selector="Button.refresh-button:pointerover">
-                                            <Setter Property="Background" Value="#FF334155"/>
-                                            <Setter Property="BorderBrush" Value="#FF60A5FA"/>
-                                        </Style>
-                                        <Style Selector="Button.refresh-button:pressed">
-                                            <Setter Property="Background" Value="#FF0F172A"/>
-                                        </Style>
-                                    </Button.Styles>
-                                    <TextBlock Text="Rafraîchir" FontWeight="SemiBold"/>
-                                </Button>
                             </Grid>
 
                             <TextBlock Text="{Binding MatchingLanguagesLabel}"
