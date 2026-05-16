@@ -100,38 +100,35 @@ jobs:
           if [ "$TAG" = "$GITHUB_REF" ]; then TAG="local"; fi
           PKG_DIR=./artifacts/${{ matrix.platform }}/packages/${{ matrix.rid }}
           mkdir -p "$PKG_DIR"
+          STAGE_DIR=$(mktemp -d)
 
           # package framework-dependent (zip)
           FDD_DIR=./artifacts/${{ matrix.platform }}/publish/fdd/${{ matrix.rid }}
           if [ -d "$FDD_DIR" ]; then
-            fdest="$PKG_DIR/github-trend-${TAG}-${{ matrix.platform }}-${{ matrix.rid }}-fdd"
-            mkdir -p "$fdest"
-            cp -r "$FDD_DIR"/* "$fdest/" || true
-            # ensure executables have correct mode
-            find "$fdest" -type f -exec chmod a+r {} + || true
             # create compressed archive
             if [ "${{ matrix.platform }}" = "windows" ]; then
-              powershell -Command "Compress-Archive -Path '$fdest\*' -DestinationPath './artifacts/${{ matrix.platform }}/packages/${{ matrix.rid }}/github-trend-${TAG}-${{ matrix.platform }}-${{ matrix.rid }}-fdd.zip'"
+              cp -r "$FDD_DIR"/* "$STAGE_DIR"/ || true
+              powershell -Command "Compress-Archive -Path '$STAGE_DIR\*' -DestinationPath './artifacts/${{ matrix.platform }}/packages/${{ matrix.rid }}/github-trend-${TAG}-${{ matrix.platform }}-${{ matrix.rid }}-fdd.zip'"
             else
-              tar -C "${PKG_DIR}" -cJf "${PKG_DIR}/github-trend-${TAG}-${{ matrix.platform }}-${{ matrix.rid }}-fdd.tar.xz" "$(basename "$fdest")"
+              cp -r "$FDD_DIR"/. "$STAGE_DIR"/
+              tar -C "$STAGE_DIR" -cJf "${PKG_DIR}/github-trend-${TAG}-${{ matrix.platform }}-${{ matrix.rid }}-fdd.tar.xz" .
             fi
           fi
 
           # package self-contained
           SCD_DIR=./artifacts/${{ matrix.platform }}/publish/scd/${{ matrix.rid }}
           if [ -d "$SCD_DIR" ]; then
-            scdest="$PKG_DIR/github-trend-${TAG}-${{ matrix.platform }}-${{ matrix.rid }}-scd"
-            mkdir -p "$scdest"
-            cp -r "$SCD_DIR"/* "$scdest/" || true
-            find "$scdest" -type f -exec chmod a+r {} + || true
             if [ "${{ matrix.platform }}" = "windows" ]; then
-              powershell -Command "Compress-Archive -Path '$scdest\*' -DestinationPath './artifacts/${{ matrix.platform }}/packages/${{ matrix.rid }}/github-trend-${TAG}-${{ matrix.platform }}-${{ matrix.rid }}-scd.zip'"
+              cp -r "$SCD_DIR"/* "$STAGE_DIR"/ || true
+              powershell -Command "Compress-Archive -Path '$STAGE_DIR\*' -DestinationPath './artifacts/${{ matrix.platform }}/packages/${{ matrix.rid }}/github-trend-${TAG}-${{ matrix.platform }}-${{ matrix.rid }}-scd.zip'"
             else
               # on unix-like (macos) produce tar.xz and dmg for scd
-              tar -C "${PKG_DIR}" -cJf "${PKG_DIR}/github-trend-${TAG}-${{ matrix.platform }}-${{ matrix.rid }}-scd.tar.xz" "$(basename "$scdest")"
+              rm -rf "$STAGE_DIR"/* || true
+              cp -r "$SCD_DIR"/. "$STAGE_DIR"/
+              tar -C "$STAGE_DIR" -cJf "${PKG_DIR}/github-trend-${TAG}-${{ matrix.platform }}-${{ matrix.rid }}-scd.tar.xz" .
               if [ "${{ matrix.platform }}" = "macos" ] && command -v hdiutil >/dev/null 2>&1; then
                 DMG_NAME="${PKG_DIR}/github-trend-${TAG}-${{ matrix.platform }}-${{ matrix.rid }}-scd.dmg"
-                hdiutil create -volname "Github-Trend" -srcfolder "$scdest" -ov -format UDZO "$DMG_NAME" || true
+                hdiutil create -volname "Github-Trend" -srcfolder "$STAGE_DIR" -ov -format UDZO "$DMG_NAME" || true
               fi
             fi
           fi
@@ -194,28 +191,21 @@ jobs:
             fi
           fi
 
-          echo "Packaged files:" && ls -lh "$PKG_DIR" || true
-
-          # Clean up temporary build artifacts (keep only final packaged files)
-          rm -rf "$PKG_DIR/pkg-root" 2>/dev/null || true
-          # Remove any .pdb, .dll, .so, .dylib, .runtimeconfig.json, .deps.json files
-          find "$PKG_DIR" -maxdepth 1 -type f \( -name "*.pdb" -o -name "*.dll" -o -name "*.so" -o -name "*.dylib" -o -name "*.runtimeconfig.json" -o -name "*.deps.json" -o -name "*.wixobj" -o -name "*.wxs" \) -delete 2>/dev/null || true
-
-          echo "Final packaged files:" && ls -lh "$PKG_DIR" || true
-
-          # Clean up temporary folders and intermediate files, keep only final packages
-          find "$PKG_DIR" -type d -name "pkg-root" -exec rm -rf {} + 2>/dev/null || true
-          find "$PKG_DIR" -type f ! \( -name "*.zip" -o -name "*.tar.gz" -o -name "*.tar.xz" -o -name "*.dmg" -o -name "*.deb" -o -name "*.rpm" -o -name "*-linux-*" \) -delete 2>/dev/null || true
-          # Keep naked Linux binaries (files without extension that are executable)
-          for f in "$PKG_DIR"/*; do if [ -f "$f" ] && [ -x "$f" ] && [[ ! "$f" =~ \..* ]]; then true; else [ -f "$f" ] && [ ! -x "$f" ] && rm -f "$f"; fi; done 2>/dev/null || true
-
-          echo "Final packaged files:" && ls -lh "$PKG_DIR" || true
+          rm -rf "$STAGE_DIR"
+          echo "Final packaged files:" && find "$PKG_DIR" -maxdepth 1 -type f -print -exec ls -lh {} \; || true
 
       - name: Upload packages artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-packages-${{ matrix.platform }}-${{ matrix.rid }}
-          path: ./artifacts/${{ matrix.platform }}/packages/${{ matrix.rid }}
+          path: |
+            ./artifacts/${{ matrix.platform }}/packages/${{ matrix.rid }}/*.zip
+            ./artifacts/${{ matrix.platform }}/packages/${{ matrix.rid }}/*.tar.gz
+            ./artifacts/${{ matrix.platform }}/packages/${{ matrix.rid }}/*.tar.xz
+            ./artifacts/${{ matrix.platform }}/packages/${{ matrix.rid }}/*.dmg
+            ./artifacts/${{ matrix.platform }}/packages/${{ matrix.rid }}/*.deb
+            ./artifacts/${{ matrix.platform }}/packages/${{ matrix.rid }}/*.rpm
+            ./artifacts/${{ matrix.platform }}/packages/${{ matrix.rid }}/github-trend-*
           if-no-files-found: ignore
 
       - name: Report publish result

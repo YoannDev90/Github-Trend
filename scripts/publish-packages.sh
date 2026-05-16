@@ -31,14 +31,17 @@ for RID in "${RIDS[@]}"; do
   # packaging
   PKG_DIR=./publish/packages/${RID}
   mkdir -p "$PKG_DIR"
+  STAGE_DIR=$(mktemp -d)
 
   # package FDD
   if [ -d "$FDD_OUT" ]; then
     echo "Packaging FDD for $RID"
     if [[ "$RID" == win-* ]]; then
-      zip -r "$PKG_DIR/github-trend-${TAG}-${RID}-fdd.zip" "$FDD_OUT" >/dev/null
+      cp -r "$FDD_OUT"/. "$STAGE_DIR"/
+      zip -r "$PKG_DIR/github-trend-${TAG}-${RID}-fdd.zip" "$STAGE_DIR" >/dev/null
     else
-      tar -czf "$PKG_DIR/github-trend-${TAG}-${RID}-fdd.tar.gz" -C "$FDD_OUT" .
+      cp -r "$FDD_OUT"/. "$STAGE_DIR"/
+      tar -czf "$PKG_DIR/github-trend-${TAG}-${RID}-fdd.tar.gz" -C "$STAGE_DIR" .
     fi
   fi
 
@@ -46,13 +49,17 @@ for RID in "${RIDS[@]}"; do
   if [ -d "$SCD_OUT" ]; then
     echo "Packaging SCD for $RID"
     if [[ "$RID" == win-* ]]; then
-      zip -r "$PKG_DIR/github-trend-${TAG}-${RID}-scd.zip" "$SCD_OUT" >/dev/null
+      rm -rf "$STAGE_DIR"/*
+      cp -r "$SCD_OUT"/. "$STAGE_DIR"/
+      zip -r "$PKG_DIR/github-trend-${TAG}-${RID}-scd.zip" "$STAGE_DIR" >/dev/null
     else
-      tar -czf "$PKG_DIR/github-trend-${TAG}-${RID}-scd.tar.gz" -C "$SCD_OUT" .
+      rm -rf "$STAGE_DIR"/*
+      cp -r "$SCD_OUT"/. "$STAGE_DIR"/
+      tar -czf "$PKG_DIR/github-trend-${TAG}-${RID}-scd.tar.gz" -C "$STAGE_DIR" .
       if command -v hdiutil >/dev/null 2>&1; then
         DMG="$PKG_DIR/github-trend-${TAG}-${RID}-scd.dmg"
         echo "Creating DMG $DMG"
-        hdiutil create -volname "Github-Trend" -srcfolder "$SCD_OUT" -ov -format UDZO "$DMG" || true
+        hdiutil create -volname "Github-Trend" -srcfolder "$STAGE_DIR" -ov -format UDZO "$DMG" || true
       fi
 
       # Linux extra packaging: create naked binary, tar.gz, deb and rpm (best-effort)
@@ -83,10 +90,8 @@ for RID in "${RIDS[@]}"; do
           tar -C "$PKG_DIR" -czf "$PKG_DIR/${BASENAME}.tar.gz" "$(basename "$NAKED")"
 
           PKG_ROOT="$PKG_DIR/pkg-root"
-          rm -rf "$PKG_ROOT" || true
-          mkdir -p "$PKG_ROOT/usr/local/bin"
-          cp "$NAKED" "$PKG_ROOT/usr/local/bin/github-trend"
 
+    rm -rf "$STAGE_DIR"
           (cd "$PKG_DIR" && fpm -s dir -t deb -n github-trend -v "$TAG" --prefix / -C "$PKG_ROOT" usr/local/bin/github-trend) || true
           (cd "$PKG_DIR" && fpm -s dir -t rpm -n github-trend -v "$TAG" --prefix / -C "$PKG_ROOT" usr/local/bin/github-trend) || true
         else
