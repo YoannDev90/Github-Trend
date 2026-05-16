@@ -47,11 +47,6 @@ for RID in "${RIDS[@]}"; do
     echo "Packaging SCD for $RID"
     if [[ "$RID" == win-* ]]; then
       zip -r "$PKG_DIR/github-trend-${TAG}-${RID}-scd.zip" "$SCD_OUT" >/dev/null
-        # also expose the exe at top-level in the package dir
-        EXE=$(ls "$SCD_OUT" | grep -i '\.exe$' | head -n1 || true)
-        if [ -n "$EXE" ]; then
-          cp "$SCD_OUT/$EXE" "$PKG_DIR/github-trend-${TAG}-${RID}.exe" || true
-        fi
     else
       tar -czf "$PKG_DIR/github-trend-${TAG}-${RID}-scd.tar.gz" -C "$SCD_OUT" .
       if command -v hdiutil >/dev/null 2>&1; then

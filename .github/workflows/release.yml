@@ -126,48 +126,6 @@ jobs:
             find "$scdest" -type f -exec chmod a+r {} + || true
             if [ "${{ matrix.platform }}" = "windows" ]; then
               powershell -Command "Compress-Archive -Path '$scdest\*' -DestinationPath './artifacts/${{ matrix.platform }}/packages/${{ matrix.rid }}/github-trend-${TAG}-${{ matrix.platform }}-${{ matrix.rid }}-scd.zip'"
-              # try to create a basic MSI using WiX (best-effort)
-              if [ "${{ matrix.os }}" = "Windows_NT" ]; then
-                choco install wixtoolset -y || true
-                WXSDIR="$scdest"
-                WXS_FILE="$PKG_DIR/product.wxs"
-                PRODUCT_GUID=$(uuidgen)
-                cat > "$WXS_FILE" <<'WXS'
-<?xml version="1.0" encoding="UTF-8"?>
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <Product Id="REPLACE-GUID" Name="Github Trend" Language="1036" Version="1.0.0" Manufacturer="GithubTrend" UpgradeCode="REPLACE-GUID">
-    <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine"/>
-    <MediaTemplate/>
-    <Directory Id="TARGETDIR" Name="SourceDir">
-      <Directory Id="ProgramFilesFolder">
-        <Directory Id="INSTALLFOLDER" Name="GithubTrend"/>
-      </Directory>
-    </Directory>
-    <DirectoryRef Id="INSTALLFOLDER">
-      <Component Id="MainExecutable" Guid="REPLACE-GUID">
-        <File Id="ExeFile" Source="REPLACE-EXE" KeyPath="yes"/>
-      </Component>
-    </DirectoryRef>
-    <Feature Id="DefaultFeature" Level="1">
-      <ComponentRef Id="MainExecutable"/>
-    </Feature>
-  </Product>
-</Wix>
-WXS
-                # replace placeholders
-                EXE_PATH=$(ls "$scdest" | grep -i '\.exe$' | head -n1 || true)
-                if [ -n "$EXE_PATH" ]; then
-                  sed -i "s|REPLACE-EXE|$scdest\\\\$EXE_PATH|g" "$WXS_FILE"
-                fi
-                sed -i "s|REPLACE-GUID|{$PRODUCT_GUID}|g" "$WXS_FILE"
-                candle "$WXS_FILE" -o "$PKG_DIR/" || true
-                light -o "$PKG_DIR/github-trend-${TAG}-${{ matrix.platform }}-${{ matrix.rid }}-scd.msi" "$PKG_DIR/product.wixobj" || true
-                # also expose the .exe as a top-level asset for convenience
-                EXE_FILE=$(ls "$scdest" | grep -i '\.exe$' | head -n1 || true)
-                if [ -n "$EXE_FILE" ]; then
-                  cp "$scdest/$EXE_FILE" "$PKG_DIR/github-trend-${TAG}-${{ matrix.rid }}.exe" || true
-                fi
-              fi
             else
               # on unix-like (macos) produce tar.xz and dmg for scd
               tar -C "${PKG_DIR}" -cJf "${PKG_DIR}/github-trend-${TAG}-${{ matrix.platform }}-${{ matrix.rid }}-scd.tar.xz" "$(basename "$scdest")"
