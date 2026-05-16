@@ -227,6 +227,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         _ = RefreshColorsAsync();
     }
 
+
     private async Task RefreshTrendingRepositoriesAsync()
     {
         try

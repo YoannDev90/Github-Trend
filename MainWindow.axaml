@@ -50,18 +50,6 @@
                                                Foreground="#FF94A3B8"
                                                FontSize="11"/>
                                 </StackPanel>
-                                <Border Grid.Row="0"
-                                        Grid.Column="1"
-                                        Background="#FF0F172A"
-                                        BorderBrush="#FF1D4ED8"
-                                        BorderThickness="1"
-                                        CornerRadius="999"
-                                        Padding="10,4">
-                                    <TextBlock Text="{Binding SelectedTimeRangeLabel}"
-                                               Foreground="#FF93C5FD"
-                                               FontSize="11"
-                                               FontWeight="SemiBold"/>
-                                </Border>
                             </Grid>
 
                             <Border Background="#0B1220"
@@ -69,68 +57,82 @@
                                     BorderThickness="1"
                                     CornerRadius="16"
                                     Padding="8">
-                                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="8">
-                                    <RadioButton GroupName="TimeRange"
-                                                 IsChecked="{Binding IsDailySelected, Mode=TwoWay}"
+                                <Grid ColumnDefinitions="*,*"
+                                      RowDefinitions="Auto,Auto"
+                                      ColumnSpacing="8"
+                                      RowSpacing="8">
+                                    <Button x:Name="DailyTimeRangeButton"
+                                                 Click="OnTimeRangeButtonClick"
+                                                 Tag="0"
                                                  Content="Daily"
                                                  Height="44"
                                                  HorizontalAlignment="Stretch"
+                                                 VerticalAlignment="Center"
+                                                 Padding="12"
                                                  Background="#111827"
                                                  Foreground="#CBD5E1"
                                                  BorderBrush="#334155"
                                                  BorderThickness="1"
                                                  HorizontalContentAlignment="Center"
                                                  VerticalContentAlignment="Center"
+                                                 FontWeight="SemiBold"
                                                  Classes="time-range-pill"/>
-                                    <RadioButton Grid.Column="1"
-                                                 GroupName="TimeRange"
-                                                 IsChecked="{Binding IsWeeklySelected, Mode=TwoWay}"
+                                    <Button x:Name="WeeklyTimeRangeButton"
+                                                 Grid.Row="0" Grid.Column="1"
+                                                 Click="OnTimeRangeButtonClick"
+                                                 Tag="1"
                                                  Content="Weekly"
                                                  Height="44"
                                                  HorizontalAlignment="Stretch"
+                                                 VerticalAlignment="Center"
+                                                 Padding="12"
                                                  Background="#111827"
                                                  Foreground="#CBD5E1"
                                                  BorderBrush="#334155"
                                                  BorderThickness="1"
                                                  HorizontalContentAlignment="Center"
                                                  VerticalContentAlignment="Center"
+                                                 FontWeight="SemiBold"
                                                  Classes="time-range-pill"/>
-                                    <RadioButton Grid.Row="1"
-                                                 GroupName="TimeRange"
-                                                 IsChecked="{Binding IsMonthlySelected, Mode=TwoWay}"
+                                    <Button x:Name="MonthlyTimeRangeButton"
+                                                 Grid.Row="1" Grid.Column="0"
+                                                 Click="OnTimeRangeButtonClick"
+                                                 Tag="2"
                                                  Content="Monthly"
                                                  Height="44"
                                                  HorizontalAlignment="Stretch"
+                                                 VerticalAlignment="Center"
+                                                 Padding="12"
                                                  Background="#111827"
                                                  Foreground="#CBD5E1"
                                                  BorderBrush="#334155"
                                                  BorderThickness="1"
                                                  HorizontalContentAlignment="Center"
                                                  VerticalContentAlignment="Center"
+                                                 FontWeight="SemiBold"
                                                  Classes="time-range-pill"/>
-                                    <RadioButton Grid.Row="1"
+                                    <Button x:Name="AllTimeRangeButton"
+                                                 Grid.Row="1"
                                                  Grid.Column="1"
-                                                 GroupName="TimeRange"
-                                                 IsChecked="{Binding IsAllSelected, Mode=TwoWay}"
+                                                 Click="OnTimeRangeButtonClick"
+                                                 Tag="3"
                                                  Content="All"
                                                  Height="44"
                                                  HorizontalAlignment="Stretch"
+                                                 VerticalAlignment="Center"
+                                                 Padding="12"
                                                  Background="#111827"
                                                  Foreground="#CBD5E1"
                                                  BorderBrush="#334155"
                                                  BorderThickness="1"
                                                  HorizontalContentAlignment="Center"
                                                  VerticalContentAlignment="Center"
+                                                 FontWeight="SemiBold"
                                                  Classes="time-range-pill"/>
                                     <Grid.Styles>
-                                        <Style Selector="RadioButton.time-range-pill:pointerover">
+                                        <Style Selector="Button.time-range-pill:pointerover">
                                             <Setter Property="Background" Value="#1F2937"/>
                                             <Setter Property="BorderBrush" Value="#60A5FA"/>
-                                            <Setter Property="Foreground" Value="White"/>
-                                        </Style>
-                                        <Style Selector="RadioButton.time-range-pill:checked">
-                                            <Setter Property="Background" Value="#1D4ED8"/>
-                                            <Setter Property="BorderBrush" Value="#1D4ED8"/>
                                             <Setter Property="Foreground" Value="White"/>
                                         </Style>
                                     </Grid.Styles>
@@ -253,10 +255,12 @@
                                                                 Width="6"/>
 
                                                         <StackPanel Grid.Column="1"
-                                                                    Spacing="4">
+                                                                    Spacing="4"
+                                                                    VerticalAlignment="Center">
                                                             <TextBlock Text="{Binding Language}"
                                                                        Foreground="#FFF8FAFC"
-                                                                       FontWeight="SemiBold"/>
+                                                                       FontWeight="SemiBold"
+                                                                       VerticalAlignment="Center"/>
                                                         </StackPanel>
 
                                                         <CheckBox Grid.Column="2"
