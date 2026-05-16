@@ -21,6 +21,7 @@ Github Trend is a desktop app built with [Avalonia UI](https://avaloniaui.net/) 
 ## Screenshots
 
 ![The first screenshot](Screenshots/1.png)
+![The second screenshot](Screenshots/2.png)
 
 ## Requirements
 

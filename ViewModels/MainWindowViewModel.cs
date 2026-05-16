@@ -24,11 +24,19 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public MainWindowViewModel()
     {
         RefreshCommand = new RelayCommand(_ => ExecuteRefreshColors(), _ => !_isInitializing && !_isRefreshing);
+        GitHubSignInCommand = new RelayCommand(_ => _ = SignInWithGitHubAsync(), _ => !_isInitializing && !_isGitHubAuthenticating);
+        GitHubSignOutCommand = new RelayCommand(_ => _ = SignOutGitHubAsync(), _ => IsGitHubConnected && !_isGitHubAuthenticating);
+        GitHubRefreshCommand = new RelayCommand(_ => _ = RefreshGitHubSessionAsync(), _ => IsGitHubConnected && !_isGitHubAuthenticating);
+        _githubAuthService.SessionChanged += (_, _) => UpdateGitHubAuthState();
         _selectedTimeRangeIndex = 0;
+        _githubAuthStatus = "Connexion GitHub non configurée";
+        _githubAccountSummary = "Aucun compte connecté";
     }
 
     private bool _isRefreshing;
+    private bool _isGitHubAuthenticating;
     private readonly SelectedLanguagesStore _selectedLanguagesStore = new();
+    private readonly GitHubAuthenticationService _githubAuthService = new();
     private readonly ObservableCollection<LanguageOptionViewModel> _filteredLanguages = new();
     private readonly ObservableCollection<LanguageOptionViewModel> _selectedLanguages = new();
     private readonly List<LanguageOptionViewModel> _allLanguages = new();
@@ -36,6 +44,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private GithubColorsCatalog? _githubColors;
     private string _searchText = string.Empty;
     private string _statusMessage = "Chargement des couleurs...";
+    private string _githubAuthStatus;
+    private string _githubAccountSummary;
 
     private readonly ObservableCollection<GithubTrendingRepository> _trendingRepositories = new();
     private List<GithubTrendingRepository>? _trendingData;
@@ -45,6 +55,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public ICommand RefreshCommand { get; }
+
+    public ICommand GitHubSignInCommand { get; }
+
+    public ICommand GitHubSignOutCommand { get; }
+
+    public ICommand GitHubRefreshCommand { get; }
 
 
     public ObservableCollection<GithubTrendingRepository> TrendingRepositories => _trendingRepositories;
@@ -172,6 +188,54 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
+    public bool IsGitHubConnected => _githubAuthService.IsConnected;
+
+    public bool IsGitHubAuthenticating
+    {
+        get => _isGitHubAuthenticating;
+        private set
+        {
+            if (_isGitHubAuthenticating == value)
+            {
+                return;
+            }
+
+            _isGitHubAuthenticating = value;
+            OnPropertyChanged();
+            RaiseGitHubCommandStateChanged();
+        }
+    }
+
+    public string GitHubAuthStatus
+    {
+        get => _githubAuthStatus;
+        private set
+        {
+            if (_githubAuthStatus == value)
+            {
+                return;
+            }
+
+            _githubAuthStatus = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string GitHubAccountSummary
+    {
+        get => _githubAccountSummary;
+        private set
+        {
+            if (_githubAccountSummary == value)
+            {
+                return;
+            }
+
+            _githubAccountSummary = value;
+            OnPropertyChanged();
+        }
+    }
+
     public int ColorCount => GithubColors?.Colors.Count ?? 0;
 
     public int SelectedCount => _selectedLanguages.Count;
@@ -209,6 +273,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(SelectionSummary));
             OnPropertyChanged(nameof(SelectedCount));
             OnPropertyChanged(nameof(VisibleCount));
+            await _githubAuthService.InitializeAsync();
+            UpdateGitHubAuthState();
             (RefreshCommand as RelayCommand)?.RaiseCanExecuteChanged();
         }
         catch (Exception ex)
@@ -219,9 +285,92 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         {
             _isInitializing = false;
             (RefreshCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            RaiseGitHubCommandStateChanged();
         }
         Console.WriteLine("[Trending] initial trending refresh queued");
         _ = RefreshTrendingRepositoriesAsync();
+    }
+
+    private async Task SignInWithGitHubAsync()
+    {
+        if (_isInitializing || _isGitHubAuthenticating)
+        {
+            return;
+        }
+
+        try
+        {
+            IsGitHubAuthenticating = true;
+            GitHubAuthStatus = "Ouverture de GitHub...";
+            var session = await _githubAuthService.BeginInteractiveSignInAsync();
+            UpdateGitHubAuthState(session);
+            StatusMessage = $"Connexion GitHub réussie: {session?.Summary}";
+        }
+        catch (Exception ex)
+        {
+            GitHubAuthStatus = $"Connexion GitHub échouée: {ex.Message}";
+            StatusMessage = GitHubAuthStatus;
+        }
+        finally
+        {
+            IsGitHubAuthenticating = false;
+            RaiseGitHubCommandStateChanged();
+        }
+    }
+
+    private async Task RefreshGitHubSessionAsync()
+    {
+        try
+        {
+            IsGitHubAuthenticating = true;
+            GitHubAuthStatus = "Rafraîchissement de la session GitHub...";
+            await _githubAuthService.RefreshCurrentAsync();
+            UpdateGitHubAuthState();
+            StatusMessage = GitHubAuthStatus;
+        }
+        catch (Exception ex)
+        {
+            GitHubAuthStatus = $"Rafraîchissement GitHub impossible: {ex.Message}";
+            StatusMessage = GitHubAuthStatus;
+        }
+        finally
+        {
+            IsGitHubAuthenticating = false;
+            RaiseGitHubCommandStateChanged();
+        }
+    }
+
+    private async Task SignOutGitHubAsync()
+    {
+        await _githubAuthService.SignOutAsync();
+        UpdateGitHubAuthState();
+        StatusMessage = "Session GitHub supprimée.";
+    }
+
+    private void UpdateGitHubAuthState(GitHubAuthSession? session = null)
+    {
+        session ??= _githubAuthService.CurrentSession;
+
+        if (session is null)
+        {
+            GitHubAuthStatus = "Non connecté à GitHub";
+            GitHubAccountSummary = "Aucun compte lié";
+        }
+        else
+        {
+            GitHubAuthStatus = $"Connecté à GitHub: {session.Summary}";
+            GitHubAccountSummary = $"Compte lié: {session.DisplayName} ({session.Login})";
+        }
+
+        OnPropertyChanged(nameof(IsGitHubConnected));
+        RaiseGitHubCommandStateChanged();
+    }
+
+    private void RaiseGitHubCommandStateChanged()
+    {
+        (GitHubSignInCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        (GitHubSignOutCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        (GitHubRefreshCommand as RelayCommand)?.RaiseCanExecuteChanged();
     }
 
     private void ExecuteRefreshColors()
