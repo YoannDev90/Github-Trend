@@ -188,6 +188,7 @@ public static class GithubRepositoryDetailsService
                 await TryLoadBitmapAsync(contributor.AvatarUrl)))
             .ToArray();
 
+
         return await Task.WhenAll(previewTasks);
     }
 
@@ -264,10 +265,15 @@ public static class GithubRepositoryDetailsService
         return sanitized.TrimEnd('/');
     }
 
-    private static async Task<Bitmap?> TryLoadBitmapAsync(string url)
+    private static async Task<Bitmap?> TryLoadBitmapAsync(string? url)
     {
         try
         {
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                return null;
+            }
+
             using var stream = await Http.GetStreamAsync(url);
             await using var memory = new MemoryStream();
             await stream.CopyToAsync(memory);
@@ -327,12 +333,10 @@ public static class GithubRepositoryDetailsService
     private sealed class GitHubLicenseInfo
     {
         [JsonPropertyName("spdx_id")]
-        [JsonInclude]
-        public string? SpdxId;
+        public string? SpdxId { get; set; }
 
         [JsonPropertyName("name")]
-        [JsonInclude]
-        public string? Name;
+        public string? Name { get; set; }
     }
 
     private sealed record GitHubContributorResponse

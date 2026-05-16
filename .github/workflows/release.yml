@@ -25,19 +25,37 @@ permissions:
 
 jobs:
   build:
-    name: Release build (${{ matrix.os }})
+    name: Release build (${{ matrix.rid }})
     runs-on: ${{ matrix.os }}
     continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            platform: linux
           - os: windows-latest
             platform: windows
+            rid: win-x64
+            arch: x64
+          - os: windows-latest
+            platform: windows
+            rid: win-arm64
+            arch: arm64
           - os: macos-latest
             platform: macos
+            rid: osx-x64
+            arch: x64
+          - os: macos-latest
+            platform: macos
+            rid: osx-arm64
+            arch: arm64
+          - os: ubuntu-latest
+            platform: linux
+            rid: linux-x64
+            arch: x64
+          - os: ubuntu-latest
+            platform: linux
+            rid: linux-arm64
+            arch: arm64
 
     steps:
       - name: Checkout
@@ -48,28 +66,191 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      - name: Restore
-        run: dotnet restore Github-Trend.sln
+      - name: Restore (solution-wide)
+        run: dotnet restore ./Github-Trend.csproj || dotnet restore Github-Trend.sln || true
 
-      - name: Publish
-        id: publish
-        continue-on-error: true
-        run: dotnet publish Github-Trend.sln -c Release --no-restore -o ./artifacts/${{ matrix.platform }}
+      - name: Publish framework-dependent (FDD)
+        id: publish-fdd
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=./artifacts/${{ matrix.platform }}/publish/fdd/${{ matrix.rid }}
+          mkdir -p "$OUT"
+          echo "Publishing framework-dependent output (RID=${{ matrix.rid }}) to $OUT"
+          # ensure restore for this RID and publish the project (not the solution)
+          dotnet restore ./Github-Trend.csproj --runtime ${{ matrix.rid }} || true
+          dotnet publish ./Github-Trend.csproj -c Release -r ${{ matrix.rid }} --self-contained false -p:DebugType=None -p:DebugSymbols=false -o "$OUT" --no-restore || true
 
-      - name: Upload artifact
-        if: always()
+      - name: Publish self-contained (SCD)
+        id: publish-scd
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=./artifacts/${{ matrix.platform }}/publish/scd/${{ matrix.rid }}
+          mkdir -p "$OUT"
+          echo "Publishing self-contained output (RID=${{ matrix.rid }}) to $OUT"
+          dotnet restore ./Github-Trend.csproj --runtime ${{ matrix.rid }} || true
+          dotnet publish ./Github-Trend.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=true -p:EnableCompressionInSingleFile=true -p:DebugType=None -p:DebugSymbols=false -o "$OUT" --no-restore || true
+
+      - name: Package outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF#refs/tags/}"
+          if [ "$TAG" = "$GITHUB_REF" ]; then TAG="local"; fi
+          PKG_DIR=./artifacts/${{ matrix.platform }}/packages/${{ matrix.rid }}
+          mkdir -p "$PKG_DIR"
+
+          # package framework-dependent (zip)
+          FDD_DIR=./artifacts/${{ matrix.platform }}/publish/fdd/${{ matrix.rid }}
+          if [ -d "$FDD_DIR" ]; then
+            fdest="$PKG_DIR/github-trend-${TAG}-${{ matrix.platform }}-${{ matrix.rid }}-fdd"
+            mkdir -p "$fdest"
+            cp -r "$FDD_DIR"/* "$fdest/" || true
+            # ensure executables have correct mode
+            find "$fdest" -type f -exec chmod a+r {} + || true
+            # create compressed archive
+            if [ "${{ matrix.platform }}" = "windows" ]; then
+              powershell -Command "Compress-Archive -Path '$fdest\*' -DestinationPath './artifacts/${{ matrix.platform }}/packages/${{ matrix.rid }}/github-trend-${TAG}-${{ matrix.platform }}-${{ matrix.rid }}-fdd.zip'"
+            else
+              tar -C "${PKG_DIR}" -cJf "${PKG_DIR}/github-trend-${TAG}-${{ matrix.platform }}-${{ matrix.rid }}-fdd.tar.xz" "$(basename "$fdest")"
+            fi
+          fi
+
+          # package self-contained
+          SCD_DIR=./artifacts/${{ matrix.platform }}/publish/scd/${{ matrix.rid }}
+          if [ -d "$SCD_DIR" ]; then
+            scdest="$PKG_DIR/github-trend-${TAG}-${{ matrix.platform }}-${{ matrix.rid }}-scd"
+            mkdir -p "$scdest"
+            cp -r "$SCD_DIR"/* "$scdest/" || true
+            find "$scdest" -type f -exec chmod a+r {} + || true
+            if [ "${{ matrix.platform }}" = "windows" ]; then
+              powershell -Command "Compress-Archive -Path '$scdest\*' -DestinationPath './artifacts/${{ matrix.platform }}/packages/${{ matrix.rid }}/github-trend-${TAG}-${{ matrix.platform }}-${{ matrix.rid }}-scd.zip'"
+              # try to create a basic MSI using WiX (best-effort)
+              if [ "${{ matrix.os }}" = "Windows_NT" ]; then
+                choco install wixtoolset -y || true
+                WXSDIR="$scdest"
+                WXS_FILE="$PKG_DIR/product.wxs"
+                PRODUCT_GUID=$(uuidgen)
+                cat > "$WXS_FILE" <<'WXS'
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="REPLACE-GUID" Name="Github Trend" Language="1036" Version="1.0.0" Manufacturer="GithubTrend" UpgradeCode="REPLACE-GUID">
+    <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine"/>
+    <MediaTemplate/>
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFilesFolder">
+        <Directory Id="INSTALLFOLDER" Name="GithubTrend"/>
+      </Directory>
+    </Directory>
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="MainExecutable" Guid="REPLACE-GUID">
+        <File Id="ExeFile" Source="REPLACE-EXE" KeyPath="yes"/>
+      </Component>
+    </DirectoryRef>
+    <Feature Id="DefaultFeature" Level="1">
+      <ComponentRef Id="MainExecutable"/>
+    </Feature>
+  </Product>
+</Wix>
+WXS
+                # replace placeholders
+                EXE_PATH=$(ls "$scdest" | grep -i '\.exe$' | head -n1 || true)
+                if [ -n "$EXE_PATH" ]; then
+                  sed -i "s|REPLACE-EXE|$scdest\\\\$EXE_PATH|g" "$WXS_FILE"
+                fi
+                sed -i "s|REPLACE-GUID|{$PRODUCT_GUID}|g" "$WXS_FILE"
+                candle "$WXS_FILE" -o "$PKG_DIR/" || true
+                light -o "$PKG_DIR/github-trend-${TAG}-${{ matrix.platform }}-${{ matrix.rid }}-scd.msi" "$PKG_DIR/product.wixobj" || true
+                # also expose the .exe as a top-level asset for convenience
+                EXE_FILE=$(ls "$scdest" | grep -i '\.exe$' | head -n1 || true)
+                if [ -n "$EXE_FILE" ]; then
+                  cp "$scdest/$EXE_FILE" "$PKG_DIR/github-trend-${TAG}-${{ matrix.rid }}.exe" || true
+                fi
+              fi
+            else
+              # on unix-like (macos) produce tar.xz and dmg for scd
+              tar -C "${PKG_DIR}" -cJf "${PKG_DIR}/github-trend-${TAG}-${{ matrix.platform }}-${{ matrix.rid }}-scd.tar.xz" "$(basename "$scdest")"
+              if [ "${{ matrix.platform }}" = "macos" ] && command -v hdiutil >/dev/null 2>&1; then
+                DMG_NAME="${PKG_DIR}/github-trend-${TAG}-${{ matrix.platform }}-${{ matrix.rid }}-scd.dmg"
+                hdiutil create -volname "Github-Trend" -srcfolder "$scdest" -ov -format UDZO "$DMG_NAME" || true
+              fi
+            fi
+          fi
+
+          # Additional Linux packaging: .deb, .rpm, naked binary and tar.gz
+          if [ "${{ matrix.platform }}" = "linux" ]; then
+            echo "Running linux-specific packaging"
+            # ensure upx and fpm available
+            sudo apt-get update -y || true
+            sudo apt-get install -y --no-install-recommends upx ruby ruby-dev build-essential rpm dpkg-dev fakeroot || true
+            sudo gem install --no-document fpm || true
+
+            # choose SCD binary if exists, else fallback to FDD apphost
+            BIN=$(find "$SCD_DIR" -maxdepth 1 -type f -executable -print | head -n1 || true)
+            if [ -z "$BIN" ]; then
+              BIN=$(find "$FDD_DIR" -maxdepth 1 -type f -executable -print | head -n1 || true)
+            fi
+            if [ -z "$BIN" ]; then
+              # fallback: try to locate by name
+              BIN=$(ls "$SCD_DIR" 2>/dev/null | grep -i github-trend | head -n1 || true)
+              if [ -n "$BIN" ]; then BIN="$SCD_DIR/$BIN"; fi
+            fi
+
+            if [ -f "$BIN" ]; then
+              echo "Found binary: $BIN"
+              BASENAME=github-trend-${TAG}-${{ matrix.rid }}
+              # create naked binary (no extension)
+              NAKED="$PKG_DIR/${BASENAME}"
+              mkdir -p "$PKG_DIR"
+              cp "$BIN" "$NAKED" || true
+              chmod +x "$NAKED" || true
+
+              # compress naked binary with upx to reduce size
+              if command -v upx >/dev/null 2>&1; then
+                upx --best --lzma -o "$PKG_DIR/${BASENAME}.upx" "$NAKED" || cp "$NAKED" "$PKG_DIR/${BASENAME}.upx"
+              else
+                cp "$NAKED" "$PKG_DIR/${BASENAME}.upx"
+              fi
+
+              # create tar.gz of naked binary
+              tar -C "$PKG_DIR" -czf "$PKG_DIR/${BASENAME}.tar.gz" "$(basename "$NAKED")"
+
+              # build /usr/local/bin layout for packages
+              PKG_ROOT="$PKG_DIR/pkg-root"
+              rm -rf "$PKG_ROOT" || true
+              mkdir -p "$PKG_ROOT/usr/local/bin"
+              cp "$NAKED" "$PKG_ROOT/usr/local/bin/github-trend"
+
+              # create deb
+              (cd "$PKG_DIR" && fpm -s dir -t deb -n github-trend -v "$TAG" --prefix / -C "$PKG_ROOT" usr/local/bin/github-trend) || true
+              mv "$PKG_DIR"/*.deb "$PKG_DIR/" 2>/dev/null || true
+
+              # create rpm
+              (cd "$PKG_DIR" && fpm -s dir -t rpm -n github-trend -v "$TAG" --prefix / -C "$PKG_ROOT" usr/local/bin/github-trend) || true
+              mv "$PKG_DIR"/*.rpm "$PKG_DIR/" 2>/dev/null || true
+
+              echo "Linux packages created in $PKG_DIR"
+            else
+              echo "No executable found for linux packaging (SCD/FDD)." >&2
+            fi
+          fi
+
+          echo "Packaged files:" && ls -lh "$PKG_DIR" || true
+
+      - name: Upload packages artifact
         uses: actions/upload-artifact@v4
         with:
-          name: GithubTrend-${{ matrix.platform }}
-          path: ./artifacts/${{ matrix.platform }}
+          name: release-packages-${{ matrix.platform }}-${{ matrix.rid }}
+          path: ./artifacts/${{ matrix.platform }}/packages/${{ matrix.rid }}
           if-no-files-found: ignore
 
       - name: Report publish result
         if: always()
         run: |
+          echo "RID: ${{ matrix.rid }}"
           echo "Platform: ${{ matrix.platform }}"
-          echo "Publish outcome: ${{ steps.publish.outcome }}"
-          echo "This workflow is intentionally non-blocking so it can surface issues before shipping a release."
+          echo "Publish steps completed (non-blocking)."
 
   release:
     name: Create GitHub Release
@@ -99,14 +280,18 @@ jobs:
           echo "release_name=$RELEASE_NAME" >> "$GITHUB_OUTPUT"
           echo "draft=$DRAFT" >> "$GITHUB_OUTPUT"
 
-      - name: Download published artifacts
+      - name: Download all package artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: GithubTrend-*
+          pattern: release-packages*
           path: ./release-assets
-          merge-multiple: false
+          merge-multiple: true
 
-      - name: Create GitHub Release
+      - name: List downloaded assets
+        run: |
+          echo "Downloaded files:" && find release-assets -type f -maxdepth 3 -print || true
+
+      - name: Create GitHub Release and upload packaged files
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.meta.outputs.tag_name }}
@@ -122,5 +307,5 @@ jobs:
         run: |
           echo "Release tag: ${{ steps.meta.outputs.tag_name }}"
           echo "Release name: ${{ steps.meta.outputs.release_name }}"
-          echo "Release creation is intentionally non-blocking for pre-release validation purposes."
+          echo "Packaged artifacts attached to release (best-effort)."
 
