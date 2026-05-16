@@ -1,0 +1,30 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Github_Trend"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:DataType="vm:MainWindowViewModel"
+        x:Class="Github_Trend.MainWindow"
+        Title="Github_Trend">
+    <DockPanel>
+        <!-- Menu de gauche (1/3 de la largeur) -->
+        <StackPanel Background="#FFF2F2F2" 
+                    Width="330" 
+                    DockPanel.Dock="Left"
+                    Orientation="Vertical">
+            <!-- Bouton d'exemple dans le menu -->
+            <Button Content="Menu Item" 
+                    Margin="10" 
+                    HorizontalAlignment="Stretch"/>
+        </StackPanel>
+        
+        <!-- Zone de texte à droite -->
+        <ScrollViewer Background="#FFFFFFFF" 
+                      DockPanel.Dock="Right"
+                      Padding="10">
+            <TextBlock Text="{Binding StatusMessage}"
+                       TextWrapping="Wrap"/>
+        </ScrollViewer>
+    </DockPanel>
+</Window>
