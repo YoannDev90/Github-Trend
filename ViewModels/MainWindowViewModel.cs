@@ -27,9 +27,14 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _searchText = string.Empty;
     private string _statusMessage = "Chargement des couleurs...";
 
+    private readonly ObservableCollection<GithubTrendingRepository> _trendingRepositories = new();
+    private List<GithubTrendingRepository>? _trendingData;
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public ICommand RefreshCommand { get; }
+
+    public ObservableCollection<GithubTrendingRepository> TrendingRepositories => _trendingRepositories;
 
     public GithubColorsCatalog? GithubColors
     {
@@ -96,6 +101,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         ? "Aucune sélection enregistrée"
         : $"{_selectedLanguages.Count} langage(s) choisi(s)";
 
+    public int TrendingCount => _trendingData?.Count ?? 0;
+
+    public string TrendingLabel => TrendingCount == 0 ? "Aucun repo trending" : $"{TrendingCount} repo(s) trending";
+
     public async Task InitializeAsync()
     {
         try
@@ -126,7 +135,32 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             _isInitializing = false;
             (RefreshCommand as RelayCommand)?.RaiseCanExecuteChanged();
         }
+        // Load trending repos in background (non-blocking)
+        _ = LoadTrendingRepositoriesAsync();
     }
+
+    private async Task LoadTrendingRepositoriesAsync()
+    {
+        try
+        {
+            var trending = await GithubTrendingService.FetchAsync();
+            _trendingData = trending;
+
+            _trendingRepositories.Clear();
+            foreach (var repo in trending.Take(10))
+            {
+                _trendingRepositories.Add(repo);
+            }
+
+            OnPropertyChanged(nameof(TrendingCount));
+            OnPropertyChanged(nameof(TrendingLabel));
+        }
+         catch (Exception ex)
+         {
+             // Log silently or optionally update status
+             System.Diagnostics.Debug.WriteLine($"Erreur chargement trending: {ex.Message}");
+         }
+     }
 
     private async Task RefreshColorsAsync()
     {
