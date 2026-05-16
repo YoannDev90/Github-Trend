@@ -23,6 +23,16 @@ Github Trend is a desktop app built with [Avalonia UI](https://avaloniaui.net/) 
 ![The first screenshot](Screenshots/1.png)
 ![The second screenshot](Screenshots/2.png)
 
+## Todo
+
+- [ ] Add a loading indicator while fetching data
+- [ ] Handle API rate limits and errors gracefully
+- [ ] Implement i18n support for multiple languages
+- [ ] Add a settings page for user preferences (e.g., theme, default time range)
+- [ ] Cache fetched data to reduce API calls and improve performance
+- [ ] Allow direct staring/watching of repositories from the app
+- [ ] Add a "Don't show this again" button on repository cards to hide unwanted repositories
+
 ## Requirements
 
 - .NET 10 SDK
