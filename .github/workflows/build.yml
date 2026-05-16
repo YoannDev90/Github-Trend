@@ -1,0 +1,44 @@
+name: Build
+
+on:
+  push:
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+          - os: windows-latest
+            platform: windows
+          - os: macos-latest
+            platform: macos
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore Github-Trend.sln
+
+      - name: Build
+        id: build
+        continue-on-error: true
+        run: dotnet build Github-Trend.sln -c Release --no-restore
+
+      - name: Report build result
+        if: always()
+        run: |
+          echo "Platform: ${{ matrix.platform }}"
+          echo "Build outcome: ${{ steps.build.outcome }}"
+          echo "This workflow is intentionally non-blocking so it can surface issues before release."
