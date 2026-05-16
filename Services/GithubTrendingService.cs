@@ -45,7 +45,7 @@ public static class GithubTrendingService
                     if (cached != null)
                     {
                         Console.WriteLine($"[Trending] cache hit ({cached.Count}) for {cacheKey}");
-                        return cached;
+                        return await EnrichTrendingAsync(cached);
                     }
                 }
             }
@@ -86,7 +86,7 @@ public static class GithubTrendingService
                 // ignore cache write failures
             }
 
-            return trending;
+            return await EnrichTrendingAsync(trending);
         }
         catch
         {
@@ -100,7 +100,7 @@ public static class GithubTrendingService
                     if (cached != null)
                     {
                         Console.WriteLine($"[Trending] stale cache fallback ({cached.Count}) for {cacheKey}");
-                        return cached;
+                        return await EnrichTrendingAsync(cached);
                     }
                 }
                 catch
@@ -111,6 +111,12 @@ public static class GithubTrendingService
 
             throw; // rethrow original network exception
         }
+    }
+
+    private static async Task<List<GithubTrendingRepository>> EnrichTrendingAsync(IEnumerable<GithubTrendingRepository> repositories)
+    {
+        var enriched = await Task.WhenAll(repositories.Select(GithubRepositoryDetailsService.EnrichAsync));
+        return enriched.ToList();
     }
 
     private static List<GithubTrendingRepository>? DeserializeTrending(string json)

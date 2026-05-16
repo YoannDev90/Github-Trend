@@ -6,6 +6,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using Avalonia.Media;
 
 namespace Github_Trend;
 
@@ -44,6 +45,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public ICommand RefreshCommand { get; }
+
 
     public ObservableCollection<GithubTrendingRepository> TrendingRepositories => _trendingRepositories;
 
@@ -250,12 +252,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             Console.WriteLine($"[Trending] completed requests: {results.Length}");
 
             var merged = MergeTrendingResults(results);
-            _trendingData = merged;
+            var visualRepositories = ApplyLanguageBrushes(merged);
+            _trendingData = visualRepositories;
 
             Console.WriteLine($"[Trending] merged repos: {merged.Count}");
 
             _trendingRepositories.Clear();
-            foreach (var repo in merged)
+            foreach (var repo in visualRepositories)
             {
                 _trendingRepositories.Add(repo);
             }
@@ -318,6 +321,26 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private static int ParseStars(string? value)
         => int.TryParse(value?.Replace(",", string.Empty), out var parsed) ? parsed : 0;
 
+    private List<GithubTrendingRepository> ApplyLanguageBrushes(IEnumerable<GithubTrendingRepository> repositories)
+    {
+        var defaultBrush = new SolidColorBrush(Color.Parse("#FF3B82F6"));
+
+        return repositories.Select(repository =>
+        {
+            if (GithubColors?.Colors != null
+                && !string.IsNullOrWhiteSpace(repository.Language)
+                && GithubColors.Colors.TryGetValue(repository.Language, out var colorEntry)
+                && !string.IsNullOrWhiteSpace(colorEntry.Color)
+                && Color.TryParse(colorEntry.Color, out var color))
+            {
+                return repository.CloneWith(languageBrush: new SolidColorBrush(color));
+            }
+
+            return repository.CloneWith(languageBrush: defaultBrush);
+        }).ToList();
+    }
+
+
     private async Task RefreshColorsAsync()
     {
         if (_isInitializing || _isRefreshing)
@@ -337,6 +360,17 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             RebuildLanguages(GithubColors, currentSelected);
             RefreshSelectedLanguages();
             ApplyFilter();
+
+            if (_trendingRepositories.Count > 0)
+            {
+                var refreshedRepositories = ApplyLanguageBrushes(_trendingRepositories).ToList();
+                _trendingRepositories.Clear();
+
+                foreach (var repo in refreshedRepositories)
+                {
+                    _trendingRepositories.Add(repo);
+                }
+            }
 
             StatusMessage = $"Couleurs rafraîchies: {ColorCount}";
             OnPropertyChanged(nameof(ColorCount));

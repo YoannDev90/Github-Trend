@@ -319,65 +319,193 @@
                                             BorderBrush="#FF243244"
                                             BorderThickness="1"
                                             CornerRadius="14"
-                                            Padding="14"
-                                            Margin="0,0,0,10">
-                                        <StackPanel Spacing="8">
-                                            <Grid ColumnDefinitions="*,Auto">
-                                                <StackPanel Spacing="4">
-                                                    <TextBlock Text="{Binding Repository}"
-                                                               Foreground="#FFF8FAFC"
-                                                               FontWeight="SemiBold"/>
-                                                    <TextBlock Text="{Binding Description}"
-                                                               Foreground="#FF94A3B8"
+                                            Padding="0"
+                                            Margin="0,0,0,12"
+                                            ClipToBounds="True"
+                                            MinHeight="240">
+                                        <Grid ColumnDefinitions="1.25*,1.75*"
+                                              MinHeight="240">
+                                            <Border Background="#FF111827"
+                                                    CornerRadius="14,0,0,14"
+                                                    MinHeight="240"
+                                                    HorizontalAlignment="Stretch"
+                                                    VerticalAlignment="Stretch"
+                                                    ClipToBounds="True">
+                                                <Grid>
+                                                    <Image Source="{Binding BannerImage}"
+                                                           Stretch="Uniform"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </Border>
+
+                                            <StackPanel Grid.Column="1"
+                                                        Spacing="12"
+                                                        Margin="18"
+                                                        VerticalAlignment="Stretch"
+                                                        HorizontalAlignment="Stretch">
+                                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                                    <StackPanel Spacing="4">
+                                                        <TextBlock Text="{Binding DisplayTitle}"
+                                                                   Foreground="#FFF8FAFC"
+                                                                   FontWeight="SemiBold"
+                                                                   FontSize="18"
+                                                                   TextWrapping="Wrap"/>
+                                                        <TextBlock Text="{Binding Description}"
+                                                                   Foreground="#FF94A3B8"
+                                                                   FontSize="12"
+                                                                   TextWrapping="Wrap"/>
+                                                    </StackPanel>
+
+                                                    <Button Grid.Column="1"
+                                                            Click="OnOpenRepositoryClick"
+                                                            Padding="12,8"
+                                                            Background="#FF1D4ED8"
+                                                            Foreground="White"
+                                                            BorderBrush="#FF60A5FA"
+                                                            BorderThickness="1"
+                                                            CornerRadius="10"
+                                                            VerticalAlignment="Top">
+                                                        <TextBlock Text="↗ Ouvrir" FontWeight="SemiBold"/>
+                                                    </Button>
+                                                </Grid>
+
+                                                <StackPanel Spacing="8"
+                                                            IsVisible="{Binding HasContributors}">
+                                                    <TextBlock Text="Contributeurs"
+                                                               Foreground="#FFCBD5E1"
                                                                FontSize="11"
-                                                               TextWrapping="Wrap"/>
+                                                               FontWeight="SemiBold"
+                                                               Opacity="0.9"/>
+
+                                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                                        <ItemsControl ItemsSource="{Binding Contributors}">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate>
+                                                                    <StackPanel Orientation="Horizontal"/>
+                                                                </ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate x:DataType="vm:GithubContributorPreview">
+                                                                    <Border Width="32"
+                                                                            Height="32"
+                                                                            CornerRadius="999"
+                                                                            ClipToBounds="True"
+                                                                            Margin="0,0,6,0"
+                                                                            BorderBrush="#FF334155"
+                                                                            BorderThickness="1">
+                                                                        <Image Source="{Binding AvatarImage}"
+                                                                               Stretch="UniformToFill"/>
+                                                                    </Border>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+
+                                                        <Border Grid.Column="1"
+                                                                Background="#FF1F2937"
+                                                                CornerRadius="999"
+                                                                Padding="10,5"
+                                                                VerticalAlignment="Center"
+                                                                IsVisible="{Binding HasRemainingContributors}">
+                                                            <TextBlock Text="{Binding RemainingContributorsLabel}"
+                                                                       Foreground="#FFE5E7EB"
+                                                                       FontSize="11"
+                                                                       FontWeight="SemiBold"/>
+                                                        </Border>
+                                                    </Grid>
                                                 </StackPanel>
 
-                                                <Border Grid.Column="1"
-                                                        Background="#FF1D4ED8"
-                                                        CornerRadius="999"
-                                                        Padding="8,4"
-                                                        VerticalAlignment="Top">
-                                                    <TextBlock Text="{Binding Stars}"
-                                                               Foreground="White"
-                                                               FontWeight="SemiBold"
-                                                               FontSize="11"/>
-                                                </Border>
-                                            </Grid>
+                                                <WrapPanel>
+                                                    <Border Background="{Binding LanguageBrush}"
+                                                            CornerRadius="999"
+                                                            Padding="10,5"
+                                                            Margin="0,0,8,8">
+                                                        <TextBlock Text="{Binding LanguageBadgeText}"
+                                                                   Foreground="White"
+                                                                   FontSize="11"
+                                                                   FontWeight="SemiBold"/>
+                                                    </Border>
 
-                                            <Grid ColumnDefinitions="Auto,Auto,Auto"
-                                                  ColumnSpacing="12">
-                                                <Border Background="#FF334155"
-                                                        CornerRadius="999"
-                                                        Padding="8,4">
-                                                    <TextBlock Text="{Binding Language}"
-                                                               Foreground="White"
-                                                               FontWeight="SemiBold"
-                                                               FontSize="11"/>
-                                                </Border>
+                                                    <Border Background="#FF1F2937"
+                                                            CornerRadius="999"
+                                                            Padding="10,5"
+                                                            Margin="0,0,8,8">
+                                                        <TextBlock Text="{Binding LicenseBadgeText}"
+                                                                   Foreground="#FFE5E7EB"
+                                                                   FontSize="11"
+                                                                   FontWeight="SemiBold"/>
+                                                    </Border>
 
-                                                <Border Grid.Column="1"
-                                                        Background="#FF334155"
-                                                        CornerRadius="999"
-                                                        Padding="8,4">
-                                                    <StackPanel Orientation="Horizontal" Spacing="2">
-                                                        <TextBlock Text="📈" Foreground="White"/>
-                                                        <TextBlock Text="{Binding Increased}" Foreground="White" FontWeight="SemiBold" FontSize="11"/>
-                                                    </StackPanel>
-                                                </Border>
+                                                    <Border Background="#FF334155"
+                                                            CornerRadius="999"
+                                                            Padding="10,5"
+                                                            Margin="0,0,8,8">
+                                                        <TextBlock Text="{Binding LastUpdatedBadgeText}"
+                                                                   Foreground="#FFE5E7EB"
+                                                                   FontSize="11"
+                                                                   FontWeight="SemiBold"/>
+                                                    </Border>
 
-                                                <Border Grid.Column="2"
-                                                        Background="#FF0B1220"
-                                                        BorderBrush="#FF334155"
-                                                        BorderThickness="1"
-                                                        CornerRadius="999"
-                                                        Padding="8,4">
-                                                    <TextBlock Text="{Binding Forks}"
-                                                               Foreground="#FFCBD5E1"
-                                                               FontSize="11"/>
-                                                </Border>
-                                            </Grid>
-                                        </StackPanel>
+                                                </WrapPanel>
+
+                                                <ItemsControl ItemsSource="{Binding Topics}"
+                                                              IsVisible="{Binding HasTopics}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <WrapPanel/>
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Border Background="#FF111827"
+                                                                    BorderBrush="#FF334155"
+                                                                    BorderThickness="1"
+                                                                    CornerRadius="999"
+                                                                    Padding="10,5"
+                                                                    Margin="0,0,8,8">
+                                                                <TextBlock Text="{Binding}"
+                                                                           Foreground="#FFF8FAFC"
+                                                                           FontSize="11"
+                                                                           FontWeight="SemiBold"/>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+
+                                                <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="12">
+                                                    <Border Background="#FF111827"
+                                                            BorderBrush="#FF334155"
+                                                            BorderThickness="1"
+                                                            CornerRadius="999"
+                                                            Padding="10,6">
+                                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                                            <TextBlock Text="★" Foreground="#FFFBBF24" FontSize="12"/>
+                                                            <TextBlock Text="{Binding StarsLabel}"
+                                                                       Foreground="#FFF8FAFC"
+                                                                       FontSize="11"
+                                                                       FontWeight="SemiBold"/>
+                                                        </StackPanel>
+                                                    </Border>
+
+                                                    <Border Grid.Column="1"
+                                                            Background="#FF111827"
+                                                            BorderBrush="#FF334155"
+                                                            BorderThickness="1"
+                                                            CornerRadius="999"
+                                                            Padding="10,6">
+                                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                                            <TextBlock Text="⎇" Foreground="#FF93C5FD" FontSize="12"/>
+                                                            <TextBlock Text="{Binding ForksLabel}"
+                                                                       Foreground="#FFF8FAFC"
+                                                                       FontSize="11"
+                                                                       FontWeight="SemiBold"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Grid>
                                     </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>

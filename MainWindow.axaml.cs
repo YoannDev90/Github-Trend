@@ -2,6 +2,8 @@ using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
+using System;
+using System.Diagnostics;
 
 namespace Github_Trend
 {
@@ -49,6 +51,32 @@ namespace Github_Trend
 
             _viewModel.SelectedTimeRangeIndex = index;
             UpdateTimeRangeButtonStyles();
+        }
+
+        private void OnOpenRepositoryClick(object? sender, RoutedEventArgs e)
+        {
+            if (sender is not Button button || button.DataContext is not GithubTrendingRepository repository)
+            {
+                return;
+            }
+
+            var url = repository.RepositoryLink;
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                return;
+            }
+
+            try
+            {
+                Process.Start(new ProcessStartInfo(url)
+                {
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Trending] impossible d'ouvrir le repo: {ex.Message}");
+            }
         }
 
         private void UpdateTimeRangeButtonStyles()
