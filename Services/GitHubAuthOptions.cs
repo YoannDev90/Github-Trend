@@ -4,7 +4,7 @@ namespace Github_Trend;
 
 public sealed class GitHubAuthOptions
 {
-    public string ClientId { get; init; } = Environment.GetEnvironmentVariable("GITHUB_APP_CLIENT_ID") ?? string.Empty;
+    public string ClientId { get; init; } = Environment.GetEnvironmentVariable("GITHUB_APP_CLIENT_ID") ?? "Iv23liKpprNhWdrap9RQ";
 
     public string ClientSecret { get; init; } = Environment.GetEnvironmentVariable("GITHUB_APP_CLIENT_SECRET") ?? string.Empty;
 
@@ -28,11 +28,6 @@ public sealed class GitHubAuthOptions
         if (string.IsNullOrWhiteSpace(ClientId))
         {
             throw new InvalidOperationException("Missing GITHUB_APP_CLIENT_ID environment variable.");
-        }
-
-        if (string.IsNullOrWhiteSpace(ClientSecret))
-        {
-            throw new InvalidOperationException("Missing GITHUB_APP_CLIENT_SECRET environment variable.");
         }
     }
 }

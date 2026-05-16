@@ -1,10 +1,7 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -17,9 +14,7 @@ public sealed class GitHubAuthenticationService
     private readonly GitHubTokenProtector _protector;
     private readonly GitHubTokenRefreshService _tokenService;
     private readonly GitHubAuthTokenStore _tokenStore;
-    private readonly GitHubLoopbackAuthServer _server;
-    private readonly ConcurrentDictionary<string, PendingFlow> _flowsById = new(StringComparer.Ordinal);
-    private readonly ConcurrentDictionary<string, PendingFlow> _flowsByState = new(StringComparer.Ordinal);
+    private readonly GitHubDeviceFlowAuthService _deviceFlowService;
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
 
     private GitHubAuthTokenRecord? _currentRecord;
@@ -35,7 +30,7 @@ public sealed class GitHubAuthenticationService
         _protector = new GitHubTokenProtector();
         _tokenService = new GitHubTokenRefreshService(_options);
         _tokenStore = new GitHubAuthTokenStore();
-        _server = new GitHubLoopbackAuthServer(_options, this);
+        _deviceFlowService = new GitHubDeviceFlowAuthService(_options.ClientId, _options);
     }
 
     public event EventHandler? SessionChanged;
@@ -50,22 +45,80 @@ public sealed class GitHubAuthenticationService
 
     public async Task InitializeAsync()
     {
-        await _server.StartAsync();
         await LoadCurrentSessionAsync();
     }
 
-    public async Task<GitHubAuthSession?> BeginInteractiveSignInAsync()
+    public async Task<GitHubAuthSession?> BeginInteractiveSignInAsync(Action<string>? onProgress = null)
     {
         await InitializeAsync();
         EnsureAuthConfigured();
 
-        var pending = CreatePendingFlow();
-        var startUrl = new Uri(new Uri(_options.LocalBaseUrl), $"/auth/github/start?flowId={Uri.EscapeDataString(pending.FlowId)}");
+        try
+        {
+            // Request device code from GitHub
+            var deviceCodeResponse = await _deviceFlowService.RequestDeviceCodeAsync();
+            
+            if (string.IsNullOrWhiteSpace(deviceCodeResponse.UserCode) || 
+                string.IsNullOrWhiteSpace(deviceCodeResponse.VerificationUri))
+            {
+                throw new InvalidOperationException("Invalid device code response from GitHub");
+            }
 
-        OpenBrowser(startUrl);
+            var verificationUrl = deviceCodeResponse.VerificationUriComplete ?? deviceCodeResponse.VerificationUri;
+            if (string.IsNullOrWhiteSpace(verificationUrl))
+            {
+                throw new InvalidOperationException("Missing GitHub verification URL");
+            }
 
-        var session = await pending.Completion.Task;
-        return session;
+            var opened = OpenBrowser(new Uri(verificationUrl));
+            onProgress?.Invoke(opened
+                ? $"Code GitHub: {deviceCodeResponse.UserCode}. Valide dans le navigateur ouvert."
+                : $"Code GitHub: {deviceCodeResponse.UserCode}. Ouvre: {verificationUrl}");
+
+            // Poll for token with timeout
+            var (success, tokenResponse, error) = await _deviceFlowService.PollForTokenAsync(
+                deviceCodeResponse.DeviceCode!,
+                deviceCodeResponse.Interval,
+                deviceCodeResponse.ExpiresIn
+            );
+
+            if (!success || tokenResponse?.AccessToken == null)
+            {
+                throw new InvalidOperationException($"Device flow authentication failed: {error}");
+            }
+
+            // Fetch user profile and create session
+            var profile = await _tokenService.FetchUserProfileAsync(tokenResponse.AccessToken);
+            var localUserId = GetLocalUserId();
+
+            var record = new GitHubAuthTokenRecord
+            {
+                UserId = localUserId,
+                GitHubAccountId = profile.Id,
+                AccessTokenEncrypted = _protector.Protect(tokenResponse.AccessToken),
+                RefreshTokenEncrypted = null,
+                ExpiresAt = DateTimeOffset.UtcNow.AddHours(8), // Device flow tokens typically last 8 hours
+                RefreshTokenExpiresAt = null,
+                ScopeList = tokenResponse.Scope?.Split(' ').ToList() ?? new List<string>(),
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow,
+                Login = profile.Login,
+                Name = profile.Name,
+                Email = profile.Email,
+                AvatarUrl = profile.AvatarUrl
+            };
+
+            await _tokenStore.UpsertAsync(record);
+            _currentRecord = record;
+            CurrentSession = ToSession(record);
+            RaiseSessionChanged();
+            return CurrentSession;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Auth] Device flow error: {ex.Message}");
+            throw;
+        }
     }
 
     public async Task<GitHubAuthSession?> LoadCurrentSessionAsync()
@@ -209,110 +262,7 @@ public sealed class GitHubAuthenticationService
         return await _tokenService.FetchUserProfileAsync(accessToken);
     }
 
-    internal async Task<string> BuildAuthorizationUrlAsync(string? flowId)
-    {
-        await InitializeAsync();
-        EnsureAuthConfigured();
 
-        var pending = !string.IsNullOrWhiteSpace(flowId) && _flowsById.TryGetValue(flowId, out var existing)
-            ? existing
-            : CreatePendingFlow();
-
-        if (!string.IsNullOrWhiteSpace(flowId) && pending.FlowId != flowId)
-        {
-            _flowsById[flowId] = pending;
-        }
-
-        var state = RandomToken();
-        pending.State = state;
-        _flowsByState[state] = pending;
-
-        var authorizeUrl = new StringBuilder("https://github.com/login/oauth/authorize");
-        authorizeUrl.Append("?client_id=").Append(Uri.EscapeDataString(_options.ClientId));
-        authorizeUrl.Append("&redirect_uri=").Append(Uri.EscapeDataString(_options.CallbackUrl));
-        authorizeUrl.Append("&state=").Append(Uri.EscapeDataString(state));
-        authorizeUrl.Append("&scope=").Append(Uri.EscapeDataString(_options.Scope));
-        authorizeUrl.Append("&allow_signup=false");
-        return authorizeUrl.ToString();
-    }
-
-    internal async Task<GitHubAuthSession> CompleteAuthorizationAsync(string state, string code)
-    {
-        if (!_flowsByState.TryRemove(state, out var pending))
-        {
-            throw new InvalidOperationException("Invalid or expired authorization state.");
-        }
-
-        pending.Completed = true;
-
-        var exchange = await _tokenService.ExchangeCodeAsync(code, state);
-        var profile = await _tokenService.FetchUserProfileAsync(exchange.AccessToken);
-        var localUserId = GetLocalUserId();
-
-        var record = new GitHubAuthTokenRecord
-        {
-            UserId = localUserId,
-            GitHubAccountId = profile.Id,
-            AccessTokenEncrypted = _protector.Protect(exchange.AccessToken),
-            RefreshTokenEncrypted = string.IsNullOrWhiteSpace(exchange.RefreshToken) ? null : _protector.Protect(exchange.RefreshToken),
-            ExpiresAt = exchange.ExpiresAt,
-            RefreshTokenExpiresAt = exchange.RefreshTokenExpiresAt,
-            ScopeList = exchange.ScopeList.ToList(),
-            CreatedAt = DateTimeOffset.UtcNow,
-            UpdatedAt = DateTimeOffset.UtcNow,
-            Login = profile.Login,
-            Name = profile.Name,
-            Email = profile.Email,
-            AvatarUrl = profile.AvatarUrl
-        };
-
-        await _tokenStore.UpsertAsync(record);
-        _currentRecord = record;
-        CurrentSession = ToSession(record);
-        pending.Completion.TrySetResult(CurrentSession);
-        RaiseSessionChanged();
-        return CurrentSession;
-    }
-
-    internal async Task<string> HandleStartAsync(string? flowId)
-    {
-        await InitializeAsync();
-        var authorizeUrl = await BuildAuthorizationUrlAsync(flowId);
-        return authorizeUrl;
-    }
-
-    internal async Task<(bool Success, string Message)> HandleRefreshRequestAsync()
-    {
-        var refreshed = await RefreshCurrentAsync();
-        return refreshed is null
-            ? (false, "Refresh failed or no active session.")
-            : (true, $"Refreshed session for {refreshed.Summary}");
-    }
-
-    internal void FailPendingFlow(string state, string message)
-    {
-        if (_flowsByState.TryRemove(state, out var pending))
-        {
-            pending.Completed = true;
-            pending.Completion.TrySetException(new InvalidOperationException(message));
-        }
-    }
-
-    internal async Task RejectPendingFlowAsync(string? flowId, string message)
-    {
-        if (string.IsNullOrWhiteSpace(flowId))
-        {
-            return;
-        }
-
-        if (_flowsById.TryRemove(flowId, out var pending))
-        {
-            pending.Completed = true;
-            pending.Completion.TrySetException(new InvalidOperationException(message));
-        }
-
-        await Task.CompletedTask;
-    }
 
     private async Task MarkDisconnectedAsync(GitHubAuthTokenRecord record, string reason)
     {
@@ -324,18 +274,7 @@ public sealed class GitHubAuthenticationService
         RaiseSessionChanged();
     }
 
-    private PendingFlow CreatePendingFlow()
-    {
-        var pending = new PendingFlow(RandomToken());
-        _flowsById[pending.FlowId] = pending;
-        return pending;
-    }
-
-    private static string RandomToken()
-        => Convert.ToBase64String(Guid.NewGuid().ToByteArray())
-            .Replace("=", string.Empty, StringComparison.Ordinal)
-            .Replace("+", string.Empty, StringComparison.Ordinal)
-            .Replace("/", string.Empty, StringComparison.Ordinal);
+    private void RaiseSessionChanged() => SessionChanged?.Invoke(this, EventArgs.Empty);
 
     private static string GetLocalUserId()
         => $"{Environment.UserName}@{Environment.MachineName}";
@@ -352,17 +291,15 @@ public sealed class GitHubAuthenticationService
             record.ExpiresAt,
             record.RefreshTokenExpiresAt);
 
-    private void RaiseSessionChanged() => SessionChanged?.Invoke(this, EventArgs.Empty);
-
     private void EnsureAuthConfigured()
     {
-        if (string.IsNullOrWhiteSpace(_options.ClientId) || string.IsNullOrWhiteSpace(_options.ClientSecret))
+        if (string.IsNullOrWhiteSpace(_options.ClientId))
         {
-            throw new InvalidOperationException("GitHub App client id/secret are not configured. Set GITHUB_APP_CLIENT_ID and GITHUB_APP_CLIENT_SECRET.");
+            throw new InvalidOperationException("GitHub App client id is not configured. Set GITHUB_APP_CLIENT_ID environment variable.");
         }
     }
 
-    private static void OpenBrowser(Uri uri)
+    private static bool OpenBrowser(Uri uri)
     {
         try
         {
@@ -370,28 +307,13 @@ public sealed class GitHubAuthenticationService
             {
                 UseShellExecute = true
             });
+            return true;
         }
         catch
         {
             // best-effort open in default browser
+            return false;
         }
-    }
-
-    private sealed class PendingFlow
-    {
-        public PendingFlow(string flowId)
-        {
-            FlowId = flowId;
-            Completion = new TaskCompletionSource<GitHubAuthSession>(TaskCreationOptions.RunContinuationsAsynchronously);
-        }
-
-        public string FlowId { get; }
-
-        public string? State { get; set; }
-
-        public bool Completed { get; set; }
-
-        public TaskCompletionSource<GitHubAuthSession> Completion { get; }
     }
 }
 

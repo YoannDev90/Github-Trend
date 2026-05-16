@@ -301,8 +301,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         try
         {
             IsGitHubAuthenticating = true;
-            GitHubAuthStatus = "Ouverture de GitHub...";
-            var session = await _githubAuthService.BeginInteractiveSignInAsync();
+            GitHubAuthStatus = "Initialisation de la connexion GitHub...";
+            var session = await _githubAuthService.BeginInteractiveSignInAsync(message => GitHubAuthStatus = message);
             UpdateGitHubAuthState(session);
             StatusMessage = $"Connexion GitHub réussie: {session?.Summary}";
         }
