@@ -99,4 +99,8 @@ for RID in "${RIDS[@]}"; do
   echo "Packages for $RID available in $PKG_DIR"
 done
 
+  # Final cleanup: remove temporary folders and keep only packaged files
+  find ./publish/packages -type d -name "pkg-root" -exec rm -rf {} + 2>/dev/null || true
+  find ./publish/packages -maxdepth 3 -type f \( -name "*.pdb" -o -name "*.dll" -o -name "*.so" -o -name "*.dylib" -o -name "*.runtimeconfig.json" -o -name "*.deps.json" \) -delete 2>/dev/null || true
+
 echo "\nAll done. Find packages under ./publish/packages/"
