@@ -3,7 +3,9 @@
         xmlns:vm="using:Github_Trend"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="820"
+        mc:Ignorable="d"
+        d:DesignWidth="1280"
+        d:DesignHeight="820"
         x:DataType="vm:MainWindowViewModel"
         x:Class="Github_Trend.MainWindow"
         Background="#FF020617"
@@ -13,9 +15,7 @@
                 BorderBrush="#FF1F2937"
                 BorderThickness="0,0,1,0">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <StackPanel Margin="18"
-                            Spacing="16">
-
+                <StackPanel Margin="18" Spacing="16">
                     <Border Background="#FF111827"
                             BorderBrush="#FF243244"
                             BorderThickness="1"
@@ -31,8 +31,111 @@
                                      Foreground="#FFE5E7EB"
                                      BorderBrush="#FF334155"
                                      CaretBrush="#FF93C5FD"
-                                     CornerRadius="8"
-                                     />
+                                     CornerRadius="8"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="#FF111827"
+                            BorderBrush="#FF243244"
+                            BorderThickness="1"
+                            CornerRadius="18"
+                            Padding="14">
+                        <StackPanel Spacing="12">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Grid.Row="0" Spacing="2">
+                                    <TextBlock Text="Période du trending"
+                                               Foreground="White"
+                                               FontWeight="SemiBold"/>
+                                    <TextBlock Text="Choisis la fenêtre de temps"
+                                               Foreground="#FF94A3B8"
+                                               FontSize="11"/>
+                                </StackPanel>
+                                <Border Grid.Row="0"
+                                        Grid.Column="1"
+                                        Background="#FF0F172A"
+                                        BorderBrush="#FF1D4ED8"
+                                        BorderThickness="1"
+                                        CornerRadius="999"
+                                        Padding="10,4">
+                                    <TextBlock Text="{Binding SelectedTimeRangeLabel}"
+                                               Foreground="#FF93C5FD"
+                                               FontSize="11"
+                                               FontWeight="SemiBold"/>
+                                </Border>
+                            </Grid>
+
+                            <Border Background="#0B1220"
+                                    BorderBrush="#243244"
+                                    BorderThickness="1"
+                                    CornerRadius="16"
+                                    Padding="8">
+                                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="8">
+                                    <RadioButton GroupName="TimeRange"
+                                                 IsChecked="{Binding IsDailySelected, Mode=TwoWay}"
+                                                 Content="Daily"
+                                                 Height="44"
+                                                 HorizontalAlignment="Stretch"
+                                                 Background="#111827"
+                                                 Foreground="#CBD5E1"
+                                                 BorderBrush="#334155"
+                                                 BorderThickness="1"
+                                                 HorizontalContentAlignment="Center"
+                                                 VerticalContentAlignment="Center"
+                                                 Classes="time-range-pill"/>
+                                    <RadioButton Grid.Column="1"
+                                                 GroupName="TimeRange"
+                                                 IsChecked="{Binding IsWeeklySelected, Mode=TwoWay}"
+                                                 Content="Weekly"
+                                                 Height="44"
+                                                 HorizontalAlignment="Stretch"
+                                                 Background="#111827"
+                                                 Foreground="#CBD5E1"
+                                                 BorderBrush="#334155"
+                                                 BorderThickness="1"
+                                                 HorizontalContentAlignment="Center"
+                                                 VerticalContentAlignment="Center"
+                                                 Classes="time-range-pill"/>
+                                    <RadioButton Grid.Row="1"
+                                                 GroupName="TimeRange"
+                                                 IsChecked="{Binding IsMonthlySelected, Mode=TwoWay}"
+                                                 Content="Monthly"
+                                                 Height="44"
+                                                 HorizontalAlignment="Stretch"
+                                                 Background="#111827"
+                                                 Foreground="#CBD5E1"
+                                                 BorderBrush="#334155"
+                                                 BorderThickness="1"
+                                                 HorizontalContentAlignment="Center"
+                                                 VerticalContentAlignment="Center"
+                                                 Classes="time-range-pill"/>
+                                    <RadioButton Grid.Row="1"
+                                                 Grid.Column="1"
+                                                 GroupName="TimeRange"
+                                                 IsChecked="{Binding IsAllSelected, Mode=TwoWay}"
+                                                 Content="All"
+                                                 Height="44"
+                                                 HorizontalAlignment="Stretch"
+                                                 Background="#111827"
+                                                 Foreground="#CBD5E1"
+                                                 BorderBrush="#334155"
+                                                 BorderThickness="1"
+                                                 HorizontalContentAlignment="Center"
+                                                 VerticalContentAlignment="Center"
+                                                 Classes="time-range-pill"/>
+                                    <Grid.Styles>
+                                        <Style Selector="RadioButton.time-range-pill:pointerover">
+                                            <Setter Property="Background" Value="#1F2937"/>
+                                            <Setter Property="BorderBrush" Value="#60A5FA"/>
+                                            <Setter Property="Foreground" Value="White"/>
+                                        </Style>
+                                        <Style Selector="RadioButton.time-range-pill:checked">
+                                            <Setter Property="Background" Value="#1D4ED8"/>
+                                            <Setter Property="BorderBrush" Value="#1D4ED8"/>
+                                            <Setter Property="Foreground" Value="White"/>
+                                        </Style>
+                                    </Grid.Styles>
+                                </Grid>
+                            </Border>
                         </StackPanel>
                     </Border>
 
@@ -77,6 +180,7 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
+
                         </StackPanel>
                     </Border>
 
@@ -185,11 +289,14 @@
                     <StackPanel Spacing="12">
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel>
-                                <TextBlock Text="Repos GitHub Trending" 
+                                <TextBlock Text="Repos GitHub Trending"
                                            Foreground="White"
                                            FontSize="28"
                                            FontWeight="SemiBold"
                                            TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding TrendingLabel}"
+                                           Foreground="#FF94A3B8"
+                                           FontSize="12"/>
                             </StackPanel>
                         </Grid>
                     </StackPanel>
@@ -201,19 +308,17 @@
                         CornerRadius="24"
                         Padding="22">
                     <StackPanel Spacing="12">
-
-                        <ScrollViewer Height="600"
-                                      VerticalScrollBarVisibility="Auto">
-                            <ItemsControl ItemsSource="{Binding TrendingRepositories}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="vm:GithubTrendingRepository">
-                                        <Border Background="#FF0F172A"
-                                                BorderBrush="#FF243244"
-                                                BorderThickness="1"
-                                                CornerRadius="14"
-                                                Padding="14"
-                                                Margin="0,0,0,10">
-                                            <StackPanel Spacing="8">
+                        <ItemsControl ItemsSource="{Binding TrendingRepositories}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:GithubTrendingRepository">
+                                    <Border Background="#FF0F172A"
+                                            BorderBrush="#FF243244"
+                                            BorderThickness="1"
+                                            CornerRadius="14"
+                                            Padding="14"
+                                            Margin="0,0,0,10">
+                                        <StackPanel Spacing="8">
+                                            <Grid ColumnDefinitions="*,Auto">
                                                 <StackPanel Spacing="4">
                                                     <TextBlock Text="{Binding Repository}"
                                                                Foreground="#FFF8FAFC"
@@ -221,47 +326,58 @@
                                                     <TextBlock Text="{Binding Description}"
                                                                Foreground="#FF94A3B8"
                                                                FontSize="11"
-                                                               TextWrapping="Wrap"
-                                                               MaxHeight="40"/>
+                                                               TextWrapping="Wrap"/>
                                                 </StackPanel>
 
-                                                <Grid ColumnDefinitions="Auto,Auto,Auto,*"
-                                                      ColumnSpacing="12">
-                                                    <Border Background="#FF1D4ED8"
-                                                            CornerRadius="999"
-                                                            Padding="8,4">
-                                                        <StackPanel Orientation="Horizontal" Spacing="4">
-                                                            <TextBlock Text="⭐" Foreground="White"/>
-                                                            <TextBlock Text="{Binding Stars}" Foreground="White" FontWeight="SemiBold" FontSize="11"/>
-                                                        </StackPanel>
-                                                    </Border>
+                                                <Border Grid.Column="1"
+                                                        Background="#FF1D4ED8"
+                                                        CornerRadius="999"
+                                                        Padding="8,4"
+                                                        VerticalAlignment="Top">
+                                                    <TextBlock Text="{Binding Stars}"
+                                                               Foreground="White"
+                                                               FontWeight="SemiBold"
+                                                               FontSize="11"/>
+                                                </Border>
+                                            </Grid>
 
-                                                    <Border Grid.Column="1"
-                                                            Background="#FF334155"
-                                                            CornerRadius="999"
-                                                            Padding="8,4">
-                                                        <TextBlock Text="{Binding Language}"
-                                                                   Foreground="White"
-                                                                   FontWeight="SemiBold"
-                                                                   FontSize="11"/>
-                                                    </Border>
+                                            <Grid ColumnDefinitions="Auto,Auto,Auto"
+                                                  ColumnSpacing="12">
+                                                <Border Background="#FF334155"
+                                                        CornerRadius="999"
+                                                        Padding="8,4">
+                                                    <TextBlock Text="{Binding Language}"
+                                                               Foreground="White"
+                                                               FontWeight="SemiBold"
+                                                               FontSize="11"/>
+                                                </Border>
 
-                                                    <Border Grid.Column="2"
-                                                            Background="#FF334155"
-                                                            CornerRadius="999"
-                                                            Padding="8,4">
-                                                        <StackPanel Orientation="Horizontal" Spacing="2">
-                                                            <TextBlock Text="📈" Foreground="White"/>
-                                                            <TextBlock Text="{Binding Increased}" Foreground="White" FontWeight="SemiBold" FontSize="11"/>
-                                                        </StackPanel>
-                                                    </Border>
-                                                </Grid>
-                                            </StackPanel>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </ScrollViewer>
+                                                <Border Grid.Column="1"
+                                                        Background="#FF334155"
+                                                        CornerRadius="999"
+                                                        Padding="8,4">
+                                                    <StackPanel Orientation="Horizontal" Spacing="2">
+                                                        <TextBlock Text="📈" Foreground="White"/>
+                                                        <TextBlock Text="{Binding Increased}" Foreground="White" FontWeight="SemiBold" FontSize="11"/>
+                                                    </StackPanel>
+                                                </Border>
+
+                                                <Border Grid.Column="2"
+                                                        Background="#FF0B1220"
+                                                        BorderBrush="#FF334155"
+                                                        BorderThickness="1"
+                                                        CornerRadius="999"
+                                                        Padding="8,4">
+                                                    <TextBlock Text="{Binding Forks}"
+                                                               Foreground="#FFCBD5E1"
+                                                               FontSize="11"/>
+                                                </Border>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
                 </Border>
             </StackPanel>

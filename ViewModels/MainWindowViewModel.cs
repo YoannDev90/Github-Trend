@@ -11,10 +11,19 @@ namespace Github_Trend;
 
 public sealed class MainWindowViewModel : INotifyPropertyChanged
 {
+    private static readonly (string Query, string Label)[] TimeRanges =
+    {
+        ("daily", "Daily"),
+        ("weekly", "Weekly"),
+        ("monthly", "Monthly"),
+        ("all", "All")
+    };
+
     // Constructor to initialize commands
     public MainWindowViewModel()
     {
-        RefreshCommand = new RelayCommand(async _ => await RefreshColorsAsync(), _ => !_isInitializing && !_isRefreshing);
+        RefreshCommand = new RelayCommand(_ => ExecuteRefreshColors(), _ => !_isInitializing && !_isRefreshing);
+        _selectedTimeRangeIndex = 0;
     }
 
     private bool _isRefreshing;
@@ -30,11 +39,85 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private readonly ObservableCollection<GithubTrendingRepository> _trendingRepositories = new();
     private List<GithubTrendingRepository>? _trendingData;
 
+    private int _selectedTimeRangeIndex;
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public ICommand RefreshCommand { get; }
 
     public ObservableCollection<GithubTrendingRepository> TrendingRepositories => _trendingRepositories;
+
+    public int SelectedTimeRangeIndex
+    {
+        get => _selectedTimeRangeIndex;
+        set
+        {
+            if (_selectedTimeRangeIndex == value)
+                return;
+
+            _selectedTimeRangeIndex = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(SelectedTimeRangeLabel));
+            OnPropertyChanged(nameof(IsDailySelected));
+            OnPropertyChanged(nameof(IsWeeklySelected));
+            OnPropertyChanged(nameof(IsMonthlySelected));
+            OnPropertyChanged(nameof(IsAllSelected));
+            Console.WriteLine($"[Trending] timerange changed => {SelectedTimeRangeLabel}");
+            _ = RefreshTrendingRepositoriesAsync();
+        }
+    }
+
+    public bool IsDailySelected
+    {
+        get => _selectedTimeRangeIndex == 0;
+        set
+        {
+            if (value)
+            {
+                SelectedTimeRangeIndex = 0;
+            }
+        }
+    }
+
+    public bool IsWeeklySelected
+    {
+        get => _selectedTimeRangeIndex == 1;
+        set
+        {
+            if (value)
+            {
+                SelectedTimeRangeIndex = 1;
+            }
+        }
+    }
+
+    public bool IsMonthlySelected
+    {
+        get => _selectedTimeRangeIndex == 2;
+        set
+        {
+            if (value)
+            {
+                SelectedTimeRangeIndex = 2;
+            }
+        }
+    }
+
+    public bool IsAllSelected
+    {
+        get => _selectedTimeRangeIndex == 3;
+        set
+        {
+            if (value)
+            {
+                SelectedTimeRangeIndex = 3;
+            }
+        }
+    }
+
+    public string SelectedTimeRangeLabel => TimeRanges[Math.Max(0, Math.Min(_selectedTimeRangeIndex, TimeRanges.Length - 1))].Label;
+
+    public string SelectedTimeRangeQuery => TimeRanges[Math.Max(0, Math.Min(_selectedTimeRangeIndex, TimeRanges.Length - 1))].Query;
 
     public GithubColorsCatalog? GithubColors
     {
@@ -135,19 +218,43 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             _isInitializing = false;
             (RefreshCommand as RelayCommand)?.RaiseCanExecuteChanged();
         }
-        // Load trending repos in background (non-blocking)
-        _ = LoadTrendingRepositoriesAsync();
+        Console.WriteLine("[Trending] initial trending refresh queued");
+        _ = RefreshTrendingRepositoriesAsync();
     }
 
-    private async Task LoadTrendingRepositoriesAsync()
+    private void ExecuteRefreshColors()
+    {
+        _ = RefreshColorsAsync();
+    }
+
+    private async Task RefreshTrendingRepositoriesAsync()
     {
         try
         {
-            var trending = await GithubTrendingService.FetchAsync();
-            _trendingData = trending;
+            var sinceValues = GetSinceValues();
+            var languages = GetSelectedLanguageFilters();
+
+            Console.WriteLine($"[Trending] refresh start since=[{string.Join(',', sinceValues)}] languages=[{string.Join(',', languages.Select(x => x ?? "<all>"))}]");
+
+            var fetchTasks = sinceValues
+                .SelectMany(since => languages.Select(language => GithubTrendingService.FetchAsync(
+                    force: false,
+                    since: since,
+                    language: language)))
+                .ToArray();
+
+            Console.WriteLine($"[Trending] planned requests: {fetchTasks.Length}");
+
+            var results = await Task.WhenAll(fetchTasks);
+            Console.WriteLine($"[Trending] completed requests: {results.Length}");
+
+            var merged = MergeTrendingResults(results);
+            _trendingData = merged;
+
+            Console.WriteLine($"[Trending] merged repos: {merged.Count}");
 
             _trendingRepositories.Clear();
-            foreach (var repo in trending.Take(10))
+            foreach (var repo in merged)
             {
                 _trendingRepositories.Add(repo);
             }
@@ -155,12 +262,60 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(TrendingCount));
             OnPropertyChanged(nameof(TrendingLabel));
         }
-         catch (Exception ex)
-         {
-             // Log silently or optionally update status
-             System.Diagnostics.Debug.WriteLine($"Erreur chargement trending: {ex.Message}");
-         }
-     }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Trending] error loading trending: {ex.Message}");
+        }
+    }
+
+    private IReadOnlyList<string?> GetSinceValues()
+    {
+        var selected = SelectedTimeRangeQuery;
+        return selected == "all"
+            ? new[] { "daily", "weekly", "monthly" }
+            : new[] { selected };
+    }
+
+    private IReadOnlyList<string?> GetSelectedLanguageFilters()
+    {
+        var languages = _selectedLanguages
+            .Select(language => language.Language)
+            .Where(language => !string.IsNullOrWhiteSpace(language))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return languages.Count == 0
+            ? new string?[] { null }
+            : languages.Cast<string?>().ToArray();
+    }
+
+
+    private static List<GithubTrendingRepository> MergeTrendingResults(IEnumerable<IEnumerable<GithubTrendingRepository>> results)
+    {
+        var merged = new Dictionary<string, GithubTrendingRepository>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var repo in results.SelectMany(result => result))
+        {
+            var key = !string.IsNullOrWhiteSpace(repo.Repository)
+                ? repo.Repository!
+                : !string.IsNullOrWhiteSpace(repo.Name)
+                    ? repo.Name!
+                    : Guid.NewGuid().ToString("N");
+
+            if (!merged.ContainsKey(key))
+            {
+                merged[key] = repo;
+            }
+        }
+
+        return merged.Values
+            .OrderByDescending(repo => ParseStars(repo.Stars))
+            .ThenBy(repo => repo.Repository ?? repo.Name ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static int ParseStars(string? value)
+        => int.TryParse(value?.Replace(",", string.Empty), out var parsed) ? parsed : 0;
 
     private async Task RefreshColorsAsync()
     {
@@ -242,6 +397,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
         OnPropertyChanged(nameof(SelectedCount));
         OnPropertyChanged(nameof(SelectionSummary));
+
+        if (!_isInitializing)
+        {
+            Console.WriteLine("[Trending] selection changed -> refresh queued");
+            _ = RefreshTrendingRepositoriesAsync();
+        }
     }
 
     private async Task PersistSelectionsAsync()
