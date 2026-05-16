@@ -3,36 +3,38 @@
         xmlns:vm="using:Github_Trend"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="820"
         x:DataType="vm:MainWindowViewModel"
         x:Class="Github_Trend.MainWindow"
-        Background="#FFF3F4F6"
+        Background="#FF020617"
         Title="Github_Trend">
     <Grid ColumnDefinitions="360,*">
-        <Border Background="#FF0F172A"
-                BorderBrush="#FF1E293B"
+        <Border Background="#FF0B1220"
+                BorderBrush="#FF1F2937"
                 BorderThickness="0,0,1,0">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="18"
                             Spacing="16">
-                    <Border Background="#FF1D4ED8"
-                            CornerRadius="18"
-                            Padding="14">
+                    <Border Background="#FF111827"
+                            BorderBrush="#FF243244"
+                            BorderThickness="1"
+                            CornerRadius="20"
+                            Padding="16">
                         <StackPanel Spacing="6">
                             <TextBlock Text="GitHub Trend"
-                                       FontSize="18"
+                                       FontSize="20"
                                        FontWeight="SemiBold"
                                        Foreground="White"/>
-                            <TextBlock Text="Sélectionne, filtre et sauvegarde tes langages"
-                                       Foreground="#FFDCE7FF"
+                            <TextBlock Text="Recherche, sélectionne et sauvegarde tes langages favoris."
+                                       Foreground="#FF94A3B8"
                                        TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
 
                     <Border Background="#FF111827"
-                            BorderBrush="#FF334155"
+                            BorderBrush="#FF243244"
                             BorderThickness="1"
-                            CornerRadius="16"
+                            CornerRadius="18"
                             Padding="14">
                         <StackPanel Spacing="10">
                             <TextBlock Text="Recherche"
@@ -40,21 +42,21 @@
                                        FontWeight="SemiBold"/>
                             <TextBox Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                      PlaceholderText="Ex : JavaScript, Rust..."
-                                     Background="#FFF9FAFB"
-                                     Foreground="#FF111827"
-                                     BorderBrush="#FF93C5FD"
-                                     CaretBrush="#FF111827"/>
-                            <TextBlock Text="Auto-complétion live sur les langages présents dans GitHub Colors."
-                                       Foreground="#FF94A3B8"
+                                     Background="#FF020617"
+                                     Foreground="#FFE5E7EB"
+                                     BorderBrush="#FF334155"
+                                     CaretBrush="#FF93C5FD"/>
+                            <TextBlock Text="Auto-complétion live basée sur GitHub Colors."
+                                       Foreground="#FF64748B"
                                        TextWrapping="Wrap"
                                        FontSize="12"/>
                         </StackPanel>
                     </Border>
 
                     <Border Background="#FF111827"
-                            BorderBrush="#FF334155"
+                            BorderBrush="#FF243244"
                             BorderThickness="1"
-                            CornerRadius="16"
+                            CornerRadius="18"
                             Padding="14">
                         <StackPanel Spacing="10">
                             <Grid ColumnDefinitions="*,Auto">
@@ -63,7 +65,7 @@
                                            FontWeight="SemiBold"
                                            VerticalAlignment="Center"/>
                                 <Border Grid.Column="1"
-                                        Background="#FF2563EB"
+                                        Background="#FF1D4ED8"
                                         CornerRadius="999"
                                         Padding="10,4">
                                     <TextBlock Text="{Binding SelectedCount}"
@@ -73,7 +75,7 @@
                             </Grid>
 
                             <TextBlock Text="{Binding SelectionSummary}"
-                                       Foreground="#FFCBD5E1"
+                                       Foreground="#FF94A3B8"
                                        FontSize="12"/>
 
                             <ItemsControl ItemsSource="{Binding SelectedLanguages}">
@@ -84,13 +86,14 @@
                                 </ItemsControl.ItemsPanel>
 
                                 <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="x:String">
-                                        <Border Background="#FF1D4ED8"
-                                                CornerRadius="12"
-                                                Padding="10,5"
+                                    <DataTemplate x:DataType="vm:LanguageOptionViewModel">
+                                        <Border Background="{Binding AccentBrush}"
+                                                CornerRadius="999"
+                                                Padding="10,6"
                                                 Margin="0,0,6,6">
-                                            <TextBlock Text="{Binding}"
-                                                       Foreground="White"/>
+                                            <TextBlock Text="{Binding Language}"
+                                                       Foreground="White"
+                                                       FontWeight="SemiBold"/>
                                         </Border>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
@@ -99,9 +102,9 @@
                     </Border>
 
                     <Border Background="#FF111827"
-                            BorderBrush="#FF334155"
+                            BorderBrush="#FF243244"
                             BorderThickness="1"
-                            CornerRadius="16"
+                            CornerRadius="18"
                             Padding="14">
                         <StackPanel Spacing="10">
                             <Grid ColumnDefinitions="*,Auto">
@@ -120,28 +123,46 @@
                             </Grid>
 
                             <TextBlock Text="{Binding MatchingLanguagesLabel}"
-                                       Foreground="#FFCBD5E1"
+                                       Foreground="#FF94A3B8"
                                        FontSize="12"/>
 
-                            <Border Background="#FFF8FAFC"
-                                    CornerRadius="14"
-                                    BorderBrush="#FF475569"
+                            <Border Background="#FF020617"
+                                    CornerRadius="16"
+                                    BorderBrush="#FF1F2937"
                                     BorderThickness="1"
                                     Padding="10">
-                                <ScrollViewer Height="300"
+                                <ScrollViewer Height="320"
                                               VerticalScrollBarVisibility="Auto">
                                     <ItemsControl ItemsSource="{Binding FilteredLanguages}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="vm:LanguageOptionViewModel">
-                                                <Border Background="#FFFFFFFF"
-                                                        BorderBrush="#FFE2E8F0"
+                                                <Border Background="#FF0F172A"
+                                                        BorderBrush="#FF243244"
                                                         BorderThickness="1"
-                                                        CornerRadius="12"
-                                                        Padding="10"
+                                                        CornerRadius="14"
+                                                        Padding="12"
                                                         Margin="0,0,0,8">
-                                                    <CheckBox Content="{Binding Language}"
-                                                              IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                                              Foreground="#FF111827"/>
+                                                    <Grid ColumnDefinitions="6,*,Auto"
+                                                          ColumnSpacing="12">
+                                                        <Border Background="{Binding AccentBrush}"
+                                                                CornerRadius="999"
+                                                                Width="6"/>
+
+                                                        <StackPanel Grid.Column="1"
+                                                                    Spacing="4">
+                                                            <TextBlock Text="{Binding Language}"
+                                                                       Foreground="#FFF8FAFC"
+                                                                       FontWeight="SemiBold"/>
+                                                            <TextBlock Text="Couleur GitHub Colors appliquée"
+                                                                       Foreground="#FF64748B"
+                                                                       FontSize="12"/>
+                                                        </StackPanel>
+
+                                                        <CheckBox Grid.Column="2"
+                                                                  IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                                  Foreground="#FFF8FAFC"
+                                                                  VerticalAlignment="Center"/>
+                                                    </Grid>
                                                 </Border>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
@@ -155,130 +176,134 @@
         </Border>
 
         <ScrollViewer Grid.Column="1"
-                      Background="#FFF3F4F6"
+                      Background="#FF020617"
                       Padding="20"
                       VerticalScrollBarVisibility="Auto">
             <StackPanel Spacing="16">
-                <Border Background="White"
-                        BorderBrush="#FFE5E7EB"
+                <Border Background="#FF0B1220"
+                        BorderBrush="#FF1F2937"
                         BorderThickness="1"
-                        CornerRadius="20"
-                        Padding="20">
-                    <StackPanel Spacing="10">
+                        CornerRadius="24"
+                        Padding="22">
+                    <StackPanel Spacing="12">
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel>
                                 <TextBlock Text="Vue d’ensemble"
-                                           Foreground="#FF2563EB"
+                                           Foreground="#FF38BDF8"
                                            FontWeight="SemiBold"
                                            FontSize="12"/>
-                                <TextBlock Text="Interface moderne pour piloter tes langages GitHub"
-                                           Foreground="#FF111827"
-                                           FontSize="24"
+                                <TextBlock Text="Interface sombre, moderne et centrée sur tes langages"
+                                           Foreground="White"
+                                           FontSize="28"
                                            FontWeight="SemiBold"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
 
                             <Border Grid.Column="1"
-                                    Background="#FFEFF6FF"
-                                    BorderBrush="#FFBFDBFE"
+                                    Background="#FF0F172A"
+                                    BorderBrush="#FF1D4ED8"
                                     BorderThickness="1"
                                     CornerRadius="999"
                                     Padding="12,6"
                                     VerticalAlignment="Top">
                                 <TextBlock Text="Prêt"
-                                           Foreground="#FF1D4ED8"
+                                           Foreground="#FF93C5FD"
                                            FontWeight="SemiBold"/>
                             </Border>
                         </Grid>
 
                         <TextBlock Text="{Binding StatusMessage}"
-                                   Foreground="#FF4B5563"
+                                   Foreground="#FF94A3B8"
                                    TextWrapping="Wrap"/>
                     </StackPanel>
                 </Border>
 
                 <Grid ColumnDefinitions="*,*,*"
                       ColumnSpacing="12">
-                    <Border Background="White"
-                            BorderBrush="#FFE5E7EB"
+                    <Border Background="#FF0B1220"
+                            BorderBrush="#FF1F2937"
                             BorderThickness="1"
-                            CornerRadius="18"
+                            CornerRadius="20"
                             Padding="16">
                         <StackPanel Spacing="4">
                             <TextBlock Text="Total couleurs"
-                                       Foreground="#FF64748B"
+                                       Foreground="#FF94A3B8"
                                        FontSize="12"/>
                             <TextBlock Text="{Binding ColorCount}"
-                                       Foreground="#FF111827"
+                                       Foreground="White"
                                        FontSize="28"
                                        FontWeight="SemiBold"/>
                         </StackPanel>
                     </Border>
 
                     <Border Grid.Column="1"
-                            Background="White"
-                            BorderBrush="#FFE5E7EB"
+                            Background="#FF0B1220"
+                            BorderBrush="#FF1F2937"
                             BorderThickness="1"
-                            CornerRadius="18"
+                            CornerRadius="20"
                             Padding="16">
                         <StackPanel Spacing="4">
                             <TextBlock Text="Sélectionnés"
-                                       Foreground="#FF64748B"
+                                       Foreground="#FF94A3B8"
                                        FontSize="12"/>
                             <TextBlock Text="{Binding SelectedCount}"
-                                       Foreground="#FF111827"
+                                       Foreground="White"
                                        FontSize="28"
                                        FontWeight="SemiBold"/>
                         </StackPanel>
                     </Border>
 
                     <Border Grid.Column="2"
-                            Background="White"
-                            BorderBrush="#FFE5E7EB"
+                            Background="#FF0B1220"
+                            BorderBrush="#FF1F2937"
                             BorderThickness="1"
-                            CornerRadius="18"
+                            CornerRadius="20"
                             Padding="16">
                         <StackPanel Spacing="4">
                             <TextBlock Text="Visibles"
-                                       Foreground="#FF64748B"
+                                       Foreground="#FF94A3B8"
                                        FontSize="12"/>
                             <TextBlock Text="{Binding VisibleCount}"
-                                       Foreground="#FF111827"
+                                       Foreground="White"
                                        FontSize="28"
                                        FontWeight="SemiBold"/>
                         </StackPanel>
                     </Border>
                 </Grid>
 
-                <Border Background="White"
-                        BorderBrush="#FFE5E7EB"
-                        BorderThickness="1"
-                        CornerRadius="20"
-                        Padding="18">
-                    <StackPanel Spacing="10">
-                        <TextBlock Text="Flux de travail"
-                                   FontWeight="SemiBold"
-                                   Foreground="#FF111827"/>
-                        <TextBlock Text="1. Recherche un langage. 2. Coche-le. 3. La sélection est persistée localement et réapparaît au prochain lancement."
-                                   Foreground="#FF4B5563"
-                                   TextWrapping="Wrap"/>
-                    </StackPanel>
-                </Border>
+                <Grid ColumnDefinitions="*,*"
+                      ColumnSpacing="12">
+                    <Border Background="#FF0B1220"
+                            BorderBrush="#FF1F2937"
+                            BorderThickness="1"
+                            CornerRadius="20"
+                            Padding="18">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="Comment ça marche"
+                                       Foreground="White"
+                                       FontWeight="SemiBold"/>
+                            <TextBlock Text="1. Tape un langage. 2. Coche-le. 3. La sélection est sauvée dans un fichier local et restaurée au prochain lancement."
+                                       Foreground="#FF94A3B8"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
 
-                <Border Background="White"
-                        BorderBrush="#FFE5E7EB"
-                        BorderThickness="1"
-                        CornerRadius="20"
-                        Padding="18">
-                    <StackPanel Spacing="8">
-                        <TextBlock Text="Dernier état"
-                                   FontWeight="SemiBold"
-                                   Foreground="#FF111827"/>
-                        <TextBlock Text="{Binding StatusMessage}"
-                                   TextWrapping="Wrap"
-                                   Foreground="#FF4B5563"/>
-                    </StackPanel>
-                </Border>
+                    <Border Grid.Column="1"
+                            Background="#FF0B1220"
+                            BorderBrush="#FF1F2937"
+                            BorderThickness="1"
+                            CornerRadius="20"
+                            Padding="18">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="État actuel"
+                                       Foreground="White"
+                                       FontWeight="SemiBold"/>
+                            <TextBlock Text="{Binding SelectionSummary}"
+                                       Foreground="#FF94A3B8"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
             </StackPanel>
         </ScrollViewer>
     </Grid>

@@ -12,7 +12,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 {
     private readonly SelectedLanguagesStore _selectedLanguagesStore = new();
     private readonly ObservableCollection<LanguageOptionViewModel> _filteredLanguages = new();
-    private readonly ObservableCollection<string> _selectedLanguages = new();
+    private readonly ObservableCollection<LanguageOptionViewModel> _selectedLanguages = new();
     private readonly List<LanguageOptionViewModel> _allLanguages = new();
     private bool _isInitializing;
     private GithubColorsCatalog? _githubColors;
@@ -39,7 +39,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public ObservableCollection<LanguageOptionViewModel> FilteredLanguages => _filteredLanguages;
 
-    public ObservableCollection<string> SelectedLanguages => _selectedLanguages;
+    public ObservableCollection<LanguageOptionViewModel> SelectedLanguages => _selectedLanguages;
 
     public string SearchText
     {
@@ -98,7 +98,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             await Task.WhenAll(colorsTask, selectionsTask);
 
             GithubColors = colorsTask.Result;
-            RebuildLanguages(GithubColors.Colors.Keys, selectionsTask.Result);
+            RebuildLanguages(GithubColors, selectionsTask.Result);
             RefreshSelectedLanguages();
             ApplyFilter();
             StatusMessage = $"Couleurs chargées: {ColorCount}";
@@ -116,25 +116,26 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
-    private void RebuildLanguages(IEnumerable<string> languages, IReadOnlyCollection<string> selectedLanguages)
+    private void RebuildLanguages(GithubColorsCatalog githubColors, IReadOnlyCollection<string> selectedLanguages)
     {
         _allLanguages.Clear();
 
         var selectedSet = new HashSet<string>(selectedLanguages, StringComparer.OrdinalIgnoreCase);
 
-        foreach (var language in languages
+        foreach (var language in githubColors.Colors.Keys
                      .Where(language => !string.IsNullOrWhiteSpace(language))
                      .Distinct(StringComparer.OrdinalIgnoreCase)
                      .OrderBy(language => language, StringComparer.OrdinalIgnoreCase))
         {
             _allLanguages.Add(new LanguageOptionViewModel(
                 language,
+                githubColors.Colors.TryGetValue(language, out var colorEntry) ? colorEntry.Color : null,
                 selectedSet.Contains(language),
                 OnLanguageSelectionChanged));
         }
     }
 
-    private void OnLanguageSelectionChanged(LanguageOptionViewModel selectedLanguage)
+    private void OnLanguageSelectionChanged()
     {
         if (_isInitializing)
         {
@@ -151,8 +152,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
         foreach (var language in _allLanguages
                      .Where(language => language.IsSelected)
-                     .Select(language => language.Language)
-                     .OrderBy(language => language, StringComparer.OrdinalIgnoreCase))
+                     .OrderBy(language => language.Language, StringComparer.OrdinalIgnoreCase))
         {
             _selectedLanguages.Add(language);
         }
