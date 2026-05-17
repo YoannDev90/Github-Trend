@@ -1,3 +1,25 @@
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║  Release workflow — .NET / Avalonia                                         ║
+# ║                                                                              ║
+# ║  Produces, per RID, exactly 5 format × 2 modes (SCD + FDD) = 10 files :    ║
+# ║    Windows  →  .exe   (SCD = single-file  |  FDD = SFX self-extracting)    ║
+# ║    macOS    →  .dmg   (UDZO zlib-9)                                         ║
+# ║    Linux    →  naked binary  +  .deb  +  .rpm                               ║
+# ║                                                                              ║
+# ║  Size-reduction stack :                                                      ║
+# ║    • PublishSingleFile + EnableCompressionInSingleFile  (SCD)               ║
+# ║    • PublishTrimmed / TrimMode=link  (SCD — safe for Avalonia¹)             ║
+# ║    • PublishReadyToRun=false                                                 ║
+# ║    • No debug symbols / PDBs                                                 ║
+# ║    • strip --strip-all  (Linux / macOS)                                      ║
+# ║    • UPX --best --lzma  (Linux naked binary + UPX fallback)                 ║
+# ║    • 7-Zip LZMA2 mx=9  (Windows FDD SFX)                                    ║
+# ║    • hdiutil UDZO zlib-9  (macOS DMG)                                        ║
+# ║                                                                              ║
+# ║  ¹ If trimming breaks your Avalonia app, set TrimMode to "partial" or add   ║
+# ║    a TrimmerRootDescriptor file in your .csproj.                             ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
+
 name: Release
 
 on:
@@ -7,15 +29,15 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Tag to release (required when running manually)'
-        required: false
+        description: 'Tag name (e.g. v1.2.3)  — required for manual runs'
+        required: true
         type: string
       release_name:
-        description: 'Release title (defaults to the tag name)'
+        description: 'Release title  (defaults to tag name)'
         required: false
         type: string
       draft:
-        description: 'Create the release as a draft'
+        description: 'Create as draft'
         required: false
         default: false
         type: boolean
@@ -23,258 +45,394 @@ on:
 permissions:
   contents: write
 
+# ── Globals ──────────────────────────────────────────────────────────────────
+env:
+  PROJECT:        Github-Trend.csproj   # ← adjust if your .csproj has another name
+  APP_NAME:       github-trend
+  DOTNET_VERSION: '10.0.x'
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  JOB: build
+# ═════════════════════════════════════════════════════════════════════════════
 jobs:
   build:
-    name: Release build (${{ matrix.rid }})
+    name: ${{ matrix.rid }}
     runs-on: ${{ matrix.os }}
-    continue-on-error: true
+    continue-on-error: true            # one broken RID must not abort the release
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: windows-latest
-            platform: windows
-            rid: win-x64
-            arch: x64
-          - os: windows-latest
-            platform: windows
-            rid: win-arm64
-            arch: arm64
-          - os: macos-latest
-            platform: macos
-            rid: osx-x64
-            arch: x64
-          - os: macos-latest
-            platform: macos
-            rid: osx-arm64
-            arch: arm64
-          - os: ubuntu-latest
-            platform: linux
-            rid: linux-x64
-            arch: x64
-          - os: ubuntu-latest
-            platform: linux
-            rid: linux-arm64
-            arch: arm64
+          - { os: windows-latest, platform: windows, rid: win-x64    }
+          - { os: windows-latest, platform: windows, rid: win-arm64  }
+          - { os: macos-latest,   platform: macos,   rid: osx-x64    }
+          - { os: macos-latest,   platform: macos,   rid: osx-arm64  }
+          - { os: ubuntu-latest,  platform: linux,   rid: linux-x64  }
+          - { os: ubuntu-latest,  platform: linux,   rid: linux-arm64 }
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      # ── Checkout + .NET ────────────────────────────────────────────────────
+      - uses: actions/checkout@v4
 
-      - name: Setup .NET
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 10.0.x
+          dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Restore (solution-wide)
-        run: dotnet restore ./Github-Trend.csproj || dotnet restore Github-Trend.sln || true
-
-      - name: Publish framework-dependent (FDD)
-        id: publish-fdd
+      # ── Resolve tag name ───────────────────────────────────────────────────
+      - name: Resolve tag
+        id: tag
         shell: bash
         run: |
-          set -euo pipefail
-          OUT=./artifacts/${{ matrix.platform }}/publish/fdd/${{ matrix.rid }}
-          mkdir -p "$OUT"
-          echo "Publishing framework-dependent output (RID=${{ matrix.rid }}) to $OUT"
-          # ensure restore for this RID and publish the project (not the solution)
-          dotnet restore ./Github-Trend.csproj --runtime ${{ matrix.rid }} || true
-          dotnet publish ./Github-Trend.csproj -c Release -r ${{ matrix.rid }} --self-contained false -p:DebugType=None -p:DebugSymbols=false -o "$OUT" --no-restore || true
-
-      - name: Publish self-contained (SCD)
-        id: publish-scd
-        shell: bash
-        run: |
-          set -euo pipefail
-          OUT=./artifacts/${{ matrix.platform }}/publish/scd/${{ matrix.rid }}
-          mkdir -p "$OUT"
-          echo "Publishing self-contained output (RID=${{ matrix.rid }}) to $OUT"
-          dotnet restore ./Github-Trend.csproj --runtime ${{ matrix.rid }} || true
-          dotnet publish ./Github-Trend.csproj -c Release -r ${{ matrix.rid }} --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=true -p:EnableCompressionInSingleFile=true -p:DebugType=None -p:DebugSymbols=false -o "$OUT" --no-restore || true
-
-      - name: Package outputs
-        shell: bash
-        run: |
-          set -euo pipefail
-          TAG="${GITHUB_REF#refs/tags/}"
-          if [ "$TAG" = "$GITHUB_REF" ]; then TAG="local"; fi
-          PKG_DIR=./artifacts/${{ matrix.platform }}/packages/${{ matrix.rid }}
-          mkdir -p "$PKG_DIR"
-          STAGE_DIR=$(mktemp -d)
-
-          # package framework-dependent (zip)
-          FDD_DIR=./artifacts/${{ matrix.platform }}/publish/fdd/${{ matrix.rid }}
-          if [ -d "$FDD_DIR" ]; then
-            # create compressed archive
-            if [ "${{ matrix.platform }}" = "windows" ]; then
-              cp -r "$FDD_DIR"/* "$STAGE_DIR"/ || true
-              powershell -Command "Compress-Archive -Path '$STAGE_DIR\*' -DestinationPath './artifacts/${{ matrix.platform }}/packages/${{ matrix.rid }}/github-trend-${TAG}-${{ matrix.platform }}-${{ matrix.rid }}-fdd.zip'"
-            else
-              cp -r "$FDD_DIR"/. "$STAGE_DIR"/
-              tar -C "$STAGE_DIR" -cJf "${PKG_DIR}/github-trend-${TAG}-${{ matrix.platform }}-${{ matrix.rid }}-fdd.tar.xz" .
-            fi
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "value=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${{ inputs.tag_name }}" >> "$GITHUB_OUTPUT"
           fi
 
-          # package self-contained
-          SCD_DIR=./artifacts/${{ matrix.platform }}/publish/scd/${{ matrix.rid }}
-          if [ -d "$SCD_DIR" ]; then
-            if [ "${{ matrix.platform }}" = "windows" ]; then
-              cp -r "$SCD_DIR"/* "$STAGE_DIR"/ || true
-              powershell -Command "Compress-Archive -Path '$STAGE_DIR\*' -DestinationPath './artifacts/${{ matrix.platform }}/packages/${{ matrix.rid }}/github-trend-${TAG}-${{ matrix.platform }}-${{ matrix.rid }}-scd.zip'"
-            else
-              # on unix-like (macos) produce tar.xz and dmg for scd
-              rm -rf "$STAGE_DIR"/* || true
-              cp -r "$SCD_DIR"/. "$STAGE_DIR"/
-              tar -C "$STAGE_DIR" -cJf "${PKG_DIR}/github-trend-${TAG}-${{ matrix.platform }}-${{ matrix.rid }}-scd.tar.xz" .
-              if [ "${{ matrix.platform }}" = "macos" ] && command -v hdiutil >/dev/null 2>&1; then
-                DMG_NAME="${PKG_DIR}/github-trend-${TAG}-${{ matrix.platform }}-${{ matrix.rid }}-scd.dmg"
-                hdiutil create -volname "Github-Trend" -srcfolder "$STAGE_DIR" -ov -format UDZO "$DMG_NAME" || true
-              fi
-            fi
-          fi
+      # ── Restore ────────────────────────────────────────────────────────────
+      - name: Restore
+        shell: bash
+        run: |
+          dotnet restore "${{ env.PROJECT }}" --runtime "${{ matrix.rid }}" || true
 
-          # Additional Linux packaging: .deb, .rpm, naked binary and tar.gz
-          if [ "${{ matrix.platform }}" = "linux" ]; then
-            echo "Running linux-specific packaging"
-            # ensure upx and fpm available
-            sudo apt-get update -y || true
-            sudo apt-get install -y --no-install-recommends upx ruby ruby-dev build-essential rpm dpkg-dev fakeroot || true
-            sudo gem install --no-document fpm || true
+      # ── SCD publish ────────────────────────────────────────────────────────
+      # One single native binary, trimmed + compressed in the binary itself.
+      - name: Publish SCD
+        shell: bash
+        run: |
+          dotnet publish "${{ env.PROJECT }}" \
+            -c Release \
+            -r "${{ matrix.rid }}" \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:PublishTrimmed=true \
+            -p:TrimMode=link \
+            -p:EnableCompressionInSingleFile=true \
+            -p:PublishReadyToRun=false \
+            -p:DebugType=None \
+            -p:DebugSymbols=false \
+            -p:StripSymbols=true \
+            -o "out/scd/${{ matrix.rid }}" \
+            --no-restore || true
 
-            # choose SCD binary if exists, else fallback to FDD apphost
-            BIN=$(find "$SCD_DIR" -maxdepth 1 -type f -executable -print | head -n1 || true)
+      # ── FDD publish ────────────────────────────────────────────────────────
+      # Smaller download when the user already has the .NET runtime installed.
+      - name: Publish FDD
+        shell: bash
+        run: |
+          dotnet publish "${{ env.PROJECT }}" \
+            -c Release \
+            -r "${{ matrix.rid }}" \
+            --self-contained false \
+            -p:PublishSingleFile=false \
+            -p:DebugType=None \
+            -p:DebugSymbols=false \
+            -o "out/fdd/${{ matrix.rid }}" \
+            --no-restore || true
+
+      # ════════════════════════════════════════════════════════════════════════
+      #  WINDOWS PACKAGING
+      #  SCD → single .exe (already a single file from PublishSingleFile)
+      #  FDD → self-extracting .exe via 7-Zip SFX (7-Zip pre-installed on runner)
+      # ════════════════════════════════════════════════════════════════════════
+      - name: Package · Windows
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        env:
+          TAG: ${{ steps.tag.outputs.value }}
+        run: |
+          $app = $env:APP_NAME
+          $tag = $env:TAG
+          $rid = "${{ matrix.rid }}"
+          $pkg = "packages/$rid"
+          New-Item -ItemType Directory -Force -Path $pkg | Out-Null
+
+          # ── SCD : copy the single .exe produced by PublishSingleFile ────────
+          $scdDir = "out/scd/$rid"
+          $scdExe = Get-ChildItem $scdDir -Filter "*.exe" -File | Select-Object -First 1
+          if ($scdExe) {
+            $dst = "$pkg/$app-$tag-$rid-scd.exe"
+            Copy-Item $scdExe.FullName $dst
+            Write-Host "SCD → $dst  ($('{0:N1} MB' -f ((Get-Item $dst).Length/1MB)))"
+          } else {
+            Write-Warning "SCD: no .exe found in $scdDir"
+          }
+
+          # ── FDD : self-extracting .exe via 7-Zip SFX ────────────────────────
+          $sevenZip = "C:\Program Files\7-Zip\7z.exe"
+          $sfxMod   = "C:\Program Files\7-Zip\7z.sfx"
+
+          if (-not (Test-Path $sfxMod)) {
+            Write-Warning "7-Zip SFX module not found at $sfxMod — FDD packaging skipped"
+          } else {
+            $fddDir  = (Resolve-Path "out/fdd/$rid").Path
+            $mainExe = (Get-ChildItem $fddDir -Filter "*.exe" -File | Select-Object -First 1).Name
+
+            # 7-Zip LZMA2 ultra-compression archive
+            $arcTmp = [System.IO.Path]::GetTempFileName() + ".7z"
+            & $sevenZip a -t7z -mx=9 -mmt=on -m0=lzma2 -md=128m -mfb=64 `
+                "$arcTmp" "$fddDir\*" | Out-Null
+
+            # SFX config: silent extract + launch the apphost
+            $cfgTmp = [System.IO.Path]::GetTempFileName()
+            $config = @(
+              ';!@InstallStart@!'
+              "Title=`"$app $tag ($rid) — FDD`""
+              "RunProgram=`"$mainExe`""
+              'GUIFlags="8"'
+              ';!@InstallEnd@!'
+            ) -join "`r`n"
+            Set-Content -Path $cfgTmp -Value $config -Encoding UTF8
+
+            # Binary concatenation: sfx_stub + config + archive = single SFX .exe
+            $outSfx = "$pkg/$app-$tag-$rid-fdd.exe"
+            $bytes = New-Object System.Collections.Generic.List[byte]
+            foreach ($f in @($sfxMod, $cfgTmp, $arcTmp)) {
+              $bytes.AddRange([System.IO.File]::ReadAllBytes($f))
+            }
+            [System.IO.File]::WriteAllBytes($outSfx, $bytes.ToArray())
+
+            Remove-Item $arcTmp, $cfgTmp -Force -ErrorAction SilentlyContinue
+            Write-Host "FDD SFX → $outSfx  ($('{0:N1} MB' -f ((Get-Item $outSfx).Length/1MB)))"
+          }
+
+      # ════════════════════════════════════════════════════════════════════════
+      #  MACOS PACKAGING
+      #  Both SCD and FDD → .dmg  (UDRW staging → UDZO zlib-9 final)
+      # ════════════════════════════════════════════════════════════════════════
+      - name: Package · macOS
+        if: matrix.platform == 'macos'
+        shell: bash
+        env:
+          TAG: ${{ steps.tag.outputs.value }}
+        run: |
+          APP="${{ env.APP_NAME }}"
+          RID="${{ matrix.rid }}"
+          PKG="packages/$RID"
+          mkdir -p "$PKG"
+
+          # Strip all debug sections from every executable in a directory
+          strip_dir() {
+            find "$1" -maxdepth 3 -type f -perm /111 | while read -r b; do
+              strip "$b" 2>/dev/null || true
+            done
+          }
+
+          make_dmg() {
+            local TYPE="$1"   # scd | fdd
+            local SRC="$2"
+            [ ! -d "$SRC" ] && echo "[$TYPE] $SRC not found — skip" && return
+
+            strip_dir "$SRC"
+
+            local TMP_UDRW OUT
+            TMP_UDRW=$(mktemp).dmg
+            OUT="$PKG/${APP}-${TAG}-${RID}-${TYPE}.dmg"
+
+            # Stage as read-write image, then convert to compressed read-only
+            hdiutil create \
+              -volname "${APP}" \
+              -srcfolder "$SRC" \
+              -ov -format UDRW \
+              "$TMP_UDRW" >/dev/null
+
+            hdiutil convert "$TMP_UDRW" \
+              -format UDZO \
+              -imagekey zlib-level=9 \
+              -o "$OUT" >/dev/null
+
+            rm -f "$TMP_UDRW"
+            echo "[$TYPE] DMG → $OUT  ($(du -sh "$OUT" | cut -f1))"
+          }
+
+          make_dmg "scd" "out/scd/$RID"
+          make_dmg "fdd" "out/fdd/$RID"
+
+      # ════════════════════════════════════════════════════════════════════════
+      #  LINUX PACKAGING
+      #  Per mode (SCD + FDD) → naked binary  +  .deb  +  .rpm
+      # ════════════════════════════════════════════════════════════════════════
+      - name: Linux · Install packaging tools
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends \
+            upx-ucl \
+            binutils \
+            ruby ruby-dev \
+            build-essential \
+            rpm dpkg-dev fakeroot \
+            patchelf
+          # fpm: universal packager (deb, rpm, …)
+          sudo gem install --no-document fpm
+
+      - name: Package · Linux
+        if: matrix.platform == 'linux'
+        shell: bash
+        env:
+          TAG: ${{ steps.tag.outputs.value }}
+        run: |
+          APP="${{ env.APP_NAME }}"
+          RID="${{ matrix.rid }}"
+          PKG="packages/$RID"
+          mkdir -p "$PKG"
+
+          # RPM forbids leading 'v' and hyphens in version numbers
+          RPM_VER=$(echo "${TAG#v}" | tr '-' '.')
+
+          # Architecture strings per tool
+          case "$RID" in
+            linux-x64)    DEB_ARCH=amd64   ; RPM_ARCH=x86_64   ;;
+            linux-arm64)  DEB_ARCH=arm64   ; RPM_ARCH=aarch64  ;;
+            linux-arm)    DEB_ARCH=armhf   ; RPM_ARCH=armv7hl  ;;
+            *)            DEB_ARCH=amd64   ; RPM_ARCH=x86_64   ;;
+          esac
+
+          package_linux() {
+            local TYPE="$1"   # scd | fdd
+            local SRC="$2"
+
+            # Locate the main native executable (apphost or single-file binary)
+            local BIN
+            BIN=$(find "$SRC" -maxdepth 1 -type f -executable | head -n1 || true)
             if [ -z "$BIN" ]; then
-              BIN=$(find "$FDD_DIR" -maxdepth 1 -type f -executable -print | head -n1 || true)
-            fi
-            if [ -z "$BIN" ]; then
-              # fallback: try to locate by name
-              BIN=$(ls "$SCD_DIR" 2>/dev/null | grep -i github-trend | head -n1 || true)
-              if [ -n "$BIN" ]; then BIN="$SCD_DIR/$BIN"; fi
+              echo "[$TYPE] No executable found in $SRC — skipping"
+              return
             fi
 
-            if [ -f "$BIN" ]; then
-              echo "Found binary: $BIN"
-              BASENAME=github-trend-${TAG}-${{ matrix.rid }}
-              # create naked binary (no extension)
-              NAKED="$PKG_DIR/${BASENAME}"
-              mkdir -p "$PKG_DIR"
-              cp "$BIN" "$NAKED" || true
-              chmod +x "$NAKED" || true
+            # ── 1. Naked binary ──────────────────────────────────────────────
+            local NAKED="$PKG/${APP}-${TAG}-${RID}-${TYPE}"
+            cp "$BIN" "$NAKED"
+            chmod +x "$NAKED"
 
-              # compress naked binary with upx to reduce size
-              if command -v upx >/dev/null 2>&1; then
-                upx --best --lzma -o "$PKG_DIR/${BASENAME}.upx" "$NAKED" || cp "$NAKED" "$PKG_DIR/${BASENAME}.upx"
-              else
-                cp "$NAKED" "$PKG_DIR/${BASENAME}.upx"
-              fi
+            # Strip all debug info (can save 30–50 % on uncompressed binaries)
+            strip --strip-all "$NAKED" 2>/dev/null || true
 
-              # create tar.gz of naked binary
-              tar -C "$PKG_DIR" -czf "$PKG_DIR/${BASENAME}.tar.gz" "$(basename "$NAKED")"
+            # UPX LZMA compression (try best quality; gracefully degrade for ARM)
+            upx --best --lzma "$NAKED" 2>/dev/null \
+              || upx --best "$NAKED" 2>/dev/null \
+              || echo "[$TYPE] upx skipped for $NAKED (unsupported arch or format)"
 
-              # build /usr/local/bin layout for packages
-              PKG_ROOT="$PKG_DIR/pkg-root"
-              rm -rf "$PKG_ROOT" || true
-              mkdir -p "$PKG_ROOT/usr/local/bin"
-              cp "$NAKED" "$PKG_ROOT/usr/local/bin/github-trend"
+            echo "[$TYPE] naked → $NAKED  ($(du -sh "$NAKED" | cut -f1))"
 
-              # create deb
-              (cd "$PKG_DIR" && fpm -s dir -t deb -n github-trend -v "$TAG" --prefix / -C "$PKG_ROOT" usr/local/bin/github-trend) || true
-              mv "$PKG_DIR"/*.deb "$PKG_DIR/" 2>/dev/null || true
+            # ── 2. .deb + .rpm ───────────────────────────────────────────────
+            local PKG_ROOT="$PKG/pkgroot-${TYPE}"
+            mkdir -p "$PKG_ROOT/usr/local/bin"
+            # Use stripped + compressed binary in the packages too
+            cp "$NAKED" "$PKG_ROOT/usr/local/bin/$APP"
 
-              # create rpm
-              (cd "$PKG_DIR" && fpm -s dir -t rpm -n github-trend -v "$TAG" --prefix / -C "$PKG_ROOT" usr/local/bin/github-trend) || true
-              mv "$PKG_DIR"/*.rpm "$PKG_DIR/" 2>/dev/null || true
+            # .deb
+            fpm \
+              -s dir -t deb \
+              -n "$APP" \
+              -v "${TAG#v}" \
+              --architecture "$DEB_ARCH" \
+              --description "Github Trend — ${TYPE} build" \
+              --prefix / \
+              -C "$PKG_ROOT" \
+              -p "$PKG/${APP}-${TAG}-${RID}-${TYPE}.deb" \
+              usr/local/bin/$APP \
+            || echo "[$TYPE] fpm deb skipped"
 
-              echo "Linux packages created in $PKG_DIR"
-            else
-              echo "No executable found for linux packaging (SCD/FDD)." >&2
-            fi
-          fi
+            # .rpm
+            fpm \
+              -s dir -t rpm \
+              -n "$APP" \
+              -v "$RPM_VER" \
+              --architecture "$RPM_ARCH" \
+              --description "Github Trend — ${TYPE} build" \
+              --prefix / \
+              -C "$PKG_ROOT" \
+              -p "$PKG/${APP}-${TAG}-${RID}-${TYPE}.rpm" \
+              usr/local/bin/$APP \
+            || echo "[$TYPE] fpm rpm skipped"
 
-          rm -rf "$STAGE_DIR"
-          echo "Final packaged files:" && find "$PKG_DIR" -maxdepth 1 -type f -print -exec ls -lh {} \; || true
+            rm -rf "$PKG_ROOT"
+            echo "[$TYPE] packaging done"
+          }
 
-      - name: Upload packages artifact
+          package_linux "scd" "out/scd/$RID"
+          package_linux "fdd" "out/fdd/$RID"
+
+      # ── List produced files ────────────────────────────────────────────────
+      - name: List packages/${{ matrix.rid }}
+        shell: bash
+        run: |
+          echo "=== packages/${{ matrix.rid }} ==="
+          find "packages/${{ matrix.rid }}" -maxdepth 1 -type f \
+            -exec ls -lh {} \; 2>/dev/null || echo "(empty)"
+
+      # ── Upload to artifact store ───────────────────────────────────────────
+      - name: Upload packages
         uses: actions/upload-artifact@v4
         with:
-          name: release-packages-${{ matrix.platform }}-${{ matrix.rid }}
-          path: |
-            ./artifacts/${{ matrix.platform }}/packages/${{ matrix.rid }}/*.zip
-            ./artifacts/${{ matrix.platform }}/packages/${{ matrix.rid }}/*.tar.gz
-            ./artifacts/${{ matrix.platform }}/packages/${{ matrix.rid }}/*.tar.xz
-            ./artifacts/${{ matrix.platform }}/packages/${{ matrix.rid }}/*.dmg
-            ./artifacts/${{ matrix.platform }}/packages/${{ matrix.rid }}/*.deb
-            ./artifacts/${{ matrix.platform }}/packages/${{ matrix.rid }}/*.rpm
-            ./artifacts/${{ matrix.platform }}/packages/${{ matrix.rid }}/github-trend-*
-          if-no-files-found: ignore
+          name: pkg-${{ matrix.rid }}
+          path: packages/${{ matrix.rid }}/
+          if-no-files-found: warn
 
-      - name: Report publish result
-        if: always()
-        run: |
-          echo "RID: ${{ matrix.rid }}"
-          echo "Platform: ${{ matrix.platform }}"
-          echo "Publish steps completed (non-blocking)."
-
+  # ═════════════════════════════════════════════════════════════════════════════
+  #  JOB: release  — downloads all per-RID artifacts and creates the GH release
+  # ═════════════════════════════════════════════════════════════════════════════
   release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
     needs: build
-    if: always()
+    if: always()   # run even if some build jobs failed
 
     steps:
       - name: Resolve release metadata
         id: meta
         shell: bash
         run: |
-          TAG_NAME="${{ github.event_name == 'push' && github.ref_type == 'tag' && github.ref_name || inputs.tag_name }}"
-          if [ -z "$TAG_NAME" ]; then
-            echo "Missing tag name. Provide 'tag_name' when running the workflow manually." >&2
+          if [ "${{ github.event_name }}" = "push" ]; then
+            TAG="${{ github.ref_name }}"
+          else
+            TAG="${{ inputs.tag_name }}"
+          fi
+          if [ -z "$TAG" ]; then
+            echo "::error::tag_name is required when running the workflow manually"
             exit 1
           fi
 
-          RELEASE_NAME="${{ inputs.release_name }}"
-          if [ -z "$RELEASE_NAME" ]; then
-            RELEASE_NAME="$TAG_NAME"
-          fi
+          NAME="${{ inputs.release_name }}"
+          [ -z "$NAME" ] && NAME="$TAG"
 
-          DRAFT="${{ github.event_name == 'workflow_dispatch' && inputs.draft || false }}"
+          DRAFT="${{ inputs.draft || 'false' }}"
 
-          echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
-          echo "release_name=$RELEASE_NAME" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG"     >> "$GITHUB_OUTPUT"
+          echo "name=$NAME"   >> "$GITHUB_OUTPUT"
           echo "draft=$DRAFT" >> "$GITHUB_OUTPUT"
+          echo "Release: $NAME  (tag=$TAG  draft=$DRAFT)"
 
-      - name: Download all package artifacts
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: release-packages*
-          path: ./release-assets
+          pattern: pkg-*
+          path: ./assets
           merge-multiple: true
 
-      - name: List downloaded assets
-        run: |
-          echo "Downloaded files:" && find release-assets -type f -maxdepth 3 -print || true
+      - name: List release assets
+        run: find assets -type f | sort
 
-      - name: Create GitHub Release and upload packaged files
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.meta.outputs.tag_name }}
-          name: ${{ steps.meta.outputs.release_name }}
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.name }}
           draft: ${{ steps.meta.outputs.draft }}
           generate_release_notes: true
-          files: |
-            release-assets/**/*.zip
-            release-assets/**/*.tar.gz
-            release-assets/**/*.tar.xz
-            release-assets/**/*.dmg
-            release-assets/**/*.deb
-            release-assets/**/*.rpm
-            release-assets/**/github-trend-*
           fail_on_unmatched_files: false
+          files: |
+            assets/**/*.exe
+            assets/**/*.dmg
+            assets/**/*.deb
+            assets/**/*.rpm
+            assets/**/github-trend-*
 
-      - name: Report release result
+      - name: Release summary
         if: always()
         run: |
-          echo "Release tag: ${{ steps.meta.outputs.tag_name }}"
-          echo "Release name: ${{ steps.meta.outputs.release_name }}"
-          echo "Packaged artifacts attached to release (best-effort)."
-
+          echo "tag  : ${{ steps.meta.outputs.tag }}"
+          echo "name : ${{ steps.meta.outputs.name }}"
+          echo "draft: ${{ steps.meta.outputs.draft }}"
