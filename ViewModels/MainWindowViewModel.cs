@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
+using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -25,9 +27,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public MainWindowViewModel()
     {
         RefreshCommand = new RelayCommand(_ => ExecuteRefreshColors(), _ => !_isInitializing && !_isRefreshing);
-        GitHubSignInCommand = new RelayCommand(_ => _ = SignInWithGitHubAsync(), _ => !_isInitializing && !_isGitHubAuthenticating);
-        GitHubSignOutCommand = new RelayCommand(_ => _ = SignOutGitHubAsync(), _ => IsGitHubConnected && !_isGitHubAuthenticating);
-        GitHubRefreshCommand = new RelayCommand(_ => _ = RefreshGitHubSessionAsync(), _ => IsGitHubConnected && !_isGitHubAuthenticating);
+        GitHubSignInCommand = new RelayCommand(_ => ExecuteGitHubSignIn(), _ => !_isInitializing && !_isGitHubAuthenticating);
+        GitHubSignOutCommand = new RelayCommand(_ => ExecuteGitHubSignOut(), _ => IsGitHubConnected && !_isGitHubAuthenticating);
+        GitHubRefreshCommand = new RelayCommand(_ => ExecuteGitHubRefresh(), _ => IsGitHubConnected && !_isGitHubAuthenticating);
+        CopyGitHubCodeCommand = new RelayCommand(_ => RaiseGitHubDeviceCodeCopyRequested(), _ => HasGitHubDeviceCode);
+        OpenRepositoryCommand = new RelayCommand(ExecuteOpenRepository, parameter => parameter is GithubTrendingRepository repo && !string.IsNullOrWhiteSpace(repo.RepositoryLink));
+        StarRepositoryCommand = new RelayCommand(ExecuteStarRepository, parameter => parameter is GithubTrendingRepository repo && !string.IsNullOrWhiteSpace(repo.Repository));
+        WatchRepositoryCommand = new RelayCommand(ExecuteWatchRepository, parameter => parameter is GithubTrendingRepository repo && !string.IsNullOrWhiteSpace(repo.Repository));
         _githubAuthService.SessionChanged += (_, _) => UpdateGitHubAuthState();
         _selectedTimeRangeIndex = 0;
         _githubAuthStatus = "Connexion GitHub non configurée";
@@ -47,6 +53,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _statusMessage = "Chargement des couleurs...";
     private string _githubAuthStatus;
     private string _githubAccountSummary;
+    private string _githubDeviceCode = string.Empty;
 
     private readonly ObservableCollection<GithubTrendingRepository> _trendingRepositories = new();
     private List<GithubTrendingRepository>? _trendingData;
@@ -62,6 +69,34 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public ICommand GitHubSignOutCommand { get; }
 
     public ICommand GitHubRefreshCommand { get; }
+
+    public ICommand CopyGitHubCodeCommand { get; }
+
+    public ICommand OpenRepositoryCommand { get; }
+
+    public ICommand StarRepositoryCommand { get; }
+
+    public ICommand WatchRepositoryCommand { get; }
+
+    public event EventHandler? GitHubDeviceCodeCopyRequested;
+
+    public string GitHubDeviceCode
+    {
+        get => _githubDeviceCode;
+        set
+        {
+            if (_githubDeviceCode == value)
+            {
+                return;
+            }
+
+            _githubDeviceCode = value;
+            OnPropertyChanged();
+            (CopyGitHubCodeCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        }
+    }
+
+    public bool HasGitHubDeviceCode => !string.IsNullOrWhiteSpace(_githubDeviceCode);
 
 
     public ObservableCollection<GithubTrendingRepository> TrendingRepositories => _trendingRepositories;
@@ -292,6 +327,18 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         _ = RefreshTrendingRepositoriesAsync();
     }
 
+    private void ExecuteGitHubSignIn() => _ = SignInWithGitHubAsync();
+
+    private void ExecuteGitHubSignOut() => _ = SignOutGitHubAsync();
+
+    private void ExecuteGitHubRefresh() => _ = RefreshGitHubSessionAsync();
+
+    private void RaiseGitHubDeviceCodeCopyRequested() => GitHubDeviceCodeCopyRequested?.Invoke(this, EventArgs.Empty);
+
+    private void ExecuteStarRepository(object? parameter) => _ = ExecuteStarRepositoryAsync(parameter);
+
+    private void ExecuteWatchRepository(object? parameter) => _ = ExecuteWatchRepositoryAsync(parameter);
+
     private async Task SignInWithGitHubAsync()
     {
         if (_isInitializing || _isGitHubAuthenticating)
@@ -302,8 +349,15 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         try
         {
             IsGitHubAuthenticating = true;
+            GitHubDeviceCode = string.Empty;
             GitHubAuthStatus = "Initialisation de la connexion GitHub...";
-            var session = await _githubAuthService.BeginInteractiveSignInAsync(message => GitHubAuthStatus = message);
+            var session = await _githubAuthService.BeginInteractiveSignInAsync(
+                message => GitHubAuthStatus = message,
+                code =>
+                {
+                    GitHubDeviceCode = code;
+                    RaiseGitHubDeviceCodeCopyRequested();
+                });
             UpdateGitHubAuthState(session);
             StatusMessage = $"Connexion GitHub réussie: {session?.Summary}";
         }
@@ -315,6 +369,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         finally
         {
             IsGitHubAuthenticating = false;
+            GitHubDeviceCode = string.Empty;
             RaiseGitHubCommandStateChanged();
         }
     }
@@ -632,5 +687,134 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-}
 
+    private void ExecuteOpenRepository(object? parameter)
+    {
+        if (parameter is GithubTrendingRepository repo && !string.IsNullOrWhiteSpace(repo.RepositoryLink))
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = repo.RepositoryLink,
+                    UseShellExecute = true
+                });
+                Log.Information("Opened repository: {Url}", repo.RepositoryLink);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to open repository: {Url}", repo.RepositoryLink);
+                StatusMessage = $"Erreur: impossible d'ouvrir le lien";
+            }
+        }
+    }
+
+    private async Task ExecuteStarRepositoryAsync(object? parameter)
+    {
+        if (parameter is GithubTrendingRepository repo && !string.IsNullOrWhiteSpace(repo.Repository))
+        {
+            if (!IsGitHubConnected)
+            {
+                StatusMessage = "Connecte-toi à GitHub pour étoiler des repositories.";
+                return;
+            }
+
+            try
+            {
+                var apiClient = new GitHubApiClient(_githubAuthService);
+                var slug = GetRepositorySlug(repo.Repository);
+                var response = await apiClient.SendAsync(() => new HttpRequestMessage(HttpMethod.Put, $"{Constants.GitHub.ApiBaseUrl}/user/starred/{slug}"));
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    Log.Warning("Failed to star repository {Slug}. Status={StatusCode} Body={Body}", slug, (int)response.StatusCode, error);
+                    StatusMessage = BuildRepoActionFailureMessage("étoiler", repo.DisplayTitle, response.StatusCode, error);
+                    return;
+                }
+
+                StatusMessage = $"Repo étoilé sur GitHub: {repo.DisplayTitle}";
+                Log.Information("Starred repository on GitHub: {Slug}", slug);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to star repository: {Repo}", repo.Repository);
+                StatusMessage = $"Erreur: impossible d'étoiler le repo";
+            }
+        }
+    }
+
+    private async Task ExecuteWatchRepositoryAsync(object? parameter)
+    {
+        if (parameter is GithubTrendingRepository repo && !string.IsNullOrWhiteSpace(repo.Repository))
+        {
+            if (!IsGitHubConnected)
+            {
+                StatusMessage = "Connecte-toi à GitHub pour surveiller des repositories.";
+                return;
+            }
+
+            try
+            {
+                var apiClient = new GitHubApiClient(_githubAuthService);
+                var slug = GetRepositorySlug(repo.Repository);
+                var response = await apiClient.SendAsync(() => new HttpRequestMessage(HttpMethod.Put, $"{Constants.GitHub.ApiBaseUrl}/repos/{slug}/subscription")
+                {
+                    Content = new StringContent("{\"subscribed\":true,\"ignored\":false}", System.Text.Encoding.UTF8, "application/json")
+                });
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    Log.Warning("Failed to watch repository {Slug}. Status={StatusCode} Body={Body}", slug, (int)response.StatusCode, error);
+                    StatusMessage = BuildRepoActionFailureMessage("surveiller", repo.DisplayTitle, response.StatusCode, error);
+                    return;
+                }
+
+                StatusMessage = $"Repo surveillé sur GitHub: {repo.DisplayTitle}";
+                Log.Information("Watched repository on GitHub: {Slug}", slug);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to watch repository: {Repo}", repo.Repository);
+                StatusMessage = $"Erreur: impossible de surveiller le repo";
+            }
+        }
+    }
+
+    private static string GetRepositorySlug(string repositoryUrl)
+    {
+        var trimmed = repositoryUrl.Trim();
+        if (trimmed.Contains("://", StringComparison.OrdinalIgnoreCase))
+        {
+            var parts = trimmed.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (parts.Length >= 2)
+            {
+                return $"{parts[^2]}/{parts[^1]}";
+            }
+        }
+        return trimmed;
+    }
+
+    private static string BuildRepoActionFailureMessage(string action, string repoName, System.Net.HttpStatusCode statusCode, string errorBody)
+    {
+        if ((statusCode == System.Net.HttpStatusCode.Forbidden || statusCode == System.Net.HttpStatusCode.NotFound)
+            && errorBody.Contains("Resource not accessible by integration", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"GitHub bloque {action} {repoName} avec ce jeton. Reconnecte-toi avec un jeton utilisateur OAuth complet, puis réessaie.";
+        }
+
+        if (action == "surveiller" && statusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return $"GitHub ne permet pas de surveiller {repoName} avec la session actuelle. Reconnecte-toi ; le scope `notifications` est peut-être manquant.";
+        }
+
+        return $"Impossible de {action} {repoName} (HTTP {(int)statusCode})";
+    }
+
+    public void NotifyGitHubCodeCopied()
+    {
+        StatusMessage = "Code GitHub copié dans le presse-papiers.";
+    }
+
+}

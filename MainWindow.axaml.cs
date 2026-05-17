@@ -4,11 +4,11 @@ using Avalonia.Media;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.VisualTree;
 using System;
-using System.Diagnostics;
 using System.Linq;
-using Serilog;
+using System.Threading.Tasks;
 
 namespace Github_Trend
 {
@@ -19,7 +19,6 @@ namespace Github_Trend
         private Button? _weeklyButton;
         private Button? _monthlyButton;
         private Button? _allButton;
-        private ScrollViewer? _trendingScrollViewer;
         private ItemsControl? _trendingItemsControl;
         private double _cachedRepoBlockHeight = 260d;
         private bool _initialized;
@@ -28,11 +27,11 @@ namespace Github_Trend
         {
             AvaloniaXamlLoader.Load(this);
             DataContext = _viewModel;
+            _viewModel.GitHubDeviceCodeCopyRequested += async (_, _) => await CopyGitHubDeviceCodeToClipboardAsync();
             _dailyButton = this.FindControl<Button>("DailyTimeRangeButton");
             _weeklyButton = this.FindControl<Button>("WeeklyTimeRangeButton");
             _monthlyButton = this.FindControl<Button>("MonthlyTimeRangeButton");
             _allButton = this.FindControl<Button>("AllTimeRangeButton");
-            _trendingScrollViewer = this.FindControl<ScrollViewer>("TrendingScrollViewer");
             _trendingItemsControl = this.FindControl<ItemsControl>("TrendingItemsControl");
             Loaded += async (_, _) =>
             {
@@ -46,6 +45,33 @@ namespace Github_Trend
                 UpdateTimeRangeButtonStyles();
                 _ = GetRepositoryBlockHeight();
             };
+        }
+
+        public MainWindowViewModel ViewModel => _viewModel;
+
+        private async Task CopyGitHubDeviceCodeToClipboardAsync()
+        {
+            var code = _viewModel.GitHubDeviceCode;
+            if (string.IsNullOrWhiteSpace(code))
+            {
+                return;
+            }
+
+            try
+            {
+                var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+                if (clipboard is null)
+                {
+                    return;
+                }
+
+                await clipboard.SetTextAsync(code);
+                _viewModel.NotifyGitHubCodeCopied();
+            }
+            catch
+            {
+                // best-effort only
+            }
         }
 
         private void OnTrendingScrollWheelChanged(object? sender, PointerWheelEventArgs e)
@@ -126,31 +152,6 @@ namespace Github_Trend
             UpdateTimeRangeButtonStyles();
         }
 
-        private void OnOpenRepositoryClick(object? sender, RoutedEventArgs e)
-        {
-            if (sender is not Button button || button.DataContext is not GithubTrendingRepository repository)
-            {
-                return;
-            }
-
-            var url = repository.RepositoryLink;
-            if (string.IsNullOrWhiteSpace(url))
-            {
-                return;
-            }
-
-            try
-            {
-                Process.Start(new ProcessStartInfo(url)
-                {
-                    UseShellExecute = true
-                });
-            }
-            catch (Exception ex)
-            {
-                Log.Warning(ex, "Impossible d'ouvrir le repository URL {Url}", url);
-            }
-        }
 
         private void UpdateTimeRangeButtonStyles()
         {

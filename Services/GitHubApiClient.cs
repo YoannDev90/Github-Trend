@@ -47,9 +47,15 @@ public sealed class GitHubApiClient
 
     public async Task<HttpResponseMessage> SendAsync(Func<HttpRequestMessage> requestFactory)
     {
+        var personalAccessToken = _options.PersonalAccessToken;
+        var usePat = !string.IsNullOrWhiteSpace(personalAccessToken);
+
         for (var attempt = 0; attempt <= Constants.RateLimit.MaxRetries; attempt++)
         {
-            var token = await _authService.GetAccessTokenAsync(refreshIfNeeded: true);
+            var token = usePat
+                ? personalAccessToken
+                : await _authService.GetAccessTokenAsync(refreshIfNeeded: true);
+
             if (string.IsNullOrWhiteSpace(token))
             {
                 throw new InvalidOperationException("User is not authenticated with GitHub.");

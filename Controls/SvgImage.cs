@@ -18,6 +18,7 @@ public class SvgImage : Image
 
     private static readonly ConcurrentDictionary<string, byte> MissingLogged = new();
     private static readonly ConcurrentDictionary<string, byte> RenderErrorLogged = new();
+    private static readonly ConcurrentDictionary<string, byte> RenderSuccessLogged = new();
 
     public string? SourceUri
     {
@@ -41,6 +42,8 @@ public class SvgImage : Image
             if (bitmap != null)
             {
                 Source = bitmap;
+                if (RenderSuccessLogged.TryAdd(uri, 0))
+                    Log.Information("SvgImage: rendu OK pour {Uri}", uri);
                 return;
             }
 
@@ -97,7 +100,15 @@ public class SvgImage : Image
                 using var canvas = new SKCanvas(bitmap);
                 canvas.Clear(SKColors.Transparent);
                 canvas.Scale(scale);
-                canvas.DrawPicture(picture);
+
+                // Force a monochrome white icon while preserving alpha.
+                using var paint = new SKPaint
+                {
+                    ColorFilter = SKColorFilter.CreateBlendMode(SKColors.White, SKBlendMode.SrcIn),
+                    IsAntialias = true,
+                    // FilterQuality is obsolete in newer SkiaSharp versions; leave default sampling.
+                };
+                canvas.DrawPicture(picture, paint);
                 canvas.Flush();
 
                 using var img = SKImage.FromBitmap(bitmap);

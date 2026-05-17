@@ -15,6 +15,16 @@ public static class Constants
         public const string UserAgent = "Github-Trend/1.0";
     }
 
+    public static class GitHubApp
+    {
+        public const string ClientId = "Ov23liF9LELIduw9N0kH";
+        public const string ClientSecret = "";
+        public const string PersonalAccessToken = "";
+        public const string CallbackUrl = "http://localhost:25885/callback";
+        public const string LocalBaseUrl = "http://localhost:25885";
+        public const bool PrivateRepoAccessEnabled = false;
+    }
+
     public static class Trending
     {
         public static readonly TimeSpan TrendingCacheTtl = TimeSpan.FromHours(24);

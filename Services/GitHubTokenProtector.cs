@@ -7,7 +7,6 @@ namespace Github_Trend;
 
 public sealed class GitHubTokenProtector
 {
-    private const string EnvironmentKeyName = "GITHUB_TREND_TOKEN_KEY";
     private const string TokenPurpose = "Github_Trend.TokenProtector.v1";
     private readonly byte[] _key;
 
@@ -75,22 +74,6 @@ public sealed class GitHubTokenProtector
 
     private static byte[] LoadOrCreateKey()
     {
-        var configuredKey = Environment.GetEnvironmentVariable(EnvironmentKeyName);
-        if (!string.IsNullOrWhiteSpace(configuredKey))
-        {
-            try
-            {
-                var decoded = Convert.FromBase64String(configuredKey);
-                if (decoded.Length == 32)
-                {
-                    return decoded;
-                }
-            }
-            catch
-            {
-                // fall back to local key file
-            }
-        }
 
         var folder = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),

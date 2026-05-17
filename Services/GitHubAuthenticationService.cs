@@ -49,18 +49,16 @@ public sealed class GitHubAuthenticationService
         await LoadCurrentSessionAsync();
     }
 
-    public async Task<GitHubAuthSession?> BeginInteractiveSignInAsync(Action<string>? onProgress = null)
+    public async Task<GitHubAuthSession?> BeginInteractiveSignInAsync(Action<string>? onProgress = null, Action<string>? onUserCodeAvailable = null)
     {
         await InitializeAsync();
         EnsureAuthConfigured();
 
         try
         {
-            // Request device code from GitHub
             var deviceCodeResponse = await _deviceFlowService.RequestDeviceCodeAsync();
-            
-            if (string.IsNullOrWhiteSpace(deviceCodeResponse.UserCode) || 
-                string.IsNullOrWhiteSpace(deviceCodeResponse.VerificationUri))
+
+            if (string.IsNullOrWhiteSpace(deviceCodeResponse.UserCode) || string.IsNullOrWhiteSpace(deviceCodeResponse.VerificationUri))
             {
                 throw new InvalidOperationException("Invalid device code response from GitHub");
             }
@@ -75,20 +73,18 @@ public sealed class GitHubAuthenticationService
             onProgress?.Invoke(opened
                 ? $"Code GitHub: {deviceCodeResponse.UserCode}. Valide dans le navigateur ouvert."
                 : $"Code GitHub: {deviceCodeResponse.UserCode}. Ouvre: {verificationUrl}");
+            onUserCodeAvailable?.Invoke(deviceCodeResponse.UserCode!);
 
-            // Poll for token with timeout
             var (success, tokenResponse, error) = await _deviceFlowService.PollForTokenAsync(
                 deviceCodeResponse.DeviceCode!,
                 deviceCodeResponse.Interval,
-                deviceCodeResponse.ExpiresIn
-            );
+                deviceCodeResponse.ExpiresIn);
 
             if (!success || tokenResponse?.AccessToken == null)
             {
                 throw new InvalidOperationException($"Device flow authentication failed: {error}");
             }
 
-            // Fetch user profile and create session
             var profile = await _tokenService.FetchUserProfileAsync(tokenResponse.AccessToken);
             var localUserId = GetLocalUserId();
 
@@ -98,7 +94,7 @@ public sealed class GitHubAuthenticationService
                 GitHubAccountId = profile.Id,
                 AccessTokenEncrypted = _protector.Protect(tokenResponse.AccessToken),
                 RefreshTokenEncrypted = null,
-                ExpiresAt = DateTimeOffset.UtcNow.AddHours(8), // Device flow tokens typically last 8 hours
+                ExpiresAt = DateTimeOffset.UtcNow.AddHours(8),
                 RefreshTokenExpiresAt = null,
                 ScopeList = tokenResponse.Scope?.Split(' ').ToList() ?? new List<string>(),
                 CreatedAt = DateTimeOffset.UtcNow,
@@ -147,7 +143,7 @@ public sealed class GitHubAuthenticationService
              }
          }
 
-        CurrentSession = record is null ? null : ToSession(record);
+        CurrentSession = ToSession(record);
         RaiseSessionChanged();
         return CurrentSession;
     }
@@ -174,7 +170,7 @@ public sealed class GitHubAuthenticationService
             var refreshToken = _protector.Unprotect(record.RefreshTokenEncrypted);
             if (string.IsNullOrWhiteSpace(refreshToken))
             {
-                await MarkDisconnectedAsync(record, "refresh token unavailable");
+                await MarkDisconnectedAsync(record);
                 return null;
             }
 
@@ -198,7 +194,7 @@ public sealed class GitHubAuthenticationService
             }
             catch
             {
-                await MarkDisconnectedAsync(record, "refresh failed");
+                await MarkDisconnectedAsync(record);
                 return null;
             }
         }
@@ -245,7 +241,7 @@ public sealed class GitHubAuthenticationService
         var accessToken = _protector.Unprotect(record.AccessTokenEncrypted);
         if (string.IsNullOrWhiteSpace(accessToken))
         {
-            await MarkDisconnectedAsync(record, "access token unavailable");
+            await MarkDisconnectedAsync(record);
             return null;
         }
 
@@ -265,7 +261,7 @@ public sealed class GitHubAuthenticationService
 
 
 
-    private async Task MarkDisconnectedAsync(GitHubAuthTokenRecord record, string reason)
+    private async Task MarkDisconnectedAsync(GitHubAuthTokenRecord record)
     {
         record.RevokedAt = DateTimeOffset.UtcNow;
         record.UpdatedAt = DateTimeOffset.UtcNow;

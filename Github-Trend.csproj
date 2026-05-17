@@ -36,6 +36,7 @@
     
     <ItemGroup>
         <AvaloniaResource Include="Assets\Icons\**" />
+        <AvaloniaResource Include="Assets\icon.ico" />
         <Content Include="Assets\Icons\**\*.svg">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>

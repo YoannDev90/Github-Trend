@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Name="MainWindowRoot"
         xmlns:vm="using:Github_Trend"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -10,6 +11,7 @@
         Background="#FF0D1117"
         UseLayoutRounding="True"
         WindowState="Maximized"
+        Icon="avares://Github-Trend/Assets/icon.ico"
         Title="Github Trend">
     <Window.Styles>
         <Style Selector="Border.repo-card">
@@ -18,11 +20,11 @@
         <Style Selector="Button.repo-action-button">
             <Setter Property="Background" Value="#FF21262D"/>
             <Setter Property="BorderBrush" Value="#FF30363D"/>
-            <Setter Property="Foreground" Value="#FFC9D1D9"/>
+            <Setter Property="Foreground" Value="White"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Height" Value="36"/>
-            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Height" Value="44"/>
+            <Setter Property="Padding" Value="12,8"/>
         </Style>
         <Style Selector="Button.repo-action-button:pointerover">
             <Setter Property="Background" Value="#FF30363D"/>
@@ -57,6 +59,35 @@
                                        Foreground="#FF8B949E"
                                        FontSize="11"
                                        TextWrapping="Wrap"/>
+
+                            <Border Background="#FF161B22"
+                                    BorderBrush="#FF30363D"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="10"
+                                    IsVisible="{Binding HasGitHubDeviceCode}">
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="Code de connexion"
+                                               Foreground="#FFC9D1D9"
+                                               FontSize="11"
+                                               FontWeight="SemiBold"/>
+                                    <TextBlock Text="{Binding GitHubDeviceCode}"
+                                               Foreground="#FF2EA043"
+                                               FontWeight="Bold"
+                                               FontSize="18"
+                                               TextWrapping="Wrap"/>
+                                    <Button Command="{Binding CopyGitHubCodeCommand}"
+                                            Padding="10,6"
+                                            Background="#FF21262D"
+                                            Foreground="#FFC9D1D9"
+                                            BorderBrush="#FF30363D"
+                                            BorderThickness="1"
+                                            CornerRadius="8">
+                                        <TextBlock Text="Copier le code" FontWeight="SemiBold"/>
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+
 
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <Button Command="{Binding GitHubSignInCommand}"
@@ -366,8 +397,8 @@
                       HorizontalScrollBarVisibility="Disabled"
                       ClipToBounds="True"
                       PointerWheelChanged="OnTrendingScrollWheelChanged">
-            <StackPanel Spacing="16"
-                        Width="{Binding #TrendingScrollViewer.Viewport.Width}">
+                <StackPanel Spacing="16"
+                        Width="{Binding Viewport.Width, ElementName=TrendingScrollViewer}">
                 <Border Background="#FF161B22"
                         BorderBrush="#FF30363D"
                         BorderThickness="1"
@@ -579,38 +610,44 @@
                                                 <StackPanel Spacing="8"
                                                             VerticalAlignment="Top">
                                                     <Button Classes="repo-action-button"
-                                                            HorizontalAlignment="Stretch">
+                                                            HorizontalAlignment="Stretch"
+                                                            Command="{Binding ViewModel.OpenRepositoryCommand, ElementName=MainWindowRoot}"
+                                                            CommandParameter="{Binding}">
                                                         <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/open.svg"
-                                                                           Width="18"
-                                                                           Height="18"/>
+                                                                           Width="22"
+                                                                           Height="22"/>
                                                     </Button>
 
                                                     <Button Classes="repo-action-button"
-                                                            HorizontalAlignment="Stretch">
+                                                            HorizontalAlignment="Stretch"
+                                                            Command="{Binding ViewModel.StarRepositoryCommand, ElementName=MainWindowRoot}"
+                                                            CommandParameter="{Binding}">
                                                         <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/star.svg"
-                                                                           Width="18"
-                                                                           Height="18"/>
+                                                                           Width="22"
+                                                                           Height="22"/>
                                                     </Button>
 
                                                     <Button Classes="repo-action-button"
-                                                            HorizontalAlignment="Stretch">
+                                                            HorizontalAlignment="Stretch"
+                                                            Command="{Binding ViewModel.WatchRepositoryCommand, ElementName=MainWindowRoot}"
+                                                            CommandParameter="{Binding}">
                                                         <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/watch.svg"
-                                                                           Width="18"
-                                                                           Height="18"/>
+                                                                           Width="22"
+                                                                           Height="22"/>
                                                     </Button>
 
                                                     <Button Classes="repo-action-button"
                                                             HorizontalAlignment="Stretch">
                                                         <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/delete.svg"
-                                                                           Width="18"
-                                                                           Height="18"/>
+                                                                           Width="22"
+                                                                           Height="22"/>
                                                     </Button>
 
                                                     <Button Classes="repo-action-button"
                                                             HorizontalAlignment="Stretch">
                                                         <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/save.svg"
-                                                                           Width="18"
-                                                                           Height="18"/>
+                                                                           Width="22"
+                                                                           Height="22"/>
                                                     </Button>
                                                 </StackPanel>
                                             </Border>

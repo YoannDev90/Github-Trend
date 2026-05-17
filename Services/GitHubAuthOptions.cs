@@ -4,30 +4,31 @@ namespace Github_Trend;
 
 public sealed class GitHubAuthOptions
 {
-    public string ClientId { get; init; } = Environment.GetEnvironmentVariable("GITHUB_APP_CLIENT_ID") ?? "Iv23liKpprNhWdrap9RQ";
+    public string ClientId { get; init; } = Constants.GitHubApp.ClientId;
 
-    public string ClientSecret { get; init; } = Environment.GetEnvironmentVariable("GITHUB_APP_CLIENT_SECRET") ?? string.Empty;
+    public string ClientSecret { get; init; } = Constants.GitHubApp.ClientSecret;
 
-    public string CallbackUrl { get; init; } = Environment.GetEnvironmentVariable("GITHUB_APP_CALLBACK_URL") ?? "http://localhost:25885/callback";
+    public string PersonalAccessToken { get; init; } = Constants.GitHubApp.PersonalAccessToken;
 
-    public string LocalBaseUrl { get; init; } = Environment.GetEnvironmentVariable("GITHUB_APP_LOCAL_BASE_URL") ?? "http://localhost:25885";
+    public string CallbackUrl { get; init; } = Constants.GitHubApp.CallbackUrl;
+
+    public string LocalBaseUrl { get; init; } = Constants.GitHubApp.LocalBaseUrl;
 
     public string UserAgent { get; init; } = Constants.GitHub.UserAgent;
 
     public string ApiVersion { get; init; } = Constants.GitHub.ApiVersion;
 
-    public bool PrivateRepoAccessEnabled { get; init; } = string.Equals(
-        Environment.GetEnvironmentVariable("GITHUB_APP_PRIVATE_REPO_ACCESS"),
-        "true",
-        StringComparison.OrdinalIgnoreCase);
+    public bool PrivateRepoAccessEnabled { get; init; } = Constants.GitHubApp.PrivateRepoAccessEnabled;
 
-    public string Scope => PrivateRepoAccessEnabled ? "read:user user:email repo" : "read:user user:email";
+    public string Scope => PrivateRepoAccessEnabled
+        ? "read:user user:email repo notifications"
+        : "read:user user:email public_repo notifications";
 
     public void Validate()
     {
         if (string.IsNullOrWhiteSpace(ClientId))
         {
-            throw new InvalidOperationException("Missing GITHUB_APP_CLIENT_ID environment variable.");
+            throw new InvalidOperationException("Missing GitHub App client id in Constants.cs.");
         }
     }
 }
