@@ -238,17 +238,8 @@ public static class GithubRepositoryDetailsService
             .ToArray();
 
         var previews = await Task.WhenAll(previewTasks);
-        var totalCount = previews.Length;
-        if (response.Headers.TryGetValues("Link", out var linkValues))
-        {
-            var estimated = ParseLastPageNumber(string.Join(",", linkValues));
-            if (estimated is > 0)
-            {
-                totalCount = Math.Max(totalCount, estimated.Value * previewCount);
-            }
-        }
 
-        return new ContributorFetchResult(previews, totalCount);
+        return new ContributorFetchResult(previews, previews.Length);
     }
 
     private static int? ParseLastPageNumber(string linkHeader)

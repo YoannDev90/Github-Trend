@@ -127,7 +127,7 @@ public sealed class GithubTrendingRepository
     public bool HasRemainingContributors => RemainingContributorsCount > 0;
 
     public string RemainingContributorsLabel => HasRemainingContributors
-        ? $"+{RemainingContributorsCount} autres"
+        ? $"+{RemainingContributorsCount}"
         : string.Empty;
 
     public bool HasTopics => Topics is { Count: > 0 };
