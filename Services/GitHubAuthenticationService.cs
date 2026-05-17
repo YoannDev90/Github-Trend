@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Serilog;
 
 namespace Github_Trend;
 
@@ -116,7 +117,7 @@ public sealed class GitHubAuthenticationService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Auth] Device flow error: {ex.Message}");
+            Log.Error(ex, "GitHub device-flow authentication failed");
             throw;
         }
     }

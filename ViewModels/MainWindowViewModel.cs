@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia.Media;
+using Serilog;
 
 namespace Github_Trend;
 
@@ -80,7 +81,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(IsWeeklySelected));
             OnPropertyChanged(nameof(IsMonthlySelected));
             OnPropertyChanged(nameof(IsAllSelected));
-            Console.WriteLine($"[Trending] timerange changed => {SelectedTimeRangeLabel}");
+            Log.Information("Trending time range changed => {TimeRange}", SelectedTimeRangeLabel);
             _ = RefreshTrendingRepositoriesAsync();
         }
     }
@@ -287,7 +288,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             (RefreshCommand as RelayCommand)?.RaiseCanExecuteChanged();
             RaiseGitHubCommandStateChanged();
         }
-        Console.WriteLine("[Trending] initial trending refresh queued");
+        Log.Information("Initial trending refresh queued");
         _ = RefreshTrendingRepositoriesAsync();
     }
 
@@ -386,7 +387,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             var sinceValues = GetSinceValues();
             var languages = GetSelectedLanguageFilters();
 
-            Console.WriteLine($"[Trending] refresh start since=[{string.Join(',', sinceValues)}] languages=[{string.Join(',', languages.Select(x => x ?? "<all>"))}]");
+            Log.Information("Trending refresh start since=[{Since}] languages=[{Languages}]",
+                string.Join(',', sinceValues),
+                string.Join(',', languages.Select(x => x ?? "<all>")));
 
             var fetchTasks = sinceValues
                 .SelectMany(since => languages.Select(language => GithubTrendingService.FetchAsync(
@@ -395,16 +398,16 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                     language: language)))
                 .ToArray();
 
-            Console.WriteLine($"[Trending] planned requests: {fetchTasks.Length}");
+            Log.Information("Trending planned requests: {Count}", fetchTasks.Length);
 
             var results = await Task.WhenAll(fetchTasks);
-            Console.WriteLine($"[Trending] completed requests: {results.Length}");
+            Log.Information("Trending completed requests: {Count}", results.Length);
 
             var merged = MergeTrendingResults(results);
             var visualRepositories = ApplyLanguageBrushes(merged);
             _trendingData = visualRepositories;
 
-            Console.WriteLine($"[Trending] merged repos: {merged.Count}");
+            Log.Information("Trending merged repos: {Count}", merged.Count);
 
             _trendingRepositories.Clear();
             foreach (var repo in visualRepositories)
@@ -417,7 +420,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Trending] error loading trending: {ex.Message}");
+            Log.Error(ex, "Trending loading failed");
         }
     }
 
@@ -584,7 +587,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
         if (!_isInitializing)
         {
-            Console.WriteLine("[Trending] selection changed -> refresh queued");
+            Log.Information("Trending selection changed -> refresh queued");
             _ = RefreshTrendingRepositoriesAsync();
         }
     }

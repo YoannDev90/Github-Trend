@@ -6,14 +6,17 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Diagnostics;
+using System.Threading;
+using Serilog;
 
 namespace Github_Trend;
 
 public static class GithubTrendingService
 {
     private static readonly HttpClient Http = new();
-    private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(24);
+    private static readonly TimeSpan CacheTtl = Constants.Trending.TrendingCacheTtl;
     private static readonly string CacheFilePath;
+    private static readonly SemaphoreSlim EnrichmentLimiter = new(Constants.Trending.MaxParallelEnrichmentRequests);
 
     static GithubTrendingService()
     {
@@ -29,7 +32,7 @@ public static class GithubTrendingService
     {
         var cacheKey = $"trending-{since}-{language}.json";
         var cacheFile = Path.Combine(Path.GetDirectoryName(CacheFilePath)!, cacheKey);
-        Console.WriteLine($"[Trending] FetchAsync force={force} since={since ?? "<null>"} language={language ?? "<null>"}");
+        Log.Information("Trending fetch started (force={Force}, since={Since}, language={Language})", force, since ?? "<null>", language ?? "<null>");
         Debug.WriteLine($"[Trending] cache file: {cacheFile}");
 
         // If not forcing, try return fresh cache first
@@ -44,7 +47,7 @@ public static class GithubTrendingService
                     var cached = DeserializeTrending(cachedJson);
                     if (cached != null)
                     {
-                        Console.WriteLine($"[Trending] cache hit ({cached.Count}) for {cacheKey}");
+                        Log.Information("Trending cache hit ({Count}) for {CacheKey}", cached.Count, cacheKey);
                         return await EnrichTrendingAsync(cached);
                     }
                 }
@@ -66,20 +69,20 @@ public static class GithubTrendingService
         if (queryParts.Count > 0)
             url += "?" + string.Join("&", queryParts);
 
-        Console.WriteLine($"[Trending] request url: {url}");
+        Log.Debug("Trending request URL: {Url}", url);
 
         // Attempt network fetch and update cache. If network fails, fallback to cache if available.
         try
         {
             var json = await Http.GetStringAsync(url);
             var trending = DeserializeTrending(json) ?? new List<GithubTrendingRepository>();
-            Console.WriteLine($"[Trending] network ok ({trending.Count}) for {cacheKey}");
+            Log.Information("Trending network fetch ok ({Count}) for {CacheKey}", trending.Count, cacheKey);
 
             // try write cache (best-effort)
             try
             {
                 await File.WriteAllTextAsync(cacheFile, json);
-                Console.WriteLine($"[Trending] cache updated: {cacheFile}");
+                Log.Debug("Trending cache updated: {CacheFile}", cacheFile);
             }
             catch
             {
@@ -99,7 +102,7 @@ public static class GithubTrendingService
                     var cached = DeserializeTrending(cachedJson);
                     if (cached != null)
                     {
-                        Console.WriteLine($"[Trending] stale cache fallback ({cached.Count}) for {cacheKey}");
+                        Log.Warning("Trending stale-cache fallback ({Count}) for {CacheKey}", cached.Count, cacheKey);
                         return await EnrichTrendingAsync(cached);
                     }
                 }
@@ -115,7 +118,20 @@ public static class GithubTrendingService
 
     private static async Task<List<GithubTrendingRepository>> EnrichTrendingAsync(IEnumerable<GithubTrendingRepository> repositories)
     {
-        var enriched = await Task.WhenAll(repositories.Select(GithubRepositoryDetailsService.EnrichAsync));
+        var enrichTasks = repositories.Select(async repo =>
+        {
+            await EnrichmentLimiter.WaitAsync();
+            try
+            {
+                return await GithubRepositoryDetailsService.EnrichAsync(repo);
+            }
+            finally
+            {
+                EnrichmentLimiter.Release();
+            }
+        });
+
+        var enriched = await Task.WhenAll(enrichTasks);
         return enriched.ToList();
     }
 

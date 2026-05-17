@@ -12,9 +12,9 @@ public sealed class GitHubAuthOptions
 
     public string LocalBaseUrl { get; init; } = Environment.GetEnvironmentVariable("GITHUB_APP_LOCAL_BASE_URL") ?? "http://localhost:25885";
 
-    public string UserAgent { get; init; } = "Github-Trend/1.0";
+    public string UserAgent { get; init; } = Constants.GitHub.UserAgent;
 
-    public string ApiVersion { get; init; } = "2022-11-28";
+    public string ApiVersion { get; init; } = Constants.GitHub.ApiVersion;
 
     public bool PrivateRepoAccessEnabled { get; init; } = string.Equals(
         Environment.GetEnvironmentVariable("GITHUB_APP_PRIVATE_REPO_ACCESS"),

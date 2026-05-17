@@ -89,9 +89,9 @@ public sealed class GitHubTokenRefreshService
 
     public async Task<GitHubUserProfile> FetchUserProfileAsync(string accessToken)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, "https://api.github.com/user");
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"{Constants.GitHub.ApiBaseUrl}/user");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(Constants.GitHub.ApiAccept));
         request.Headers.UserAgent.ParseAdd(_options.UserAgent);
         request.Headers.TryAddWithoutValidation("X-GitHub-Api-Version", (string?)_options.ApiVersion);
 
@@ -135,7 +135,7 @@ public sealed class GitHubTokenRefreshService
     private static HttpClient CreateHttpClient()
     {
         var client = new HttpClient();
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("Github-Trend/1.0");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd(Constants.GitHub.UserAgent);
         return client;
     }
 

@@ -4,6 +4,7 @@ using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using System;
 using System.Diagnostics;
+using Serilog;
 
 namespace Github_Trend
 {
@@ -75,7 +76,7 @@ namespace Github_Trend
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Trending] impossible d'ouvrir le repo: {ex.Message}");
+                Log.Warning(ex, "Impossible d'ouvrir le repository URL {Url}", url);
             }
         }
 

@@ -5,6 +5,7 @@ using System.Net.Http.Headers;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Serilog;
 
 namespace Github_Trend;
 
@@ -29,7 +30,7 @@ public sealed class GitHubApiClient
 
     public async Task<GitHubUserProfile?> GetAuthenticatedUserAsync()
     {
-        return await SendJsonAsync<GitHubUserProfile>(() => new HttpRequestMessage(HttpMethod.Get, "https://api.github.com/user"));
+        return await SendJsonAsync<GitHubUserProfile>(() => new HttpRequestMessage(HttpMethod.Get, $"{Constants.GitHub.ApiBaseUrl}/user"));
     }
 
     public async Task<T?> SendJsonAsync<T>(Func<HttpRequestMessage> requestFactory)
@@ -46,7 +47,7 @@ public sealed class GitHubApiClient
 
     public async Task<HttpResponseMessage> SendAsync(Func<HttpRequestMessage> requestFactory)
     {
-        for (var attempt = 0; attempt < 2; attempt++)
+        for (var attempt = 0; attempt <= Constants.RateLimit.MaxRetries; attempt++)
         {
             var token = await _authService.GetAccessTokenAsync(refreshIfNeeded: true);
             if (string.IsNullOrWhiteSpace(token))
@@ -56,7 +57,7 @@ public sealed class GitHubApiClient
 
             using var request = requestFactory();
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(Constants.GitHub.ApiAccept));
             request.Headers.UserAgent.ParseAdd(_options.UserAgent);
             request.Headers.TryAddWithoutValidation("X-GitHub-Api-Version", _options.ApiVersion);
 
@@ -70,7 +71,13 @@ public sealed class GitHubApiClient
 
             if (IsRateLimited(response))
             {
+                if (attempt >= Constants.RateLimit.MaxRetries)
+                {
+                    return response;
+                }
+
                 var delay = GetRetryDelay(response, attempt);
+                Log.Warning("GitHub rate-limit hit. Retry attempt {Attempt} in {DelayMs}ms", attempt + 1, (int)delay.TotalMilliseconds);
                 response.Dispose();
                 await Task.Delay(delay);
                 continue;
@@ -84,23 +91,26 @@ public sealed class GitHubApiClient
 
     private TimeSpan GetRetryDelay(HttpResponseMessage response, int attempt)
     {
-            if (response.Headers.RetryAfter?.Delta is not null)
+        if (response.Headers.RetryAfter?.Delta is not null)
         {
-                return response.Headers.RetryAfter!.Delta!.Value + TimeSpan.FromMilliseconds(_random.Next(150, 750));
+            return response.Headers.RetryAfter!.Delta!.Value
+                   + TimeSpan.FromMilliseconds(_random.Next(Constants.RateLimit.RetryJitterMinMilliseconds, Constants.RateLimit.RetryJitterMaxMilliseconds));
         }
 
         if (response.Headers.TryGetValues("X-RateLimit-Reset", out var resetValues)
             && long.TryParse(resetValues.FirstOrDefault(), out var unixSeconds))
         {
             var resetTime = DateTimeOffset.FromUnixTimeSeconds(unixSeconds);
-            var delay = resetTime - DateTimeOffset.UtcNow;
+            var delay = resetTime - DateTimeOffset.UtcNow + TimeSpan.FromSeconds(Constants.RateLimit.ResetSafetySeconds);
             if (delay > TimeSpan.Zero)
             {
-                return delay + TimeSpan.FromMilliseconds(_random.Next(150, 750));
+                return delay + TimeSpan.FromMilliseconds(_random.Next(Constants.RateLimit.RetryJitterMinMilliseconds, Constants.RateLimit.RetryJitterMaxMilliseconds));
             }
         }
 
-        return TimeSpan.FromMilliseconds(500 + (attempt * 350) + _random.Next(0, 250));
+        var exponential = Constants.RateLimit.BaseBackoffMilliseconds * Math.Pow(2, attempt);
+        var bounded = Math.Min(exponential, Constants.RateLimit.MaxBackoffMilliseconds);
+        return TimeSpan.FromMilliseconds(bounded + _random.Next(0, 250));
     }
 
     private static bool IsRateLimited(HttpResponseMessage response)
