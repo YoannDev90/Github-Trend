@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Text.Json.Serialization;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using Github_Trend.Localization;
 
 namespace Github_Trend;
 
@@ -103,7 +104,7 @@ public sealed class GithubTrendingRepository
             : string.Empty;
 
     public string LicenseBadgeText => string.IsNullOrWhiteSpace(License)
-        ? "License inconnue"
+        ? Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.UnknownLicense))
         : License!;
 
     public int StarsCount => ParseCount(Stars);
@@ -115,7 +116,7 @@ public sealed class GithubTrendingRepository
     public string ForksLabel => ForksCount.ToString("N0", CultureInfo.CurrentCulture);
 
     public string LanguageBadgeText => string.IsNullOrWhiteSpace(Language)
-        ? "Unknown"
+        ? Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.UnknownLanguage))
         : Language!;
 
     public bool HasContributors => Contributors is { Count: > 0 };
@@ -194,36 +195,47 @@ public sealed class GithubTrendingRepository
     {
         if (!DateTimeOffset.TryParse(updatedAt, out var updated))
         {
-            return "maj: inconnue";
+            return Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.UpdatedUnknown));
         }
 
         var delta = DateTimeOffset.UtcNow - updated.ToUniversalTime();
         if (delta.TotalMinutes < 60)
         {
-            return delta.TotalMinutes < 1 ? "maj: à l'instant" : $"maj: il y a {Math.Max(1, (int)delta.TotalMinutes)} min";
+            return delta.TotalMinutes < 1
+                ? Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.UpdatedJustNow))
+                : Github_Trend.Localization.Localization.Instance.GetString(
+                    Math.Max(1, (int)delta.TotalMinutes) == 1 ? nameof(LocalizationService.UpdatedMinutesAgoOne) : nameof(LocalizationService.UpdatedMinutesAgoMany),
+                    Math.Max(1, (int)delta.TotalMinutes));
         }
 
         if (delta.TotalHours < 24)
         {
-            return delta.TotalHours < 2 ? "maj: il y a 1 h" : $"maj: il y a {Math.Max(1, (int)delta.TotalHours)} h";
+            return delta.TotalHours < 2
+                ? Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.UpdatedHoursAgoOne))
+                : Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.UpdatedHoursAgoMany), Math.Max(1, (int)delta.TotalHours));
         }
 
         if (delta.TotalDays < 7)
         {
-            return delta.TotalDays < 2 ? "maj: hier" : $"maj: il y a {Math.Max(1, (int)delta.TotalDays)} j";
+            return delta.TotalDays < 2
+                ? Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.UpdatedYesterday))
+                : Github_Trend.Localization.Localization.Instance.GetString(
+                    Math.Max(1, (int)delta.TotalDays) == 1 ? nameof(LocalizationService.UpdatedDaysAgoOne) : nameof(LocalizationService.UpdatedDaysAgoMany),
+                    Math.Max(1, (int)delta.TotalDays));
         }
 
         if (delta.TotalDays < 30)
         {
-            return $"maj: il y a {(int)Math.Round(delta.TotalDays / 7d)} sem";
+            return Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.UpdatedWeeksAgo), Math.Max(1, (int)Math.Round(delta.TotalDays / 7d)));
         }
 
         if (delta.TotalDays < 365)
         {
-            return $"maj: il y a {(int)Math.Round(delta.TotalDays / 30d)} mois";
+            return Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.UpdatedMonthsAgo), Math.Max(1, (int)Math.Round(delta.TotalDays / 30d)));
         }
 
-        return $"maj: il y a {(int)Math.Round(delta.TotalDays / 365d)} an";
+        return Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.UpdatedYearsAgo), Math.Max(1, (int)Math.Round(delta.TotalDays / 365d)));
     }
+
 }
 

@@ -5,6 +5,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:controls="using:Github_Trend.Controls"
+        xmlns:loc="using:Github_Trend.Localization"
         mc:Ignorable="d"
         x:DataType="vm:MainWindowViewModel"
         x:Class="Github_Trend.MainWindow"
@@ -12,7 +13,7 @@
         UseLayoutRounding="True"
         WindowState="Maximized"
         Icon="avares://Github-Trend/Assets/icon.ico"
-        Title="Github Trend">
+        Title="GitHub Trend">
     <Window.Styles>
         <Style Selector="Border.repo-card">
             <Setter Property="ClipToBounds" Value="True"/>
@@ -31,7 +32,7 @@
             <Setter Property="BorderBrush" Value="#FF8B949E"/>
         </Style>
     </Window.Styles>
-        <Grid ColumnDefinitions="360,*">
+    <Grid ColumnDefinitions="360,*">
         <Border Background="#FF161B22"
                 BorderBrush="#FF30363D"
                 BorderThickness="0,0,1,0">
@@ -39,17 +40,16 @@
                           HorizontalScrollBarVisibility="Disabled"
                           ClipToBounds="True">
                 <StackPanel Margin="16" Spacing="14">
+
                     <Border Background="#FF0D1117"
                             BorderBrush="#FF30363D"
                             BorderThickness="1"
                             CornerRadius="14"
                             Padding="14">
                         <StackPanel Spacing="10">
-                            <StackPanel Spacing="2">
-                                <TextBlock Text="GitHub Account"
-                                           Foreground="#FFC9D1D9"
-                                           FontWeight="SemiBold"/>
-                            </StackPanel>
+                            <TextBlock Text="{Binding Source={x:Static loc:Localization.Instance}, Path=GitHubAccountSectionTitle}"
+                                       Foreground="#FFC9D1D9"
+                                       FontWeight="SemiBold"/>
 
                             <TextBlock Text="{Binding GitHubAuthStatus}"
                                        Foreground="#FFC9D1D9"
@@ -67,10 +67,6 @@
                                     Padding="10"
                                     IsVisible="{Binding HasGitHubDeviceCode}">
                                 <StackPanel Spacing="8">
-                                    <TextBlock Text="Code de connexion"
-                                               Foreground="#FFC9D1D9"
-                                               FontSize="11"
-                                               FontWeight="SemiBold"/>
                                     <TextBlock Text="{Binding GitHubDeviceCode}"
                                                Foreground="#FF2EA043"
                                                FontWeight="Bold"
@@ -83,7 +79,9 @@
                                             BorderBrush="#FF30363D"
                                             BorderThickness="1"
                                             CornerRadius="8">
-                                        <TextBlock Text="Copier le code" FontWeight="SemiBold"/>
+                                        <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/save.svg"
+                                                           Width="18"
+                                                           Height="18"/>
                                     </Button>
                                 </StackPanel>
                             </Border>
@@ -97,7 +95,9 @@
                                         BorderBrush="#FF2EA043"
                                         BorderThickness="1"
                                         CornerRadius="8">
-                                    <TextBlock Text="Sign in with GitHub" FontWeight="SemiBold"/>
+                                    <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/github.svg"
+                                                       Width="18"
+                                                       Height="18"/>
                                 </Button>
 
                                 <Button Command="{Binding GitHubRefreshCommand}"
@@ -108,7 +108,9 @@
                                         BorderThickness="1"
                                         CornerRadius="8"
                                         IsVisible="{Binding IsGitHubConnected}">
-                                    <TextBlock Text="Refresh token" FontWeight="SemiBold"/>
+                                    <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/refresh.svg"
+                                                       Width="18"
+                                                       Height="18"/>
                                 </Button>
 
                                 <Button Command="{Binding GitHubSignOutCommand}"
@@ -119,7 +121,9 @@
                                         BorderThickness="1"
                                         CornerRadius="8"
                                         IsVisible="{Binding IsGitHubConnected}">
-                                    <TextBlock Text="Sign out" FontWeight="SemiBold"/>
+                                    <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/delete.svg"
+                                                       Width="18"
+                                                       Height="18"/>
                                 </Button>
                             </StackPanel>
                         </StackPanel>
@@ -131,11 +135,10 @@
                             CornerRadius="14"
                             Padding="14">
                         <StackPanel Spacing="10">
-                            <TextBlock Text="Recherche"
+                            <TextBlock Text="{Binding Source={x:Static loc:Localization.Instance}, Path=SearchTitle}"
                                        Foreground="#FFC9D1D9"
                                        FontWeight="SemiBold"/>
                             <TextBox Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                     PlaceholderText="Ex : JavaScript, Rust..."
                                      Background="#FF0D1117"
                                      Foreground="#FFC9D1D9"
                                      BorderBrush="#FF30363D"
@@ -152,10 +155,10 @@
                         <StackPanel Spacing="12">
                             <Grid ColumnDefinitions="*,Auto">
                                 <StackPanel Grid.Row="0" Spacing="2">
-                                    <TextBlock Text="Période du trending"
+                                    <TextBlock Text="{Binding Source={x:Static loc:Localization.Instance}, Path=TrendingPeriodTitle}"
                                                Foreground="#FFC9D1D9"
                                                FontWeight="SemiBold"/>
-                                    <TextBlock Text="Choisis la fenêtre de temps"
+                                    <TextBlock Text="{Binding Source={x:Static loc:Localization.Instance}, Path=TrendingPeriodSubtitle}"
                                                Foreground="#FF8B949E"
                                                FontSize="11"/>
                                 </StackPanel>
@@ -171,73 +174,73 @@
                                       ColumnSpacing="8"
                                       RowSpacing="8">
                                     <Button x:Name="DailyTimeRangeButton"
-                                                 Click="OnTimeRangeButtonClick"
-                                                 Tag="0"
-                                                 Content="Daily"
-                                                 Height="44"
-                                                 HorizontalAlignment="Stretch"
-                                                 VerticalAlignment="Center"
-                                                 Padding="12"
-                                                 Background="#FF21262D"
-                                                 Foreground="#FFC9D1D9"
-                                                 BorderBrush="#FF30363D"
-                                                 BorderThickness="1"
-                                                 HorizontalContentAlignment="Center"
-                                                 VerticalContentAlignment="Center"
-                                                 FontWeight="SemiBold"
-                                                 Classes="time-range-pill"/>
+                                            Click="OnTimeRangeButtonClick"
+                                            Tag="0"
+                                            Content="{Binding Source={x:Static loc:Localization.Instance}, Path=TimeRangeDaily}"
+                                            Height="44"
+                                            HorizontalAlignment="Stretch"
+                                            VerticalAlignment="Center"
+                                            Padding="12"
+                                            Background="#FF21262D"
+                                            Foreground="#FFC9D1D9"
+                                            BorderBrush="#FF30363D"
+                                            BorderThickness="1"
+                                            HorizontalContentAlignment="Center"
+                                            VerticalContentAlignment="Center"
+                                            FontWeight="SemiBold"
+                                            Classes="time-range-pill"/>
                                     <Button x:Name="WeeklyTimeRangeButton"
-                                                 Grid.Row="0" Grid.Column="1"
-                                                 Click="OnTimeRangeButtonClick"
-                                                 Tag="1"
-                                                 Content="Weekly"
-                                                 Height="44"
-                                                 HorizontalAlignment="Stretch"
-                                                 VerticalAlignment="Center"
-                                                 Padding="12"
-                                                 Background="#FF21262D"
-                                                 Foreground="#FFC9D1D9"
-                                                 BorderBrush="#FF30363D"
-                                                 BorderThickness="1"
-                                                 HorizontalContentAlignment="Center"
-                                                 VerticalContentAlignment="Center"
-                                                 FontWeight="SemiBold"
-                                                 Classes="time-range-pill"/>
+                                            Grid.Row="0" Grid.Column="1"
+                                            Click="OnTimeRangeButtonClick"
+                                            Tag="1"
+                                            Content="{Binding Source={x:Static loc:Localization.Instance}, Path=TimeRangeWeekly}"
+                                            Height="44"
+                                            HorizontalAlignment="Stretch"
+                                            VerticalAlignment="Center"
+                                            Padding="12"
+                                            Background="#FF21262D"
+                                            Foreground="#FFC9D1D9"
+                                            BorderBrush="#FF30363D"
+                                            BorderThickness="1"
+                                            HorizontalContentAlignment="Center"
+                                            VerticalContentAlignment="Center"
+                                            FontWeight="SemiBold"
+                                            Classes="time-range-pill"/>
                                     <Button x:Name="MonthlyTimeRangeButton"
-                                                 Grid.Row="1" Grid.Column="0"
-                                                 Click="OnTimeRangeButtonClick"
-                                                 Tag="2"
-                                                 Content="Monthly"
-                                                 Height="44"
-                                                 HorizontalAlignment="Stretch"
-                                                 VerticalAlignment="Center"
-                                                 Padding="12"
-                                                 Background="#FF21262D"
-                                                 Foreground="#FFC9D1D9"
-                                                 BorderBrush="#FF30363D"
-                                                 BorderThickness="1"
-                                                 HorizontalContentAlignment="Center"
-                                                 VerticalContentAlignment="Center"
-                                                 FontWeight="SemiBold"
-                                                 Classes="time-range-pill"/>
+                                            Grid.Row="1" Grid.Column="0"
+                                            Click="OnTimeRangeButtonClick"
+                                            Tag="2"
+                                            Content="{Binding Source={x:Static loc:Localization.Instance}, Path=TimeRangeMonthly}"
+                                            Height="44"
+                                            HorizontalAlignment="Stretch"
+                                            VerticalAlignment="Center"
+                                            Padding="12"
+                                            Background="#FF21262D"
+                                            Foreground="#FFC9D1D9"
+                                            BorderBrush="#FF30363D"
+                                            BorderThickness="1"
+                                            HorizontalContentAlignment="Center"
+                                            VerticalContentAlignment="Center"
+                                            FontWeight="SemiBold"
+                                            Classes="time-range-pill"/>
                                     <Button x:Name="AllTimeRangeButton"
-                                                 Grid.Row="1"
-                                                 Grid.Column="1"
-                                                 Click="OnTimeRangeButtonClick"
-                                                 Tag="3"
-                                                 Content="All"
-                                                 Height="44"
-                                                 HorizontalAlignment="Stretch"
-                                                 VerticalAlignment="Center"
-                                                 Padding="12"
-                                                 Background="#FF21262D"
-                                                 Foreground="#FFC9D1D9"
-                                                 BorderBrush="#FF30363D"
-                                                 BorderThickness="1"
-                                                 HorizontalContentAlignment="Center"
-                                                 VerticalContentAlignment="Center"
-                                                 FontWeight="SemiBold"
-                                                 Classes="time-range-pill"/>
+                                            Grid.Row="1"
+                                            Grid.Column="1"
+                                            Click="OnTimeRangeButtonClick"
+                                            Tag="3"
+                                            Content="∞"
+                                            Height="44"
+                                            HorizontalAlignment="Stretch"
+                                            VerticalAlignment="Center"
+                                            Padding="12"
+                                            Background="#FF21262D"
+                                            Foreground="#FFC9D1D9"
+                                            BorderBrush="#FF30363D"
+                                            BorderThickness="1"
+                                            HorizontalContentAlignment="Center"
+                                            VerticalContentAlignment="Center"
+                                            FontWeight="SemiBold"
+                                            Classes="time-range-pill"/>
                                     <Grid.Styles>
                                         <Style Selector="Button.time-range-pill:pointerover">
                                             <Setter Property="Background" Value="#FF30363D"/>
@@ -257,7 +260,7 @@
                             Padding="14">
                         <StackPanel Spacing="10">
                             <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Text="Sélectionnés"
+                                <TextBlock Text="{Binding Source={x:Static loc:Localization.Instance}, Path=SelectedLanguagesTitle}"
                                            Foreground="#FFC9D1D9"
                                            FontWeight="SemiBold"
                                            VerticalAlignment="Center"/>
@@ -302,7 +305,7 @@
                             Padding="14">
                         <StackPanel Spacing="10">
                             <Grid ColumnDefinitions="*,Auto,Auto">
-                                <TextBlock Text="Suggestions"
+                                <TextBlock Text="{Binding Source={x:Static loc:Localization.Instance}, Path=SuggestionsTitle}"
                                            Foreground="#FFC9D1D9"
                                            FontWeight="SemiBold"
                                            VerticalAlignment="Center"/>
@@ -333,7 +336,9 @@
                                             <Setter Property="Background" Value="#FF161B22"/>
                                         </Style>
                                     </Button.Styles>
-                                    <TextBlock Text="Rafraîchir" FontWeight="SemiBold"/>
+                                    <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/refresh.svg"
+                                                       Width="18"
+                                                       Height="18"/>
                                 </Button>
                             </Grid>
 
@@ -397,8 +402,8 @@
                       HorizontalScrollBarVisibility="Disabled"
                       ClipToBounds="True"
                       PointerWheelChanged="OnTrendingScrollWheelChanged">
-                <StackPanel Spacing="16"
-                        Width="{Binding Viewport.Width, ElementName=TrendingScrollViewer}">
+            <StackPanel Spacing="16"
+                    Width="{Binding Viewport.Width, ElementName=TrendingScrollViewer}">
                 <Border Background="#FF161B22"
                         BorderBrush="#FF30363D"
                         BorderThickness="1"
@@ -409,7 +414,7 @@
                         Padding="22">
                     <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="8" ColumnSpacing="12">
                         <StackPanel Grid.Row="0" Spacing="6">
-                            <TextBlock Text="Repos GitHub Trending"
+                            <TextBlock Text="{Binding Source={x:Static loc:Localization.Instance}, Path=TrendingRepositoriesTitle}"
                                        Foreground="#FFC9D1D9"
                                        FontSize="28"
                                        FontWeight="SemiBold"
@@ -508,7 +513,7 @@
 
                                                 <StackPanel Spacing="8"
                                                             IsVisible="{Binding HasContributors}">
-                                                    <TextBlock Text="Contributeurs"
+                                                    <TextBlock Text="{Binding Source={x:Static loc:Localization.Instance}, Path=ContributorsTitle}"
                                                                Foreground="#FFC9D1D9"
                                                                FontSize="11"
                                                                FontWeight="SemiBold"
@@ -591,7 +596,7 @@
                                                                     Padding="10,5"
                                                                     Margin="0,0,8,8">
                                                                 <TextBlock Text="{Binding}"
-                                                                                   Foreground="#FFC9D1D9"
+                                                                           Foreground="#FFC9D1D9"
                                                                            FontSize="11"
                                                                            FontWeight="SemiBold"/>
                                                             </Border>
@@ -662,3 +667,4 @@
         </ScrollViewer>
     </Grid>
 </Window>
+

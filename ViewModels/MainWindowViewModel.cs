@@ -9,6 +9,7 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia.Media;
+using Github_Trend.Localization;
 using Serilog;
 
 namespace Github_Trend;
@@ -17,10 +18,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 {
     private static readonly (string Query, string Label)[] TimeRanges =
     {
-        ("daily", "Daily"),
-        ("weekly", "Weekly"),
-        ("monthly", "Monthly"),
-        ("all", "All")
+        ("daily", nameof(LocalizationService.TimeRangeDaily)),
+        ("weekly", nameof(LocalizationService.TimeRangeWeekly)),
+        ("monthly", nameof(LocalizationService.TimeRangeMonthly)),
+        ("all", nameof(LocalizationService.TimeRangeAll))
     };
 
     // Constructor to initialize commands
@@ -36,8 +37,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         WatchRepositoryCommand = new RelayCommand(ExecuteWatchRepository, parameter => parameter is GithubTrendingRepository repo && !string.IsNullOrWhiteSpace(repo.Repository));
         _githubAuthService.SessionChanged += (_, _) => UpdateGitHubAuthState();
         _selectedTimeRangeIndex = 0;
-        _githubAuthStatus = "Connexion GitHub non configurée";
-        _githubAccountSummary = "Aucun compte connecté";
+        _githubAuthStatusKey = nameof(LocalizationService.GitHubAuthNotConfigured);
+        _githubAuthStatusArgs = Array.Empty<object?>();
+        _githubAccountSummaryKey = nameof(LocalizationService.GitHubAuthNoAccountConnected);
+        _githubAccountSummaryArgs = Array.Empty<object?>();
+        _statusMessageKey = nameof(LocalizationService.StatusLoadingColors);
+        _statusMessageArgs = Array.Empty<object?>();
     }
 
     private bool _isRefreshing;
@@ -50,9 +55,14 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private bool _isInitializing;
     private GithubColorsCatalog? _githubColors;
     private string _searchText = string.Empty;
-    private string _statusMessage = "Chargement des couleurs...";
-    private string _githubAuthStatus;
-    private string _githubAccountSummary;
+    private string _statusMessageKey;
+    private object?[] _statusMessageArgs = Array.Empty<object?>();
+    private string? _statusMessageOverride;
+    private string _githubAuthStatusKey;
+    private object?[] _githubAuthStatusArgs = Array.Empty<object?>();
+    private string? _githubAuthStatusOverride;
+    private string _githubAccountSummaryKey;
+    private object?[] _githubAccountSummaryArgs = Array.Empty<object?>();
     private string _githubDeviceCode = string.Empty;
 
     private readonly ObservableCollection<GithubTrendingRepository> _trendingRepositories = new();
@@ -169,7 +179,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
-    public string SelectedTimeRangeLabel => TimeRanges[Math.Max(0, Math.Min(_selectedTimeRangeIndex, TimeRanges.Length - 1))].Label;
+    public string SelectedTimeRangeLabel => Github_Trend.Localization.Localization.Instance.GetString(TimeRanges[Math.Max(0, Math.Min(_selectedTimeRangeIndex, TimeRanges.Length - 1))].Label);
 
     public string SelectedTimeRangeQuery => TimeRanges[Math.Max(0, Math.Min(_selectedTimeRangeIndex, TimeRanges.Length - 1))].Query;
 
@@ -209,20 +219,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
-    public string StatusMessage
-    {
-        get => _statusMessage;
-        private set
-        {
-            if (_statusMessage == value)
-            {
-                return;
-            }
-
-            _statusMessage = value;
-            OnPropertyChanged();
-        }
-    }
+    public string StatusMessage => _statusMessageOverride ?? Github_Trend.Localization.Localization.Instance.GetString(_statusMessageKey, _statusMessageArgs);
 
     public bool IsGitHubConnected => _githubAuthService.IsConnected;
 
@@ -242,35 +239,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
-    public string GitHubAuthStatus
-    {
-        get => _githubAuthStatus;
-        private set
-        {
-            if (_githubAuthStatus == value)
-            {
-                return;
-            }
+    public string GitHubAuthStatus => _githubAuthStatusOverride ?? Github_Trend.Localization.Localization.Instance.GetString(_githubAuthStatusKey, _githubAuthStatusArgs);
 
-            _githubAuthStatus = value;
-            OnPropertyChanged();
-        }
-    }
-
-    public string GitHubAccountSummary
-    {
-        get => _githubAccountSummary;
-        private set
-        {
-            if (_githubAccountSummary == value)
-            {
-                return;
-            }
-
-            _githubAccountSummary = value;
-            OnPropertyChanged();
-        }
-    }
+    public string GitHubAccountSummary => Github_Trend.Localization.Localization.Instance.GetString(_githubAccountSummaryKey, _githubAccountSummaryArgs);
 
     public int ColorCount => GithubColors?.Colors.Count ?? 0;
 
@@ -278,17 +249,27 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public int VisibleCount => _filteredLanguages.Count;
 
-    public string MatchingLanguagesLabel => _filteredLanguages.Count == 0
-        ? "Aucun langage trouvé"
-        : $"{_filteredLanguages.Count} suggestion(s)";
+    public string MatchingLanguagesLabel => _filteredLanguages.Count switch
+    {
+        0 => Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.NoLanguagesFound)),
+        1 => Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.SuggestionCountOne)),
+        _ => Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.SuggestionCountMany), _filteredLanguages.Count)
+    };
 
     public string SelectionSummary => _selectedLanguages.Count == 0
-        ? "Aucune sélection enregistrée"
-        : $"{_selectedLanguages.Count} langage(s) choisi(s)";
+        ? Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.SelectionSummaryZero))
+        : _selectedLanguages.Count == 1
+            ? Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.SelectionSummaryOne))
+            : Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.SelectionSummaryMany), _selectedLanguages.Count);
 
     public int TrendingCount => _trendingData?.Count ?? 0;
 
-    public string TrendingLabel => TrendingCount == 0 ? "Aucun repo trending" : $"{TrendingCount} repo(s) trending";
+    public string TrendingLabel => TrendingCount switch
+    {
+        0 => Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.TrendingCountZero)),
+        1 => Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.TrendingCountOne)),
+        _ => Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.TrendingCountMany), TrendingCount)
+    };
 
     public async Task InitializeAsync()
     {
@@ -305,7 +286,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             RebuildLanguages(GithubColors, selectionsTask.Result);
             RefreshSelectedLanguages();
             ApplyFilter();
-            StatusMessage = $"Couleurs chargées: {ColorCount}";
+            SetStatusMessage(nameof(LocalizationService.StatusColorsLoaded), ColorCount);
             OnPropertyChanged(nameof(SelectionSummary));
             OnPropertyChanged(nameof(SelectedCount));
             OnPropertyChanged(nameof(VisibleCount));
@@ -315,7 +296,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Erreur chargement couleurs: {ex.Message}";
+            SetStatusMessage(nameof(LocalizationService.StatusColorsLoadError), ex.Message);
         }
         finally
         {
@@ -350,26 +331,28 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         {
             IsGitHubAuthenticating = true;
             GitHubDeviceCode = string.Empty;
-            GitHubAuthStatus = "Initialisation de la connexion GitHub...";
+            SetGitHubAuthStatusRaw(Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.StatusGitHubSignInStarting)));
             var session = await _githubAuthService.BeginInteractiveSignInAsync(
-                message => GitHubAuthStatus = message,
+                message => SetGitHubAuthStatusRaw(message),
                 code =>
                 {
                     GitHubDeviceCode = code;
                     RaiseGitHubDeviceCodeCopyRequested();
                 });
             UpdateGitHubAuthState(session);
-            StatusMessage = $"Connexion GitHub réussie: {session?.Summary}";
+            SetStatusMessage(nameof(LocalizationService.StatusGitHubSignInSuccess), session?.Summary ?? string.Empty);
         }
         catch (Exception ex)
         {
-            GitHubAuthStatus = $"Connexion GitHub échouée: {ex.Message}";
-            StatusMessage = GitHubAuthStatus;
+            ClearGitHubAuthStatusOverride();
+            SetGitHubAuthStatus(nameof(LocalizationService.StatusGitHubSignInFailed), ex.Message);
+            SetStatusMessage(nameof(LocalizationService.StatusGitHubSignInFailed), ex.Message);
         }
         finally
         {
             IsGitHubAuthenticating = false;
             GitHubDeviceCode = string.Empty;
+            ClearGitHubAuthStatusOverride();
             RaiseGitHubCommandStateChanged();
         }
     }
@@ -379,15 +362,15 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         try
         {
             IsGitHubAuthenticating = true;
-            GitHubAuthStatus = "Rafraîchissement de la session GitHub...";
+            SetGitHubAuthStatus(nameof(LocalizationService.StatusGitHubRefreshStarting));
             await _githubAuthService.RefreshCurrentAsync();
             UpdateGitHubAuthState();
-            StatusMessage = GitHubAuthStatus;
+            SetStatusMessage(nameof(LocalizationService.StatusGitHubRefreshSuccess));
         }
         catch (Exception ex)
         {
-            GitHubAuthStatus = $"Rafraîchissement GitHub impossible: {ex.Message}";
-            StatusMessage = GitHubAuthStatus;
+            SetGitHubAuthStatus(nameof(LocalizationService.StatusGitHubRefreshFailed), ex.Message);
+            SetStatusMessage(nameof(LocalizationService.StatusGitHubRefreshFailed), ex.Message);
         }
         finally
         {
@@ -400,7 +383,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         await _githubAuthService.SignOutAsync();
         UpdateGitHubAuthState();
-        StatusMessage = "Session GitHub supprimée.";
+        SetStatusMessage(nameof(LocalizationService.StatusGitHubSignedOut));
     }
 
     private void UpdateGitHubAuthState(GitHubAuthSession? session = null)
@@ -409,13 +392,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
         if (session is null)
         {
-            GitHubAuthStatus = "Non connecté à GitHub";
-            GitHubAccountSummary = "Aucun compte lié";
+            SetGitHubAuthStatus(nameof(LocalizationService.GitHubAuthNotConnected));
+            SetGitHubAccountSummary(nameof(LocalizationService.GitHubAuthNoAccountLinked));
         }
         else
         {
-            GitHubAuthStatus = $"Connecté à GitHub: {session.Summary}";
-            GitHubAccountSummary = $"Compte lié: {session.DisplayName} ({session.Login})";
+            SetGitHubAuthStatus(nameof(LocalizationService.GitHubAuthConnected), session.Summary);
+            SetGitHubAccountSummary(nameof(LocalizationService.GitHubAuthLinkedAccount), session.DisplayName, session.Login);
         }
 
         OnPropertyChanged(nameof(IsGitHubConnected));
@@ -556,7 +539,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         try
         {
             _isRefreshing = true;
-            StatusMessage = "Rafraîchissement des couleurs...";
+            SetStatusMessage(nameof(LocalizationService.StatusColorsRefreshing));
             (RefreshCommand as RelayCommand)?.RaiseCanExecuteChanged();
 
             var newCatalog = await GithubColorsService.FetchAsync(force: true);
@@ -579,7 +562,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 }
             }
 
-            StatusMessage = $"Couleurs rafraîchies: {ColorCount}";
+            SetStatusMessage(nameof(LocalizationService.StatusColorsRefreshed), ColorCount);
             OnPropertyChanged(nameof(ColorCount));
             OnPropertyChanged(nameof(VisibleCount));
             OnPropertyChanged(nameof(SelectedCount));
@@ -587,7 +570,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Erreur rafraîchissement: {ex.Message}";
+            SetStatusMessage(nameof(LocalizationService.StatusColorsRefreshError), ex.Message);
         }
         finally
         {
@@ -652,12 +635,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         try
         {
             await _selectedLanguagesStore.SaveAsync(_allLanguages.Where(language => language.IsSelected).Select(language => language.Language));
-            StatusMessage = $"Sélection enregistrée: {_selectedLanguages.Count} langage(s)";
+            SetStatusMessage(nameof(LocalizationService.StatusSelectionSaved), _selectedLanguages.Count);
             OnPropertyChanged(nameof(SelectionSummary));
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Erreur sauvegarde sélection: {ex.Message}";
+            SetStatusMessage(nameof(LocalizationService.StatusSelectionSaveError), ex.Message);
         }
     }
 
@@ -704,7 +687,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             catch (Exception ex)
             {
                 Log.Error(ex, "Failed to open repository: {Url}", repo.RepositoryLink);
-                StatusMessage = $"Erreur: impossible d'ouvrir le lien";
+                SetStatusMessage(nameof(LocalizationService.OpenRepositoryFailure));
             }
         }
     }
@@ -715,7 +698,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         {
             if (!IsGitHubConnected)
             {
-                StatusMessage = "Connecte-toi à GitHub pour étoiler des repositories.";
+                SetStatusMessage(nameof(LocalizationService.ConnectGitHubToStar));
                 return;
             }
 
@@ -729,17 +712,17 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 {
                     var error = await response.Content.ReadAsStringAsync();
                     Log.Warning("Failed to star repository {Slug}. Status={StatusCode} Body={Body}", slug, (int)response.StatusCode, error);
-                    StatusMessage = BuildRepoActionFailureMessage("étoiler", repo.DisplayTitle, response.StatusCode, error);
+                    SetStatusMessageFromTemplate(BuildRepoActionFailureMessage(Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.ActionStar)), repo.DisplayTitle, response.StatusCode, error));
                     return;
                 }
 
-                StatusMessage = $"Repo étoilé sur GitHub: {repo.DisplayTitle}";
+                SetStatusMessage(nameof(LocalizationService.StarRepositorySuccess), repo.DisplayTitle);
                 Log.Information("Starred repository on GitHub: {Slug}", slug);
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Failed to star repository: {Repo}", repo.Repository);
-                StatusMessage = $"Erreur: impossible d'étoiler le repo";
+                SetStatusMessage(nameof(LocalizationService.StarRepositoryFailure));
             }
         }
     }
@@ -750,7 +733,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         {
             if (!IsGitHubConnected)
             {
-                StatusMessage = "Connecte-toi à GitHub pour surveiller des repositories.";
+                SetStatusMessage(nameof(LocalizationService.ConnectGitHubToWatch));
                 return;
             }
 
@@ -767,17 +750,17 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 {
                     var error = await response.Content.ReadAsStringAsync();
                     Log.Warning("Failed to watch repository {Slug}. Status={StatusCode} Body={Body}", slug, (int)response.StatusCode, error);
-                    StatusMessage = BuildRepoActionFailureMessage("surveiller", repo.DisplayTitle, response.StatusCode, error);
+                    SetStatusMessageFromTemplate(BuildRepoActionFailureMessage(Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.ActionWatch)), repo.DisplayTitle, response.StatusCode, error));
                     return;
                 }
 
-                StatusMessage = $"Repo surveillé sur GitHub: {repo.DisplayTitle}";
+                SetStatusMessage(nameof(LocalizationService.WatchRepositorySuccess), repo.DisplayTitle);
                 Log.Information("Watched repository on GitHub: {Slug}", slug);
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "Failed to watch repository: {Repo}", repo.Repository);
-                StatusMessage = $"Erreur: impossible de surveiller le repo";
+                SetStatusMessage(nameof(LocalizationService.WatchRepositoryFailure));
             }
         }
     }
@@ -801,20 +784,68 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         if ((statusCode == System.Net.HttpStatusCode.Forbidden || statusCode == System.Net.HttpStatusCode.NotFound)
             && errorBody.Contains("Resource not accessible by integration", StringComparison.OrdinalIgnoreCase))
         {
-            return $"GitHub bloque {action} {repoName} avec ce jeton. Reconnecte-toi avec un jeton utilisateur OAuth complet, puis réessaie.";
+            return Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.RepoActionBlockedByIntegration), action, repoName);
         }
 
-        if (action == "surveiller" && statusCode == System.Net.HttpStatusCode.NotFound)
+        if (string.Equals(action, Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.ActionWatch)), StringComparison.OrdinalIgnoreCase)
+            && statusCode == System.Net.HttpStatusCode.NotFound)
         {
-            return $"GitHub ne permet pas de surveiller {repoName} avec la session actuelle. Reconnecte-toi ; le scope `notifications` est peut-être manquant.";
+            return Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.RepoActionWatchRequiresNotificationsScope), repoName);
         }
 
-        return $"Impossible de {action} {repoName} (HTTP {(int)statusCode})";
+        return Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.RepoActionFailedHttp), action, repoName, (int)statusCode);
     }
 
     public void NotifyGitHubCodeCopied()
     {
-        StatusMessage = "Code GitHub copié dans le presse-papiers.";
+        SetStatusMessage(nameof(LocalizationService.GitHubDeviceCodeCopied));
     }
+
+    private void SetStatusMessage(string resourceKey, params object?[] args)
+    {
+        _statusMessageOverride = null;
+        _statusMessageKey = resourceKey;
+        _statusMessageArgs = args;
+        OnPropertyChanged(nameof(StatusMessage));
+    }
+
+    private void SetStatusMessageFromTemplate(string message)
+    {
+        _statusMessageOverride = message;
+        OnPropertyChanged(nameof(StatusMessage));
+    }
+
+    private void SetGitHubAuthStatus(string resourceKey, params object?[] args)
+    {
+        _githubAuthStatusOverride = null;
+        _githubAuthStatusKey = resourceKey;
+        _githubAuthStatusArgs = args;
+        OnPropertyChanged(nameof(GitHubAuthStatus));
+    }
+
+    private void SetGitHubAuthStatusRaw(string message)
+    {
+        _githubAuthStatusOverride = message;
+        OnPropertyChanged(nameof(GitHubAuthStatus));
+    }
+
+    private void ClearGitHubAuthStatusOverride()
+    {
+        if (_githubAuthStatusOverride is null)
+        {
+            return;
+        }
+
+        _githubAuthStatusOverride = null;
+        OnPropertyChanged(nameof(GitHubAuthStatus));
+    }
+
+    private void SetGitHubAccountSummary(string resourceKey, params object?[] args)
+    {
+        _githubAccountSummaryKey = resourceKey;
+        _githubAccountSummaryArgs = args;
+        OnPropertyChanged(nameof(GitHubAccountSummary));
+    }
+
 
 }

@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <data name="WindowTitle" xml:space="preserve"><value>GitHub Trend</value></data>
+  <data name="GitHubAccountSectionTitle" xml:space="preserve"><value>Compte GitHub</value></data>
+  <data name="GitHubDeviceCodeTitle" xml:space="preserve"><value>Code de connexion</value></data>
+  <data name="CopyCodeButtonText" xml:space="preserve"><value>Copier le code</value></data>
+  <data name="GitHubSignInButtonText" xml:space="preserve"><value>Se connecter avec GitHub</value></data>
+  <data name="GitHubRefreshButtonText" xml:space="preserve"><value>Rafraîchir le jeton</value></data>
+  <data name="GitHubSignOutButtonText" xml:space="preserve"><value>Se déconnecter</value></data>
+  <data name="SearchTitle" xml:space="preserve"><value>Recherche</value></data>
+  <data name="SearchPlaceholderText" xml:space="preserve"><value>Ex. : JavaScript, Rust...</value></data>
+  <data name="TrendingPeriodTitle" xml:space="preserve"><value>Période du trending</value></data>
+  <data name="TrendingPeriodSubtitle" xml:space="preserve"><value>Choisis la fenêtre de temps</value></data>
+  <data name="TimeRangeDaily" xml:space="preserve"><value>Quotidien</value></data>
+  <data name="TimeRangeWeekly" xml:space="preserve"><value>Hebdomadaire</value></data>
+  <data name="TimeRangeMonthly" xml:space="preserve"><value>Mensuel</value></data>
+  <data name="TimeRangeAll" xml:space="preserve"><value>Tout</value></data>
+  <data name="SelectedLanguagesTitle" xml:space="preserve"><value>Sélectionnés</value></data>
+  <data name="SuggestionsTitle" xml:space="preserve"><value>Suggestions</value></data>
+  <data name="RefreshButtonText" xml:space="preserve"><value>Rafraîchir</value></data>
+  <data name="TrendingRepositoriesTitle" xml:space="preserve"><value>Dépôts GitHub tendance</value></data>
+  <data name="ContributorsTitle" xml:space="preserve"><value>Contributeurs</value></data>
+
+  <data name="StatusLoadingColors" xml:space="preserve"><value>Chargement des couleurs...</value></data>
+  <data name="StatusColorsLoaded" xml:space="preserve"><value>Couleurs chargées : {0}</value></data>
+  <data name="StatusColorsLoadError" xml:space="preserve"><value>Erreur de chargement des couleurs : {0}</value></data>
+  <data name="StatusColorsRefreshing" xml:space="preserve"><value>Rafraîchissement des couleurs...</value></data>
+  <data name="StatusColorsRefreshed" xml:space="preserve"><value>Couleurs rafraîchies : {0}</value></data>
+  <data name="StatusColorsRefreshError" xml:space="preserve"><value>Erreur de rafraîchissement des couleurs : {0}</value></data>
+  <data name="StatusSelectionSaved" xml:space="preserve"><value>Sélection enregistrée : {0} langage(s)</value></data>
+  <data name="StatusSelectionSaveError" xml:space="preserve"><value>Erreur de sauvegarde de la sélection : {0}</value></data>
+  <data name="StatusGitHubSignInStarting" xml:space="preserve"><value>Initialisation de la connexion GitHub...</value></data>
+  <data name="StatusGitHubSignInSuccess" xml:space="preserve"><value>Connexion GitHub réussie : {0}</value></data>
+  <data name="StatusGitHubSignInFailed" xml:space="preserve"><value>Connexion GitHub échouée : {0}</value></data>
+  <data name="StatusGitHubRefreshStarting" xml:space="preserve"><value>Rafraîchissement de la session GitHub...</value></data>
+  <data name="StatusGitHubRefreshSuccess" xml:space="preserve"><value>Session GitHub rafraîchie.</value></data>
+  <data name="StatusGitHubRefreshFailed" xml:space="preserve"><value>Rafraîchissement GitHub impossible : {0}</value></data>
+  <data name="StatusGitHubSignedOut" xml:space="preserve"><value>Session GitHub supprimée.</value></data>
+  <data name="GitHubAuthNotConfigured" xml:space="preserve"><value>Connexion GitHub non configurée</value></data>
+  <data name="GitHubAuthNotConnected" xml:space="preserve"><value>Non connecté à GitHub</value></data>
+  <data name="GitHubAuthConnected" xml:space="preserve"><value>Connecté à GitHub : {0}</value></data>
+  <data name="GitHubAuthNoAccountConnected" xml:space="preserve"><value>Aucun compte connecté</value></data>
+  <data name="GitHubAuthNoAccountLinked" xml:space="preserve"><value>Aucun compte lié</value></data>
+  <data name="GitHubAuthLinkedAccount" xml:space="preserve"><value>Compte lié : {0} ({1})</value></data>
+  <data name="GitHubDeviceCodeCopied" xml:space="preserve"><value>Code GitHub copié dans le presse-papiers.</value></data>
+  <data name="NoLanguagesFound" xml:space="preserve"><value>Aucun langage trouvé</value></data>
+  <data name="SuggestionCountOne" xml:space="preserve"><value>1 suggestion</value></data>
+  <data name="SuggestionCountMany" xml:space="preserve"><value>{0} suggestions</value></data>
+  <data name="SelectionSummaryZero" xml:space="preserve"><value>Aucune sélection enregistrée</value></data>
+  <data name="SelectionSummaryOne" xml:space="preserve"><value>1 langage choisi</value></data>
+  <data name="SelectionSummaryMany" xml:space="preserve"><value>{0} langages choisis</value></data>
+  <data name="TrendingCountZero" xml:space="preserve"><value>Aucun dépôt tendance</value></data>
+  <data name="TrendingCountOne" xml:space="preserve"><value>1 dépôt tendance</value></data>
+  <data name="TrendingCountMany" xml:space="preserve"><value>{0} dépôts tendance</value></data>
+  <data name="UnknownLicense" xml:space="preserve"><value>Licence inconnue</value></data>
+  <data name="UnknownLanguage" xml:space="preserve"><value>Inconnu</value></data>
+  <data name="UpdatedUnknown" xml:space="preserve"><value>maj : inconnue</value></data>
+  <data name="UpdatedJustNow" xml:space="preserve"><value>maj : à l'instant</value></data>
+  <data name="UpdatedMinutesAgoOne" xml:space="preserve"><value>maj : il y a 1 min</value></data>
+  <data name="UpdatedMinutesAgoMany" xml:space="preserve"><value>maj : il y a {0} min</value></data>
+  <data name="UpdatedHoursAgoOne" xml:space="preserve"><value>maj : il y a 1 h</value></data>
+  <data name="UpdatedHoursAgoMany" xml:space="preserve"><value>maj : il y a {0} h</value></data>
+  <data name="UpdatedYesterday" xml:space="preserve"><value>maj : hier</value></data>
+  <data name="UpdatedDaysAgoOne" xml:space="preserve"><value>maj : il y a 1 j</value></data>
+  <data name="UpdatedDaysAgoMany" xml:space="preserve"><value>maj : il y a {0} j</value></data>
+  <data name="UpdatedWeeksAgo" xml:space="preserve"><value>maj : il y a {0} sem</value></data>
+  <data name="UpdatedMonthsAgo" xml:space="preserve"><value>maj : il y a {0} mois</value></data>
+  <data name="UpdatedYearsAgo" xml:space="preserve"><value>maj : il y a {0} an</value></data>
+  <data name="OpenRepositoryFailure" xml:space="preserve"><value>Impossible d’ouvrir le lien</value></data>
+  <data name="ConnectGitHubToStar" xml:space="preserve"><value>Connecte-toi à GitHub pour étoiler des dépôts.</value></data>
+  <data name="StarRepositorySuccess" xml:space="preserve"><value>Dépôt étoilé sur GitHub : {0}</value></data>
+  <data name="StarRepositoryFailure" xml:space="preserve"><value>Impossible d’étoiler le dépôt</value></data>
+  <data name="ConnectGitHubToWatch" xml:space="preserve"><value>Connecte-toi à GitHub pour surveiller des dépôts.</value></data>
+  <data name="WatchRepositorySuccess" xml:space="preserve"><value>Dépôt surveillé sur GitHub : {0}</value></data>
+  <data name="WatchRepositoryFailure" xml:space="preserve"><value>Impossible de surveiller le dépôt</value></data>
+  <data name="RepoActionBlockedByIntegration" xml:space="preserve"><value>GitHub bloque {0} {1} avec ce jeton. Reconnecte-toi avec un jeton utilisateur OAuth complet, puis réessaie.</value></data>
+  <data name="RepoActionWatchRequiresNotificationsScope" xml:space="preserve"><value>GitHub ne permet pas de surveiller {0} avec la session actuelle. Reconnecte-toi ; le scope `notifications` est peut-être manquant.</value></data>
+  <data name="RepoActionFailedHttp" xml:space="preserve"><value>Impossible de {0} {1} (HTTP {2})</value></data>
+  <data name="GitHubAuthDeviceCodePromptOpen" xml:space="preserve"><value>Code GitHub : {0}. Valide-le dans le navigateur ouvert.</value></data>
+  <data name="GitHubAuthDeviceCodePromptManual" xml:space="preserve"><value>Code GitHub : {0}. Ouvre : {1}</value></data>
+  <data name="InvalidDeviceCodeResponse" xml:space="preserve"><value>Réponse de code de connexion GitHub invalide</value></data>
+  <data name="MissingVerificationUrl" xml:space="preserve"><value>URL de vérification GitHub manquante</value></data>
+  <data name="DeviceFlowAuthenticationFailed" xml:space="preserve"><value>Échec de l’authentification par code de connexion : {0}</value></data>
+  <data name="GitHubClientIdNotConfigured" xml:space="preserve"><value>L’identifiant client de l’application GitHub n’est pas configuré. Définis la variable d’environnement GITHUB_APP_CLIENT_ID.</value></data>
+  <data name="ActionStar" xml:space="preserve"><value>étoiler</value></data>
+  <data name="ActionWatch" xml:space="preserve"><value>surveiller</value></data>
+</root>
+

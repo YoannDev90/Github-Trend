@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Github_Trend.Localization;
 using Serilog;
 
 namespace Github_Trend;
@@ -41,8 +42,8 @@ public sealed class GitHubAuthenticationService
     public bool IsConnected => CurrentSession is not null && _currentRecord is not null && _currentRecord.RevokedAt is null;
 
     public string StatusText => CurrentSession is null
-        ? "Non connecté à GitHub"
-        : $"Connecté à GitHub: {CurrentSession.Summary}";
+        ? Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.GitHubAuthNotConnected))
+        : Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.GitHubAuthConnected), CurrentSession.Summary);
 
     public async Task InitializeAsync()
     {
@@ -60,19 +61,19 @@ public sealed class GitHubAuthenticationService
 
             if (string.IsNullOrWhiteSpace(deviceCodeResponse.UserCode) || string.IsNullOrWhiteSpace(deviceCodeResponse.VerificationUri))
             {
-                throw new InvalidOperationException("Invalid device code response from GitHub");
+                throw new InvalidOperationException(Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.InvalidDeviceCodeResponse)));
             }
 
             var verificationUrl = deviceCodeResponse.VerificationUriComplete ?? deviceCodeResponse.VerificationUri;
             if (string.IsNullOrWhiteSpace(verificationUrl))
             {
-                throw new InvalidOperationException("Missing GitHub verification URL");
+                throw new InvalidOperationException(Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.MissingVerificationUrl)));
             }
 
             var opened = OpenBrowser(new Uri(verificationUrl));
             onProgress?.Invoke(opened
-                ? $"Code GitHub: {deviceCodeResponse.UserCode}. Valide dans le navigateur ouvert."
-                : $"Code GitHub: {deviceCodeResponse.UserCode}. Ouvre: {verificationUrl}");
+                ? Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.GitHubAuthDeviceCodePromptOpen), deviceCodeResponse.UserCode)
+                : Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.GitHubAuthDeviceCodePromptManual), deviceCodeResponse.UserCode, verificationUrl));
             onUserCodeAvailable?.Invoke(deviceCodeResponse.UserCode!);
 
             var (success, tokenResponse, error) = await _deviceFlowService.PollForTokenAsync(
@@ -82,7 +83,7 @@ public sealed class GitHubAuthenticationService
 
             if (!success || tokenResponse?.AccessToken == null)
             {
-                throw new InvalidOperationException($"Device flow authentication failed: {error}");
+                throw new InvalidOperationException(Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.DeviceFlowAuthenticationFailed), error ?? string.Empty));
             }
 
             var profile = await _tokenService.FetchUserProfileAsync(tokenResponse.AccessToken);
@@ -292,7 +293,7 @@ public sealed class GitHubAuthenticationService
     {
         if (string.IsNullOrWhiteSpace(_options.ClientId))
         {
-            throw new InvalidOperationException("GitHub App client id is not configured. Set GITHUB_APP_CLIENT_ID environment variable.");
+            throw new InvalidOperationException(Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.GitHubClientIdNotConfigured)));
         }
     }
 
