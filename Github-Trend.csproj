@@ -30,16 +30,22 @@
         <FrameworkReference Include="Microsoft.AspNetCore.App" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="Screenshots\" />
-      <Folder Include="Assets\Icons\" />
-    </ItemGroup>
-    
-    <ItemGroup>
-        <AvaloniaResource Include="Assets\Icons\**" />
-        <AvaloniaResource Include="Assets\icon.ico" />
-        <Content Include="Assets\Icons\**\*.svg">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </Content>
-    </ItemGroup>
-</Project>
+     <ItemGroup>
+       <Folder Include="Screenshots\" />
+       <Folder Include="Assets\Icons\" />
+     </ItemGroup>
+     
+     <ItemGroup>
+         <AvaloniaResource Include="Assets\Icons\**" />
+         <AvaloniaResource Include="Assets\icon.ico" />
+         <Content Include="Assets\Icons\**\*.svg">
+             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+         </Content>
+     </ItemGroup>
+     
+     <!-- Compile .resx files to embedded resources -->
+     <ItemGroup>
+         <EmbeddedResource Include="Localization\Resources.resx" />
+         <EmbeddedResource Include="Localization\Resources.fr.resx" />
+     </ItemGroup>
+ </Project>
