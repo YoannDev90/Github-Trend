@@ -11,8 +11,8 @@
 # ║    • PublishTrimmed=false  (Avalonia uses reflection — trim can break app)   ║
 # ║    • PublishReadyToRun=false                                                 ║
 # ║    • No debug symbols / PDBs                                                 ║
-# ║    • UPX --best --lzma  (Windows/Linux independent builds)                   ║
-# ║    • strip --strip-all  (Linux / macOS — via portable [ -x ] test)           ║
+# ║    • UPX --best --lzma  (Windows independent builds)                         ║
+# ║    • strip --strip-all  (macOS — via portable [ -x ] test)                  ║
 # ║    • hdiutil UDZO zlib-9  (macOS DMG)                                        ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
 
@@ -135,6 +135,23 @@ jobs:
 
           check_dir "SCD" "out/scd/${{ matrix.rid }}" "$MIN_SCD_KB"
 
+      # Helpful debug for CI: list and identify published files for linux RIDs.
+      - name: Debug · list SCD outputs
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          echo "Listing out/scd/${{ matrix.rid }}"
+          ls -la "out/scd/${{ matrix.rid }}" || true
+          echo "File types:" 
+          for f in out/scd/${{ matrix.rid }}/*; do
+            [ -e "$f" ] || continue
+            echo "==> $f"
+            file "$f" || true
+            echo "-- hexdump (first 256 bytes) --"
+            hexdump -C -n 256 "$f" || true
+            echo
+          done
+
       # ════════════════════════════════════════════════════════════════════════
       #  WINDOWS PACKAGING
       #  Independent build → single .exe compressed with UPX
@@ -188,12 +205,19 @@ jobs:
             Copy-Item $scdExe.FullName $dst
             # UPX: LZMA best compression (~40 % size reduction on PE binaries)
             # arm64 PE support landed in UPX 4.x — gracefully skip if it fails
-            upx --best --lzma $dst 2>$null
-            if ($LASTEXITCODE -ne 0) {
-              Write-Warning "UPX failed or unsupported for $rid — keeping uncompressed"
-              Copy-Item $scdExe.FullName $dst -Force
+            & upx --best --lzma $dst 2>$null
+            $upx_exit = $LASTEXITCODE
+            if ($upx_exit -ne 0) {
+              Write-Warning "UPX failed or unsupported for $rid (exit code $upx_exit) — keeping uncompressed"
+              try {
+                Copy-Item $scdExe.FullName $dst -Force
+              } catch {
+                Write-Warning "Failed to copy original binary back to destination: $_"
+              }
             }
             Write-Host "SCD → $dst  ($('{0:N1} MB' -f ((Get-Item $dst).Length/1MB)))"
+            # Ensure the PowerShell step exits with success even if UPX returned a non-zero code
+            exit 0
           } else {
             Write-Warning "SCD: no .exe found in $scdDir"
           }
@@ -308,8 +332,9 @@ jobs:
 
            cp "$BIN" "$OUTPUT"
            chmod +x "$OUTPUT"
-           strip --strip-all "$OUTPUT" 2>/dev/null || true
-           upx --best --lzma "$OUTPUT" 2>/dev/null || upx --best "$OUTPUT" 2>/dev/null || true
+           # IMPORTANT: do not run strip/upx on .NET single-file Linux bundles.
+           # These tools can alter bundle metadata and cause runtime corruption:
+           # 'Failure processing application bundle' / 'Arithmetic overflow while reading bundle'.
            echo "Linux → $OUTPUT  ($(du -sh "$OUTPUT" | cut -f1))"
 
       - name: List packages/${{ matrix.rid }}
