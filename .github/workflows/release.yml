@@ -334,6 +334,7 @@ jobs:
           TAG: ${{ steps.tag.outputs.value }}
         run: |
           APP="${{ env.APP_NAME }}"
+          MAIN_DLL="$(basename "${{ env.PROJECT }}" .csproj).dll"
           RID="${{ matrix.rid }}"
           PKG="packages/$RID"
           mkdir -p "$PKG"
@@ -423,10 +424,8 @@ jobs:
               mkdir -p "$PKG_ROOT/usr/lib/$APP" "$PKG_ROOT/usr/local/bin"
               cp -r "$SRC"/. "$PKG_ROOT/usr/lib/$APP/"
               find "$PKG_ROOT/usr/lib/$APP" -maxdepth 2 -type f | while read -r f; do strip "$f" 2>/dev/null || true; done
-              local APPHOST_NAME
-              APPHOST_NAME=$(basename "$BIN")
               printf '%s\n' '#!/bin/sh' > "$PKG_ROOT/usr/local/bin/$APP"
-              printf 'exec "/usr/lib/%s/%s" "$@"\n' "$APP" "$APPHOST_NAME" >> "$PKG_ROOT/usr/local/bin/$APP"
+              printf 'exec dotnet "/usr/lib/%s/%s" "$@"\n' "$APP" "$MAIN_DLL" >> "$PKG_ROOT/usr/local/bin/$APP"
               chmod +x "$PKG_ROOT/usr/local/bin/$APP"
               FPM_PATHS="usr/lib/$APP usr/local/bin/$APP"
             fi
