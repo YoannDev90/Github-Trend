@@ -390,6 +390,9 @@ jobs:
     if: always()
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Resolve release metadata
         id: meta
         shell: bash
