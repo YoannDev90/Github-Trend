@@ -1,44 +1,367 @@
-name: Build
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║  Release workflow — .NET / Avalonia                                         ║
+# ║                                                                              ║
+# ║  Produces one independent build artifact per RID:                            ║
+# ║    Windows  →  github-trend-VERSION-rid.exe   (single-file, self-contained)  ║
+# ║    macOS    →  github-trend-VERSION-rid.dmg   (self-contained app image)     ║
+# ║    Linux    →  github-trend-VERSION-rid       (naked binary, self-contained) ║
+# ║                                                                              ║
+# ║  Size-reduction stack :                                                      ║
+# ║    • PublishSingleFile + EnableCompressionInSingleFile                       ║
+# ║    • PublishTrimmed=false  (Avalonia uses reflection — trim can break app)   ║
+# ║    • PublishReadyToRun=false                                                 ║
+# ║    • No debug symbols / PDBs                                                 ║
+# ║    • UPX --best --lzma  (Windows independent builds)                         ║
+# ║    • strip --strip-all  (macOS — via portable [ -x ] test)                  ║
+# ║    • hdiutil UDZO zlib-9  (macOS DMG)                                        ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
+
+name: Build Check
 
 on:
   push:
+    branches: [ master, main ]
+  pull_request:
+  workflow_dispatch:
 
+permissions:
+  contents: write
+
+env:
+  PROJECT: Github-Trend.csproj
+  APP_NAME: github-trend
+  DOTNET_VERSION: '10.0.x'
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  JOB: build
+# ═════════════════════════════════════════════════════════════════════════════
 jobs:
   build:
-    name: Build (${{ matrix.os }})
+    name: ${{ matrix.rid }}
     runs-on: ${{ matrix.os }}
-    continue-on-error: true
+    continue-on-error: true            # one broken RID must not abort the release
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            platform: linux
-          - os: windows-latest
-            platform: windows
-          - os: macos-latest
-            platform: macos
+          - { os: windows-latest, platform: windows, rid: win-x64    }
+          - { os: windows-latest, platform: windows, rid: win-arm64  }
+          - { os: macos-latest,   platform: macos,   rid: osx-x64    }
+          - { os: macos-latest,   platform: macos,   rid: osx-arm64  }
+          - { os: ubuntu-latest,  platform: linux,   rid: linux-x64  }
+          - { os: ubuntu-latest,  platform: linux,   rid: linux-arm64 }
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      # ── Checkout + .NET ────────────────────────────────────────────────────
+      - uses: actions/checkout@v4
 
-      - name: Setup .NET
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 10.0.x
+          dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Restore
-        run: dotnet restore Github-Trend.sln
-
-      - name: Build
-        id: build
-        continue-on-error: true
-        run: dotnet build Github-Trend.sln -c Release --no-restore
-
-      - name: Report build result
-        if: always()
+      # ── Resolve tag name ───────────────────────────────────────────────────
+      - name: Resolve tag
+        id: tag
+        shell: bash
         run: |
-          echo "Platform: ${{ matrix.platform }}"
-          echo "Build outcome: ${{ steps.build.outcome }}"
-          echo "This workflow is intentionally non-blocking so it can surface issues before release."
+          echo "value=v0.0.0-ci" >> "$GITHUB_OUTPUT"
+
+      # ── Restore ────────────────────────────────────────────────────────────
+      - name: Restore
+        shell: bash
+        run: |
+          dotnet restore "${{ env.PROJECT }}" --runtime "${{ matrix.rid }}" || true
+
+      # ── SCD publish ────────────────────────────────────────────────────────
+      # Trimming is intentionally DISABLED for Avalonia: it uses reflection for
+      # XAML/styles/converters — the IL linker silently removes those, producing
+      # a binary that crashes at startup. Size comes from EnableCompression +
+      # no debug info + UPX at packaging time.
+      - name: Publish SCD
+        shell: bash
+        run: |
+          dotnet publish "${{ env.PROJECT }}" \
+            -c Release \
+            -r "${{ matrix.rid }}" \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:PublishTrimmed=false \
+            -p:EnableCompressionInSingleFile=true \
+            -p:PublishReadyToRun=false \
+            -p:DebugType=None \
+            -p:DebugSymbols=false \
+            -p:StripSymbols=true \
+            -o "out/scd/${{ matrix.rid }}"
+
+      # ── Sanity check: catch silently-empty publish outputs ─────────────────
+      - name: Verify publish outputs
+        shell: bash
+        run: |
+          MIN_SCD_KB=10240   # SCD must be at least 10 MB (Avalonia + runtime)
+
+          check_dir() {
+            local LABEL="$1" DIR="$2" MIN_KB="$3"
+            if [ ! -d "$DIR" ]; then
+              echo "::error::[$LABEL] output directory $DIR does not exist"
+              exit 1
+            fi
+            local KB
+            KB=$(du -sk "$DIR" | cut -f1)
+            echo "[$LABEL] $DIR → ${KB} KB"
+            if [ "$KB" -lt "$MIN_KB" ]; then
+              echo "::error::[$LABEL] publish output is suspiciously small (${KB} KB < ${MIN_KB} KB). Likely a silent build failure."
+              exit 1
+            fi
+          }
+
+          check_dir "SCD" "out/scd/${{ matrix.rid }}" "$MIN_SCD_KB"
+
+      # Helpful debug for CI: list and identify published files for linux RIDs.
+      - name: Debug · list SCD outputs
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          echo "Listing out/scd/${{ matrix.rid }}"
+          ls -la "out/scd/${{ matrix.rid }}" || true
+          echo "File types:" 
+          for f in out/scd/${{ matrix.rid }}/*; do
+            [ -e "$f" ] || continue
+            echo "==> $f"
+            file "$f" || true
+            echo "-- hexdump (first 256 bytes) --"
+            hexdump -C -n 256 "$f" || true
+            echo
+          done
+
+      # ════════════════════════════════════════════════════════════════════════
+      #  WINDOWS PACKAGING
+      #  Independent build → single .exe compressed with UPX
+      # ════════════════════════════════════════════════════════════════════════
+
+      # UPX is not pre-installed on windows-latest; grab the latest release binary.
+      - name: Windows · Install UPX
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          try {
+            $headers = @{}
+            if ($env:GITHUB_TOKEN) { $headers['Authorization'] = "Bearer $env:GITHUB_TOKEN" }
+            $rel   = Invoke-RestMethod "https://api.github.com/repos/upx/upx/releases/latest" -Headers $headers
+            $asset = $rel.assets | Where-Object { $_.name -match "win64\.zip$" } | Select-Object -First 1
+            if (-not $asset) { throw "No win64 UPX asset found in latest release" }
+
+            $zip = "$env:TEMP\upx.zip"
+            Invoke-WebRequest $asset.browser_download_url -OutFile $zip -UseBasicParsing
+            Expand-Archive $zip -DestinationPath "$env:TEMP\upx_out" -Force
+            $upxExe = Get-ChildItem "$env:TEMP\upx_out" -Recurse -Filter "upx.exe" | Select-Object -First 1
+            if (-not $upxExe) { throw "upx.exe not found in downloaded archive" }
+
+            Copy-Item $upxExe.FullName "C:\Windows\System32\upx.exe" -Force
+            $ver = & upx --version 2>&1 | Select-Object -First 1
+            Write-Host "UPX ready: $ver"
+          } catch {
+            Write-Warning "UPX install failed: $_  — SCD will ship uncompressed"
+          }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Package · Windows
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        env:
+          TAG: ${{ steps.tag.outputs.value }}
+        run: |
+          $app = $env:APP_NAME
+          $tag = $env:TAG
+          $version = $tag.TrimStart('v')
+          $rid = "${{ matrix.rid }}"
+          $pkg = "packages/$rid"
+          New-Item -ItemType Directory -Force -Path $pkg | Out-Null
+
+          # Independent build: compress the single .exe with UPX, then copy
+          $scdDir = "out/scd/$rid"
+          $scdExe = Get-ChildItem $scdDir -Filter "*.exe" -File | Select-Object -First 1
+          if ($scdExe) {
+            $dst = "$pkg/$app-$version-$rid.exe"
+            Copy-Item $scdExe.FullName $dst
+            # UPX: LZMA best compression (~40 % size reduction on PE binaries)
+            # arm64 PE support landed in UPX 4.x — gracefully skip if it fails
+            & upx --best --lzma $dst 2>$null
+            $upx_exit = $LASTEXITCODE
+            if ($upx_exit -ne 0) {
+              Write-Warning "UPX failed or unsupported for $rid (exit code $upx_exit) — keeping uncompressed"
+              try {
+                Copy-Item $scdExe.FullName $dst -Force
+              } catch {
+                Write-Warning "Failed to copy original binary back to destination: $_"
+              }
+            }
+            Write-Host "SCD → $dst  ($('{0:N1} MB' -f ((Get-Item $dst).Length/1MB)))"
+            # Ensure the PowerShell step exits with success even if UPX returned a non-zero code
+            exit 0
+          } else {
+            Write-Warning "SCD: no .exe found in $scdDir"
+          }
+
+      # ════════════════════════════════════════════════════════════════════════
+      #  MACOS PACKAGING
+      #  Independent build → .dmg
+      # ════════════════════════════════════════════════════════════════════════
+      - name: Package · macOS
+        if: matrix.platform == 'macos'
+        shell: bash
+        env:
+          TAG: ${{ steps.tag.outputs.value }}
+        run: |
+          APP="${{ env.APP_NAME }}"
+          VERSION="${TAG#v}"
+          RID="${{ matrix.rid }}"
+          PKG="packages/$RID"
+          mkdir -p "$PKG"
+
+          strip_dir() {
+            while IFS= read -r -d '' f; do
+              [ -x "$f" ] && strip "$f" 2>/dev/null || true
+            done < <(find "$1" -maxdepth 3 -type f -print0)
+          }
+
+          find_exec() {
+            while IFS= read -r -d '' f; do
+              [ -x "$f" ] && echo "$f" && return
+            done < <(find "$1" -maxdepth 1 -type f -print0)
+          }
+
+          make_dmg() {
+            local TYPE="$1"
+            local SRC="$2"
+            [ ! -d "$SRC" ] && echo "[$TYPE] $SRC not found - skip" && return
+
+            local MAINBIN
+            MAINBIN=$(find_exec "$SRC")
+            [ -n "$MAINBIN" ] && strip "$MAINBIN" 2>/dev/null || true
+            strip_dir "$SRC"
+
+            local TMP_UDRW OUT
+            TMP_UDRW=$(mktemp).dmg
+            OUT="$PKG/${APP}-${VERSION}-${RID}.dmg"
+
+            hdiutil create \
+              -volname "${APP}" \
+              -srcfolder "$SRC" \
+              -ov -format UDRW \
+              "$TMP_UDRW" >/dev/null
+
+            hdiutil convert "$TMP_UDRW" \
+              -format UDZO \
+              -imagekey zlib-level=9 \
+              -o "$OUT" >/dev/null
+
+            rm -f "$TMP_UDRW"
+            echo "[$TYPE] DMG → $OUT  ($(du -sh "$OUT" | cut -f1))"
+          }
+
+          make_dmg "scd" "out/scd/$RID"
+
+      # ════════════════════════════════════════════════════════════════════════
+      #  LINUX PACKAGING
+      #  Independent build → naked binary
+      # ════════════════════════════════════════════════════════════════════════
+
+      - name: Package · Linux
+        if: matrix.platform == 'linux'
+        shell: bash
+        env:
+          TAG: ${{ steps.tag.outputs.value }}
+        run: |
+          APP="${{ env.APP_NAME }}"
+          VERSION="${TAG#v}"
+          RID="${{ matrix.rid }}"
+          PKG="packages/$RID"
+          mkdir -p "$PKG"
+          OUTPUT="$PKG/${APP}-${VERSION}-${RID}"
+
+          pick_main_bin() {
+            local SRC="$1"
+            local APP_LC NAME NAME_LC CAND
+            APP_LC=$(printf '%s' "$APP" | tr '[:upper:]' '[:lower:]')
+
+            while IFS= read -r -d '' CAND; do
+              [ -x "$CAND" ] || continue
+              file -b "$CAND" | grep -q 'ELF' || continue
+              NAME=$(basename "$CAND")
+              NAME_LC=$(printf '%s' "$NAME" | tr '[:upper:]' '[:lower:]')
+              if [ "$NAME_LC" = "$APP_LC" ] || [ "$NAME_LC" = "${APP_LC//-/}" ] || [ "$NAME_LC" = "${APP_LC//-/_}" ]; then
+                echo "$CAND"
+                return 0
+              fi
+            done < <(find "$SRC" -maxdepth 1 -type f -print0)
+
+            while IFS= read -r -d '' CAND; do
+              [ -x "$CAND" ] || continue
+              file -b "$CAND" | grep -q 'ELF' || continue
+              echo "$CAND"
+              return 0
+            done < <(find "$SRC" -maxdepth 1 -type f -print0)
+
+            return 1
+          }
+
+           BIN=$(pick_main_bin "out/scd/$RID" || true)
+           [ -z "$BIN" ] && echo "No executable found - skipping" && exit 0
+
+           # 1. Create Tar.gz archive (Base for AUR / Flatpak source)
+           cd "out/scd/$RID"
+           TARGZ="github-trend-${VERSION}-${RID}.tar.gz"
+           tar -czvf "../../${TARGZ}" *
+           cd ../../../
+           cp "out/${TARGZ}" "$PKG/"
+           
+           # 2. Linux Advanced Packaging requires fpm and appimagetool which we can install on the fly
+           sudo gem install fpm
+           wget -qO appimagetool "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
+           chmod +x appimagetool
+           
+           ARCH_FPM="amd64"
+           ARCH_APPIMAGE="x86_64"
+           if [ "$RID" == "linux-arm64" ]; then
+               ARCH_FPM="arm64"
+               ARCH_APPIMAGE="aarch64"
+           fi
+
+           mkdir -p opt_struct/opt/github-trend
+           cp -a "out/scd/$RID"/. opt_struct/opt/github-trend/
+           
+           # RPM
+           fpm -s dir -t rpm -n "github-trend" -v "$VERSION" -a "$ARCH_FPM" --prefix / ./opt_struct/opt/github-trend=/opt/github-trend
+           # DEB
+           fpm -s dir -t deb -n "github-trend" -v "$VERSION" -a "$ARCH_FPM" --prefix / ./opt_struct/opt/github-trend=/opt/github-trend
+           
+           mv *.rpm "$PKG/" || true
+           mv *.deb "$PKG/" || true
+           
+           # APPIMAGE
+           # Need a desktop and icon if not already bundled
+           mkdir -p AppDir/usr/bin/ AppDir/usr/share/applications/ AppDir/usr/share/icons/
+           cp -a "out/scd/$RID"/. AppDir/usr/bin/
+           cp packaging/linux/Github-Trend.desktop AppDir/usr/share/applications/ || true
+           # Just an empty icon mapping to avoid failure
+           touch AppDir/usr/share/icons/github-trend.png || true
+           echo -e '#!/bin/sh\nHERE="$(dirname "$(readlink -f "${0}")")"\nexec "$HERE/usr/bin/Github-Trend" "$@"' > AppDir/AppRun
+           chmod +x AppDir/AppRun
+           
+           ARCH="$ARCH_APPIMAGE" ./appimagetool AppDir "$PKG/github-trend-${VERSION}-${RID}.AppImage" || echo "AppImage step failed"
+
+      - name: List packages/${{ matrix.rid }}
+        shell: bash
+        run: |
+          echo "=== packages/${{ matrix.rid }} ==="
+          find "packages/${{ matrix.rid }}" -maxdepth 1 -type f -exec ls -lh {} \; 2>/dev/null || echo "(empty)"
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: pkg-${{ matrix.rid }}
+          path: packages/${{ matrix.rid }}/
+          if-no-files-found: warn
+

@@ -1,0 +1,34 @@
+app-id: org.yoanndev.githubtrend
+base: org.freedesktop.Sdk.Extension.dotnet10
+runtime: org.freedesktop.Platform
+runtime-version: '23.08'
+sdk: org.freedesktop.Sdk
+command: github-trend
+finish-args:
+  - --share=ipc
+  - --socket=x11
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --share=network
+  - --device=dri # Accès GPU pour le rendu Skia (Avalonia)
+modules:
+  - name: github-trend
+    buildsystem: simple
+    build-commands:
+      # Flatpak ne peut pas télécharger pendant la phase build sans déclarer les 'sources'.
+      # On installe donc manuellement ce qui a été extrait par l'archive release tar.gz de Github.
+      - mkdir -p /app/bin/github-trend
+      - cp -r ./* /app/bin/github-trend/
+      - ln -s /app/bin/github-trend/github-trend /app/bin/github-trend-executable
+      # Desktop file and icon if they exist
+      - install -Dm644 Github-Trend.desktop /app/share/applications/org.yoanndev.githubtrend.desktop || true
+    sources:
+      # Idéalement pour automatiser Flathub on remplace ce tableau "sources" 
+      # à l'aide d'un script qui pointe sur la version GitHub Releases spécifique
+      # Exemple :
+      # - type: archive
+      #   url: https://github.com/YoannDev90/Github-Trend/releases/download/v1.0.0/github-trend-1.0.0-linux-x64.tar.gz
+      #   sha256: HASH_ICI
+      - type: dir
+        path: ../../out/scd/linux-x64 # Utilisé pour test via github actions context
+

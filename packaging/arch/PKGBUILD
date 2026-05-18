@@ -1,0 +1,33 @@
+# Maintainer: Yoann
+pkgname=github-trend-bin
+pkgver=@VERSION@
+pkgrel=1
+pkgdesc="GitHub Trend Tracker based on Avalonia"
+arch=('x86_64' 'aarch64')
+url="https://github.com/YoannDev90/Github-Trend"
+license=('MIT')
+depends=('glibc' 'gcc-libs' 'fontconfig' 'icu')
+options=('!strip') # Ne pas stripper les binaires .NET self-contained
+source_x86_64=("$url/releases/download/v$pkgver/github-trend-$pkgver-linux-x64.tar.gz")
+source_aarch64=("$url/releases/download/v$pkgver/github-trend-$pkgver-linux-arm64.tar.gz")
+sha256sums_x86_64=('@LINUX_X64_SHA@')
+sha256sums_aarch64=('@LINUX_ARM_SHA@')
+
+package() {
+    install -d "${pkgdir}/opt/github-trend"
+    install -d "${pkgdir}/usr/bin"
+    install -d "${pkgdir}/usr/share/applications"
+    install -d "${pkgdir}/usr/share/pixmaps"
+
+    # Copie de l'intégralité du binaire et de ses lib (Avalonia, SkiaSharp .so)
+    cp -r "${srcdir}/"* "${pkgdir}/opt/github-trend/"
+    
+    # Rendre l'executable lanceable
+    chmod +x "${pkgdir}/opt/github-trend/github-trend"
+    ln -s "/opt/github-trend/github-trend" "${pkgdir}/usr/bin/github-trend"
+    
+    # Metadonnées bureau si présentes dans l'archive
+    if [ -f "${pkgdir}/opt/github-trend/Github-Trend.desktop" ]; then
+        cp "${pkgdir}/opt/github-trend/Github-Trend.desktop" "${pkgdir}/usr/share/applications/"
+    fi
+}

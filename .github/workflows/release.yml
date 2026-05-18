@@ -304,7 +304,6 @@ jobs:
             local APP_LC NAME NAME_LC CAND
             APP_LC=$(printf '%s' "$APP" | tr '[:upper:]' '[:lower:]')
 
-            # Pass 1: prefer an ELF executable matching app naming variants.
             while IFS= read -r -d '' CAND; do
               [ -x "$CAND" ] || continue
               file -b "$CAND" | grep -q 'ELF' || continue
@@ -316,7 +315,6 @@ jobs:
               fi
             done < <(find "$SRC" -maxdepth 1 -type f -print0)
 
-            # Pass 2: fallback to first ELF executable (never a managed .dll).
             while IFS= read -r -d '' CAND; do
               [ -x "$CAND" ] || continue
               file -b "$CAND" | grep -q 'ELF' || continue
@@ -330,12 +328,47 @@ jobs:
            BIN=$(pick_main_bin "out/scd/$RID" || true)
            [ -z "$BIN" ] && echo "No executable found - skipping" && exit 0
 
-           cp "$BIN" "$OUTPUT"
-           chmod +x "$OUTPUT"
-           # IMPORTANT: do not run strip/upx on .NET single-file Linux bundles.
-           # These tools can alter bundle metadata and cause runtime corruption:
-           # 'Failure processing application bundle' / 'Arithmetic overflow while reading bundle'.
-           echo "Linux → $OUTPUT  ($(du -sh "$OUTPUT" | cut -f1))"
+           # 1. Create Tar.gz archive (Base for AUR / Flatpak source)
+           cd "out/scd/$RID"
+           TARGZ="github-trend-${VERSION}-${RID}.tar.gz"
+           tar -czvf "../../${TARGZ}" *
+           cd ../../../
+           cp "out/${TARGZ}" "$PKG/"
+           
+           # 2. Linux Advanced Packaging requires fpm and appimagetool which we can install on the fly
+           sudo gem install fpm
+           wget -qO appimagetool "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
+           chmod +x appimagetool
+           
+           ARCH_FPM="amd64"
+           ARCH_APPIMAGE="x86_64"
+           if [ "$RID" == "linux-arm64" ]; then
+               ARCH_FPM="arm64"
+               ARCH_APPIMAGE="aarch64"
+           fi
+
+           mkdir -p opt_struct/opt/github-trend
+           cp -a "out/scd/$RID"/. opt_struct/opt/github-trend/
+           
+           # RPM
+           fpm -s dir -t rpm -n "github-trend" -v "$VERSION" -a "$ARCH_FPM" --prefix / ./opt_struct/opt/github-trend=/opt/github-trend
+           # DEB
+           fpm -s dir -t deb -n "github-trend" -v "$VERSION" -a "$ARCH_FPM" --prefix / ./opt_struct/opt/github-trend=/opt/github-trend
+           
+           mv *.rpm "$PKG/" || true
+           mv *.deb "$PKG/" || true
+           
+           # APPIMAGE
+           # Need a desktop and icon if not already bundled
+           mkdir -p AppDir/usr/bin/ AppDir/usr/share/applications/ AppDir/usr/share/icons/
+           cp -a "out/scd/$RID"/. AppDir/usr/bin/
+           cp packaging/linux/Github-Trend.desktop AppDir/usr/share/applications/ || true
+           # Just an empty icon mapping to avoid failure
+           touch AppDir/usr/share/icons/github-trend.png || true
+           echo -e '#!/bin/sh\nHERE="$(dirname "$(readlink -f "${0}")")"\nexec "$HERE/usr/bin/Github-Trend" "$@"' > AppDir/AppRun
+           chmod +x AppDir/AppRun
+           
+           ARCH="$ARCH_APPIMAGE" ./appimagetool AppDir "$PKG/github-trend-${VERSION}-${RID}.AppImage" || echo "AppImage step failed"
 
       - name: List packages/${{ matrix.rid }}
         shell: bash
@@ -387,6 +420,32 @@ jobs:
       - name: List release assets
         run: find assets -type f | sort
 
+      - name: Generate Dynamic Packaging Files
+        shell: bash
+        run: |
+          VERSION="${{ steps.meta.outputs.tag }}"
+          VERSION="${VERSION#v}"
+          
+          # Calcul silencieux des SHA (s'ils n'existent pas car le job a ignoré une plateforme, le sha sera vide, ce qui importe peu tant qu'on fournit l'autre)
+          MAC_INTEL_SHA=$(sha256sum assets/github-trend-${VERSION}-osx-x64.dmg 2>/dev/null | awk '{ print $1 }' || echo "SKIP")
+          MAC_ARM_SHA=$(sha256sum assets/github-trend-${VERSION}-osx-arm64.dmg 2>/dev/null | awk '{ print $1 }' || echo "SKIP")
+          LINUX_X64_SHA=$(sha256sum assets/github-trend-${VERSION}-linux-x64.tar.gz 2>/dev/null | awk '{ print $1 }' || echo "SKIP")
+          LINUX_ARM_SHA=$(sha256sum assets/github-trend-${VERSION}-linux-arm64.tar.gz 2>/dev/null | awk '{ print $1 }' || echo "SKIP")
+          
+          # Templates
+          cp packaging/arch/PKGBUILD assets/PKGBUILD
+          cp packaging/homebrew/github-trend.rb assets/github-trend.rb
+          
+          # PKGBUILD injection
+          sed -i "s/@VERSION@/$VERSION/g" assets/PKGBUILD
+          sed -i "s/@LINUX_X64_SHA@/$LINUX_X64_SHA/g" assets/PKGBUILD
+          sed -i "s/@LINUX_ARM_SHA@/$LINUX_ARM_SHA/g" assets/PKGBUILD
+          
+          # Homebrew injection
+          sed -i "s/@VERSION@/$VERSION/g" assets/github-trend.rb
+          sed -i "s/@MAC_INTEL_SHA@/$MAC_INTEL_SHA/g" assets/github-trend.rb
+          sed -i "s/@MAC_ARM_SHA@/$MAC_ARM_SHA/g" assets/github-trend.rb
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -396,10 +455,7 @@ jobs:
           generate_release_notes: true
           fail_on_unmatched_files: false
           files: |
-            assets/**/*.exe
-            assets/**/*.dmg
-            assets/**/github-trend-*
-
+            assets/**/*
       - name: Release summary
         if: always()
         run: |

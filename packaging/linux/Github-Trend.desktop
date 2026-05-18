@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Github Trend
+Comment=GitHub Trend Tracker based on Avalonia
+Exec=Github-Trend
+Icon=github-trend
+Terminal=false
+Type=Application
+Categories=Development;Utility;
+
