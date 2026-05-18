@@ -339,6 +339,34 @@ jobs:
           mkdir -p "$PKG"
           RPM_VER=$(echo "${TAG#v}" | tr '-' '.')
 
+          pick_main_bin() {
+            local SRC="$1"
+            local APP_LC NAME NAME_LC CAND
+            APP_LC=$(printf '%s' "$APP" | tr '[:upper:]' '[:lower:]')
+
+            # Pass 1: prefer an ELF executable matching app naming variants.
+            while IFS= read -r -d '' CAND; do
+              [ -x "$CAND" ] || continue
+              file -b "$CAND" | grep -q 'ELF' || continue
+              NAME=$(basename "$CAND")
+              NAME_LC=$(printf '%s' "$NAME" | tr '[:upper:]' '[:lower:]')
+              if [ "$NAME_LC" = "$APP_LC" ] || [ "$NAME_LC" = "${APP_LC//-/}" ] || [ "$NAME_LC" = "${APP_LC//-/_}" ]; then
+                echo "$CAND"
+                return 0
+              fi
+            done < <(find "$SRC" -maxdepth 1 -type f -print0)
+
+            # Pass 2: fallback to first ELF executable (never a managed .dll).
+            while IFS= read -r -d '' CAND; do
+              [ -x "$CAND" ] || continue
+              file -b "$CAND" | grep -q 'ELF' || continue
+              echo "$CAND"
+              return 0
+            done < <(find "$SRC" -maxdepth 1 -type f -print0)
+
+            return 1
+          }
+
           case "$RID" in
             linux-x64)   DEB_ARCH=amd64 ; RPM_ARCH=x86_64 ;;
             linux-arm64) DEB_ARCH=arm64 ; RPM_ARCH=aarch64 ;;
@@ -350,7 +378,7 @@ jobs:
             local TYPE="$1"
             local SRC="$2"
             local BIN
-            BIN=$(find "$SRC" -maxdepth 1 -type f -executable | head -n1 || true)
+            BIN=$(pick_main_bin "$SRC" || true)
             [ -z "$BIN" ] && echo "[$TYPE] No executable found in $SRC - skipping" && return
 
             local NAKED="$PKG/${APP}-${TAG}-${RID}-${TYPE}"
