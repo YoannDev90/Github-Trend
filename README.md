@@ -1,144 +1,99 @@
 # Github Trend
 
-`Github Trend` is a desktop app built with [Avalonia UI](https://avaloniaui.net/) that presents GitHub trending repositories in a richer card-based interface, with repository details, visuals, filters, and GitHub actions.
+Browse GitHub's trending repositories in style with a rich, card-based desktop interface. Stay on top of what's hot in the developer world, right from your desktop.
 
-## What the app does
+## ✨ What you can do
 
-The app focuses on one job: make GitHub Trending easier to browse and act on.
+- **Browse trending repositories** across different time ranges (daily, weekly, monthly, all-time)
+- **Filter by programming language** and quickly search through languages
+- **Star and watch repositories** directly from the app using your GitHub account
+- **View rich repository details** including:
+  - Repository description and topics
+  - Contributor previews with avatars
+  - Stars, forks, license, and language info
+  - Last update date and repository banners
+- **Open repositories in your browser** with a single click
+- **Sign in securely** through GitHub OAuth without managing tokens manually
 
-It lets you:
+## 📥 Download and Installation
 
-- browse GitHub trending repositories by time range:
-  - daily
-  - weekly
-  - monthly
-  - all time
-- filter the list by programming language
-- search the available language filters quickly
-- open any repository in your default browser
-- display repository banners, topics, contributors, stars, forks, license, language, and last updated date
-- star repositories directly from the app
-- watch repositories directly from the app
-- sign in through GitHub OAuth device flow without managing a personal access token manually
+### Quick Start: Pre-built Packages
 
-## Authentication model
+Pre-built packages are available for your platform:
 
-Authentication is now intentionally simple:
+- **Windows** (x64, arm64)
+- **Linux** (x64, arm64)
+- **macOS** (x64, arm64)
 
-- the app uses GitHub OAuth device flow to obtain a **user access token**
-- star/watch actions use that user token, not an installation token
-- the token is stored locally on the machine and protected before being written to disk
-- there are no runtime environment variables to configure
+1. Download the latest release from the [releases page](https://github.com/yoannflorent/Github-Trend/releases)
+2. Extract the package for your platform
 
-If GitHub returns an authorization error for a repository action, the usual fix is to sign out and sign in again so the app gets a fresh user token with the current scopes.
+#### Windows
+```
+1. Extract the .zip file
+2. Run Github-Trend.exe
+```
 
-## Configuration
+#### Linux
+```bash
+tar -xzf Github-Trend-linux-x64.tar.gz
+cd Github-Trend-linux-x64
+./Github-Trend
+```
 
-All app-level GitHub configuration is centralized in `Constants.cs`.
+#### macOS
+```
+1. Extract the .zip file
+2. Run the application
+```
 
-This file is the single place to review or change:
+### Build from Source (Advanced)
 
-- GitHub App client id
-- GitHub App client secret placeholder
-- personal access token placeholder
-- callback and local base URLs used by the legacy OAuth helpers
-- GitHub API URL and headers
-- trending data source URL
-- language colors source URL
+If you want to build from source, see [DEVELOPMENT.md](DEVELOPMENT.md) for technical setup instructions.
 
-There is no `.env`-style setup in the current app flow.
+## 🔐 Authentication
 
-## Features in detail
+The app uses GitHub's OAuth device flow for secure authentication:
 
-### Trending feed
+- No need to generate or manage personal access tokens
+- Your authentication token is stored locally and protected
+- Simply sign in through your GitHub account using the app
 
-The main view combines several data sources to enrich each repository card:
+**Having trouble with GitHub actions?**
+- If you get an authorization error, try signing out and signing back in to refresh your credentials.
 
-- trending repository list
-- repository metadata from the GitHub API
-- language color information
-- contributor previews
-- repository banner images
+## 🎨 Interface Features
 
-### Repository actions
+- **Dark-themed cards** for easy browsing
+- **Information-dense layout** that's still easy to scan
+- **Language color indicators** for quick visual recognition
+- **Contributor avatars** to see who's behind the code
+- **Fast language filtering** to find what you're interested in
 
-Each card exposes common actions:
-
-- open the repository page
-- star the repository
-- watch the repository
-
-When GitHub requires a more specific authorization scope, the app now surfaces a clearer message so you know whether you simply need to re-authenticate.
-
-### Visual layout
-
-The interface is designed to be information-dense without becoming hard to scan:
-
-- dark themed cards
-- prominent repository title and description
-- topic badges
-- avatar previews for contributors
-- fast language filtering
-
-## Screenshots
+## 📷 Screenshots
 
 ![Screenshot](Screenshots/1.png)
 ![Screenshot](Screenshots/2.png)
 
-## Requirements
+## 📋 Requirements
 
-- .NET 10 SDK
-- a desktop environment supported by Avalonia
+- Windows, macOS, or Linux desktop environment
+- Internet connection to fetch trending data
 
-## Run
+## ❓ FAQ
 
-From the project root:
+**Q: Is my GitHub token secure?**  
+A: Yes. Your authentication token is stored locally on your machine and is cryptographically protected before being saved to disk.
 
-```bash
-dotnet restore
-dotnet run
-```
+**Q: Do I need to install .NET?**  
+A: No, the pre-built packages include everything you need. Only required if building from source.
 
-## Build
+**Q: Why do some actions require re-authentication?**  
+A: Some GitHub actions require specific permissions. If you see an authorization error, signing out and back in will refresh your permissions.
 
-```bash
-dotnet build
-```
+## 🤖 Transparency
 
-## Project structure
+This project uses AI to assist with code implementation and documentation writing. However, all AI-generated content is carefully reviewed and refined by the project maintainer to ensure accuracy and quality.
 
-- `App.axaml` / `App.axaml.cs` - app bootstrap and global styling
-- `MainWindow.axaml` / `MainWindow.axaml.cs` - main UI and window behavior
-- `ViewModels/` - MVVM view models and commands
-- `Models/` - trending repository and GitHub data models
-- `Services/` - GitHub API, trending fetch, auth, colors, and persistence services
-- `Controls/` - custom controls used by the UI
-- `Constants.cs` - centralized application configuration
-
-## Data sources
-
-- Trending repositories:
-  - `https://githubtrending.lessx.xyz/trending`
-- Language colors:
-  - `https://raw.githubusercontent.com/ozh/github-colors/master/colors.json`
-- Repository details, contributors, topics, licenses, star, and watch actions:
-  - GitHub REST API
-
-## Notes
-
-- Repository banners are loaded from GitHub OpenGraph images.
-- Contributor avatars are fetched on demand.
-- The app stores its local token data in the user profile and protects it before saving.
-- The GitHub watch action requires the `notifications` scope, so if you changed auth settings you should reconnect once.
-
-## Current status
-
-The app currently supports:
-
-- trending browsing
-- language filtering
-- repository details enrichment
-- OAuth device-flow sign-in
-- direct starring
-- direct watching
+If you find any issues, inaccuracies, or areas for improvement in the documentation or code, please feel free to open an issue or submit a pull request—contributions from all skill levels are welcome!
 

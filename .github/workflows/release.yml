@@ -1,19 +1,18 @@
 # ╔══════════════════════════════════════════════════════════════════════════════╗
 # ║  Release workflow — .NET / Avalonia                                         ║
 # ║                                                                              ║
-# ║  Produces, per RID, exactly 5 format × 2 modes (SCD + FDD) = 10 files :    ║
-# ║    Windows  →  .exe   (SCD = single-file  |  FDD = SFX self-extracting)    ║
-# ║    macOS    →  .dmg   (UDZO zlib-9)                                         ║
-# ║    Linux    →  naked binary  +  .deb  +  .rpm                               ║
+# ║  Produces one independent build artifact per RID:                            ║
+# ║    Windows  →  github-trend-VERSION-rid.exe   (single-file, self-contained)  ║
+# ║    macOS    →  github-trend-VERSION-rid.dmg   (self-contained app image)     ║
+# ║    Linux    →  github-trend-VERSION-rid       (naked binary, self-contained) ║
 # ║                                                                              ║
 # ║  Size-reduction stack :                                                      ║
-# ║    • PublishSingleFile + EnableCompressionInSingleFile  (SCD)               ║
-# ║    • PublishTrimmed=false  (Avalonia uses reflection — trim crashes app)    ║
+# ║    • PublishSingleFile + EnableCompressionInSingleFile                       ║
+# ║    • PublishTrimmed=false  (Avalonia uses reflection — trim can break app)   ║
 # ║    • PublishReadyToRun=false                                                 ║
 # ║    • No debug symbols / PDBs                                                 ║
-# ║    • UPX --best --lzma  (Windows SCD .exe + Linux naked binary)             ║
-# ║    • strip --strip-all  (Linux / macOS — via portable [ -x ] test)          ║
-# ║    • 7-Zip LZMA2 mx=9  (Windows FDD SFX)                                    ║
+# ║    • UPX --best --lzma  (Windows/Linux independent builds)                   ║
+# ║    • strip --strip-all  (Linux / macOS — via portable [ -x ] test)           ║
 # ║    • hdiutil UDZO zlib-9  (macOS DMG)                                        ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
 
@@ -26,11 +25,11 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Tag name (e.g. v1.2.3)  — required for manual runs'
+        description: 'Tag name (e.g. v1.2.3) — required for manual runs'
         required: true
         type: string
       release_name:
-        description: 'Release title  (defaults to tag name)'
+        description: 'Release title (defaults to tag name)'
         required: false
         type: string
       draft:
@@ -42,10 +41,9 @@ on:
 permissions:
   contents: write
 
-# ── Globals ──────────────────────────────────────────────────────────────────
 env:
-  PROJECT:        Github-Trend.csproj   # ← adjust if your .csproj has another name
-  APP_NAME:       github-trend
+  PROJECT: Github-Trend.csproj
+  APP_NAME: github-trend
   DOTNET_VERSION: '10.0.x'
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -114,25 +112,11 @@ jobs:
             -p:StripSymbols=true \
             -o "out/scd/${{ matrix.rid }}"
 
-      # ── FDD publish ────────────────────────────────────────────────────────
-      - name: Publish FDD
-        shell: bash
-        run: |
-          dotnet publish "${{ env.PROJECT }}" \
-            -c Release \
-            -r "${{ matrix.rid }}" \
-            --self-contained false \
-            -p:PublishSingleFile=false \
-            -p:DebugType=None \
-            -p:DebugSymbols=false \
-            -o "out/fdd/${{ matrix.rid }}"
-
       # ── Sanity check: catch silently-empty publish outputs ─────────────────
       - name: Verify publish outputs
         shell: bash
         run: |
           MIN_SCD_KB=10240   # SCD must be at least 10 MB (Avalonia + runtime)
-          MIN_FDD_KB=1024    # FDD must be at least 1 MB  (Avalonia DLLs)
 
           check_dir() {
             local LABEL="$1" DIR="$2" MIN_KB="$3"
@@ -150,12 +134,10 @@ jobs:
           }
 
           check_dir "SCD" "out/scd/${{ matrix.rid }}" "$MIN_SCD_KB"
-          check_dir "FDD" "out/fdd/${{ matrix.rid }}" "$MIN_FDD_KB"
 
       # ════════════════════════════════════════════════════════════════════════
       #  WINDOWS PACKAGING
-      #  SCD → single .exe compressed with UPX
-      #  FDD → self-extracting .exe via 7-Zip SFX (7-Zip pre-installed on runner)
+      #  Independent build → single .exe compressed with UPX
       # ════════════════════════════════════════════════════════════════════════
 
       # UPX is not pre-installed on windows-latest; grab the latest release binary.
@@ -193,15 +175,16 @@ jobs:
         run: |
           $app = $env:APP_NAME
           $tag = $env:TAG
+          $version = $tag.TrimStart('v')
           $rid = "${{ matrix.rid }}"
           $pkg = "packages/$rid"
           New-Item -ItemType Directory -Force -Path $pkg | Out-Null
 
-          # ── SCD : compress the single .exe with UPX, then copy ──────────────
+          # Independent build: compress the single .exe with UPX, then copy
           $scdDir = "out/scd/$rid"
           $scdExe = Get-ChildItem $scdDir -Filter "*.exe" -File | Select-Object -First 1
           if ($scdExe) {
-            $dst = "$pkg/$app-$tag-$rid-scd.exe"
+            $dst = "$pkg/$app-$version-$rid.exe"
             Copy-Item $scdExe.FullName $dst
             # UPX: LZMA best compression (~40 % size reduction on PE binaries)
             # arm64 PE support landed in UPX 4.x — gracefully skip if it fails
@@ -215,46 +198,9 @@ jobs:
             Write-Warning "SCD: no .exe found in $scdDir"
           }
 
-          # ── FDD : self-extracting .exe via 7-Zip SFX ────────────────────────
-          $sevenZip = "C:\Program Files\7-Zip\7z.exe"
-          $sfxMod   = "C:\Program Files\7-Zip\7z.sfx"
-
-          if (-not (Test-Path $sfxMod)) {
-            Write-Warning "7-Zip SFX module not found at $sfxMod — FDD packaging skipped"
-          } else {
-            $fddDir  = (Resolve-Path "out/fdd/$rid").Path
-            $mainExe = (Get-ChildItem $fddDir -Filter "*.exe" -File | Select-Object -First 1).Name
-
-            # 7-Zip LZMA2 ultra-compression archive
-            $arcTmp = [System.IO.Path]::GetTempFileName() + ".7z"
-            & $sevenZip a -t7z -mx=9 -mmt=on -m0=lzma2 -md=128m -mfb=64 `
-                "$arcTmp" "$fddDir\*" | Out-Null
-
-            # SFX config: silent extract + launch the apphost
-            $cfgTmp = [System.IO.Path]::GetTempFileName()
-            $config = @(
-              ';!@InstallStart@!'
-              "Title=`"$app $tag ($rid) - FDD`""
-              "RunProgram=`"$mainExe`""
-              'GUIFlags="8"'
-              ';!@InstallEnd@!'
-            ) -join "`r`n"
-            Set-Content -Path $cfgTmp -Value $config -Encoding UTF8
-
-            # Binary concatenation: sfx_stub + config + archive = single SFX .exe
-            $outSfx = "$pkg/$app-$tag-$rid-fdd.exe"
-            $bytes = New-Object System.Collections.Generic.List[byte]
-            foreach ($f in @($sfxMod, $cfgTmp, $arcTmp)) {
-              $bytes.AddRange([System.IO.File]::ReadAllBytes($f))
-            }
-            [System.IO.File]::WriteAllBytes($outSfx, $bytes.ToArray())
-
-            Remove-Item $arcTmp, $cfgTmp -Force -ErrorAction SilentlyContinue
-            Write-Host "FDD SFX → $outSfx  ($('{0:N1} MB' -f ((Get-Item $outSfx).Length/1MB)))"
-          }
-
       # ════════════════════════════════════════════════════════════════════════
       #  MACOS PACKAGING
+      #  Independent build → .dmg
       # ════════════════════════════════════════════════════════════════════════
       - name: Package · macOS
         if: matrix.platform == 'macos'
@@ -263,6 +209,7 @@ jobs:
           TAG: ${{ steps.tag.outputs.value }}
         run: |
           APP="${{ env.APP_NAME }}"
+          VERSION="${TAG#v}"
           RID="${{ matrix.rid }}"
           PKG="packages/$RID"
           mkdir -p "$PKG"
@@ -291,7 +238,7 @@ jobs:
 
             local TMP_UDRW OUT
             TMP_UDRW=$(mktemp).dmg
-            OUT="$PKG/${APP}-${TAG}-${RID}-${TYPE}.dmg"
+            OUT="$PKG/${APP}-${VERSION}-${RID}.dmg"
 
             hdiutil create \
               -volname "${APP}" \
@@ -309,23 +256,11 @@ jobs:
           }
 
           make_dmg "scd" "out/scd/$RID"
-          make_dmg "fdd" "out/fdd/$RID"
 
       # ════════════════════════════════════════════════════════════════════════
       #  LINUX PACKAGING
+      #  Independent build → naked binary
       # ════════════════════════════════════════════════════════════════════════
-      - name: Linux · Install packaging tools
-        if: matrix.platform == 'linux'
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y --no-install-recommends \
-            upx-ucl \
-            binutils \
-            ruby ruby-dev \
-            build-essential \
-            rpm dpkg-dev fakeroot \
-            patchelf
-          sudo gem install --no-document fpm
 
       - name: Package · Linux
         if: matrix.platform == 'linux'
@@ -334,11 +269,11 @@ jobs:
           TAG: ${{ steps.tag.outputs.value }}
         run: |
           APP="${{ env.APP_NAME }}"
-          MAIN_DLL="$(basename "${{ env.PROJECT }}" .csproj).dll"
+          VERSION="${TAG#v}"
           RID="${{ matrix.rid }}"
           PKG="packages/$RID"
           mkdir -p "$PKG"
-          RPM_VER=$(echo "${TAG#v}" | tr '-' '.')
+          OUTPUT="$PKG/${APP}-${VERSION}-${RID}"
 
           pick_main_bin() {
             local SRC="$1"
@@ -368,79 +303,14 @@ jobs:
             return 1
           }
 
-          case "$RID" in
-            linux-x64)   DEB_ARCH=amd64 ; RPM_ARCH=x86_64 ;;
-            linux-arm64) DEB_ARCH=arm64 ; RPM_ARCH=aarch64 ;;
-            linux-arm)   DEB_ARCH=armhf ; RPM_ARCH=armv7hl ;;
-            *)           DEB_ARCH=amd64 ; RPM_ARCH=x86_64 ;;
-          esac
+           BIN=$(pick_main_bin "out/scd/$RID" || true)
+           [ -z "$BIN" ] && echo "No executable found - skipping" && exit 0
 
-          package_linux() {
-            local TYPE="$1"
-            local SRC="$2"
-            local BIN
-            BIN=$(pick_main_bin "$SRC" || true)
-            [ -z "$BIN" ] && echo "[$TYPE] No executable found in $SRC - skipping" && return
-
-            local NAKED="$PKG/${APP}-${TAG}-${RID}-${TYPE}"
-            if [ "$TYPE" = "scd" ]; then
-              cp "$BIN" "$NAKED"
-              chmod +x "$NAKED"
-              strip --strip-all "$NAKED" 2>/dev/null || true
-              upx --best --lzma "$NAKED" 2>/dev/null || upx --best "$NAKED" 2>/dev/null || true
-            else
-              find "$SRC" -maxdepth 2 -type f | while read -r f; do strip "$f" 2>/dev/null || true; done
-              local APPHOST_NAME
-              APPHOST_NAME=$(basename "$BIN")
-              local PAYLOAD
-              PAYLOAD=$(mktemp)
-              tar -C "$SRC" -czf "$PAYLOAD" .
-              printf '%s\n' '#!/bin/sh' > "$NAKED"
-              printf '%s\n' 'set -e' >> "$NAKED"
-              printf 'D="${XDG_DATA_HOME:-$HOME/.local/share}/%s"\n' "$APP" >> "$NAKED"
-              printf 'V="%s"\n' "$TAG" >> "$NAKED"
-              printf '%s\n' '[ -f "$D/.sfx-$V" ] || {' >> "$NAKED"
-              printf '%s\n' '  rm -rf "$D" && mkdir -p "$D"' >> "$NAKED"
-              printf '%s\n' '  L=$(grep -an "^__P__$" "$0" | cut -d: -f1 | tail -1)' >> "$NAKED"
-              printf '%s\n' '  tail -n +"$((L+1))" "$0" | tar -xzf - -C "$D"' >> "$NAKED"
-              printf '%s\n' '  touch "$D/.sfx-$V"' >> "$NAKED"
-              printf '%s\n' '}' >> "$NAKED"
-              printf 'exec "$D/%s" "$@"\n' "$APPHOST_NAME" >> "$NAKED"
-              printf '%s\n' '__P__' >> "$NAKED"
-              cat "$PAYLOAD" >> "$NAKED"
-              rm -f "$PAYLOAD"
-              chmod +x "$NAKED"
-            fi
-
-            local PKG_ROOT="$PKG/pkgroot-${TYPE}"
-            local FPM_PATHS
-            rm -rf "$PKG_ROOT"
-
-            if [ "$TYPE" = "scd" ]; then
-              mkdir -p "$PKG_ROOT/usr/local/bin"
-              cp "$NAKED" "$PKG_ROOT/usr/local/bin/$APP"
-              FPM_PATHS="usr/local/bin/$APP"
-            else
-              mkdir -p "$PKG_ROOT/usr/lib/$APP" "$PKG_ROOT/usr/local/bin"
-              cp -r "$SRC"/. "$PKG_ROOT/usr/lib/$APP/"
-              find "$PKG_ROOT/usr/lib/$APP" -maxdepth 2 -type f | while read -r f; do strip "$f" 2>/dev/null || true; done
-              printf '%s\n' '#!/bin/sh' > "$PKG_ROOT/usr/local/bin/$APP"
-              printf 'exec dotnet "/usr/lib/%s/%s" "$@"\n' "$APP" "$MAIN_DLL" >> "$PKG_ROOT/usr/local/bin/$APP"
-              chmod +x "$PKG_ROOT/usr/local/bin/$APP"
-              FPM_PATHS="usr/lib/$APP usr/local/bin/$APP"
-            fi
-
-            # shellcheck disable=SC2086
-            fpm -s dir -t deb -n "$APP" -v "${TAG#v}" --architecture "$DEB_ARCH" --description "Github Trend - ${TYPE} build" --prefix / -C "$PKG_ROOT" -p "$PKG/${APP}-${TAG}-${RID}-${TYPE}.deb" $FPM_PATHS || echo "[$TYPE] fpm deb skipped"
-            # shellcheck disable=SC2086
-            fpm -s dir -t rpm -n "$APP" -v "$RPM_VER" --architecture "$RPM_ARCH" --description "Github Trend - ${TYPE} build" --prefix / -C "$PKG_ROOT" -p "$PKG/${APP}-${TAG}-${RID}-${TYPE}.rpm" $FPM_PATHS || echo "[$TYPE] fpm rpm skipped"
-
-            rm -rf "$PKG_ROOT"
-            echo "[$TYPE] packaging done"
-          }
-
-          package_linux "scd" "out/scd/$RID"
-          package_linux "fdd" "out/fdd/$RID"
+           cp "$BIN" "$OUTPUT"
+           chmod +x "$OUTPUT"
+           strip --strip-all "$OUTPUT" 2>/dev/null || true
+           upx --best --lzma "$OUTPUT" 2>/dev/null || upx --best "$OUTPUT" 2>/dev/null || true
+           echo "Linux → $OUTPUT  ($(du -sh "$OUTPUT" | cut -f1))"
 
       - name: List packages/${{ matrix.rid }}
         shell: bash
@@ -455,9 +325,6 @@ jobs:
           path: packages/${{ matrix.rid }}/
           if-no-files-found: warn
 
-# ═════════════════════════════════════════════════════════════════════════════
-#  JOB: release  — downloads all per-RID artifacts and creates the GH release
-# ═════════════════════════════════════════════════════════════════════════════
   release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
@@ -506,8 +373,6 @@ jobs:
           files: |
             assets/**/*.exe
             assets/**/*.dmg
-            assets/**/*.deb
-            assets/**/*.rpm
             assets/**/github-trend-*
 
       - name: Release summary
