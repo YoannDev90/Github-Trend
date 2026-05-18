@@ -25,7 +25,7 @@ Pre-built packages are available for your platform:
 - **Linux** (x64, arm64)
 - **macOS** (x64, arm64)
 
-1. Download the latest release from the [releases page](https://github.com/yoannflorent/Github-Trend/releases)
+1. Download the latest release from the [releases page](https://github.com/YoannDev90/Github-Trend/releases)
 2. Extract the package for your platform
 
 #### Windows
@@ -95,5 +95,5 @@ A: Some GitHub actions require specific permissions. If you see an authorization
 
 This project uses AI to assist with code implementation and documentation writing. However, all AI-generated content is carefully reviewed and refined by the project maintainer to ensure accuracy and quality.
 
-If you find any issues, inaccuracies, or areas for improvement in the documentation or code, please feel free to open an issue or submit a pull request—contributions from all skill levels are welcome!
+If you find any issues, inaccuracies, or areas for improvement in the documentation or code, please feel free to open an issue or submit a pull request : contributions from all skill levels are welcome!
 
