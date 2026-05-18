@@ -8,16 +8,13 @@
 # ║                                                                              ║
 # ║  Size-reduction stack :                                                      ║
 # ║    • PublishSingleFile + EnableCompressionInSingleFile  (SCD)               ║
-# ║    • PublishTrimmed / TrimMode=link  (SCD — safe for Avalonia¹)             ║
+# ║    • PublishTrimmed=false  (Avalonia uses reflection — trim crashes app)    ║
 # ║    • PublishReadyToRun=false                                                 ║
 # ║    • No debug symbols / PDBs                                                 ║
-# ║    • strip --strip-all  (Linux / macOS)                                      ║
-# ║    • UPX --best --lzma  (Linux naked binary + UPX fallback)                 ║
+# ║    • UPX --best --lzma  (Windows SCD .exe + Linux naked binary)             ║
+# ║    • strip --strip-all  (Linux / macOS — via portable [ -x ] test)          ║
 # ║    • 7-Zip LZMA2 mx=9  (Windows FDD SFX)                                    ║
 # ║    • hdiutil UDZO zlib-9  (macOS DMG)                                        ║
-# ║                                                                              ║
-# ║  ¹ If trimming breaks your Avalonia app, set TrimMode to "partial" or add   ║
-# ║    a TrimmerRootDescriptor file in your .csproj.                             ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
 
 name: Release
@@ -97,7 +94,11 @@ jobs:
           dotnet restore "${{ env.PROJECT }}" --runtime "${{ matrix.rid }}" || true
 
       # ── SCD publish ────────────────────────────────────────────────────────
-      # One single native binary, trimmed + compressed in the binary itself.
+      # Trimming (TrimMode=link/full) is intentionally DISABLED for Avalonia:
+      # Avalonia relies on reflection for XAML, styles and converters — the IL
+      # linker silently removes those and produces a binary that crashes at
+      # startup while appearing to compile fine. Size reduction comes from
+      # EnableCompressionInSingleFile + no debug info + UPX at packaging time.
       - name: Publish SCD
         shell: bash
         run: |
@@ -106,8 +107,7 @@ jobs:
             -r "${{ matrix.rid }}" \
             --self-contained true \
             -p:PublishSingleFile=true \
-            -p:PublishTrimmed=true \
-            -p:TrimMode=link \
+            -p:PublishTrimmed=false \
             -p:EnableCompressionInSingleFile=true \
             -p:PublishReadyToRun=false \
             -p:DebugType=None \
@@ -133,9 +133,25 @@ jobs:
 
       # ════════════════════════════════════════════════════════════════════════
       #  WINDOWS PACKAGING
-      #  SCD → single .exe (already a single file from PublishSingleFile)
+      #  SCD → single .exe compressed with UPX
       #  FDD → self-extracting .exe via 7-Zip SFX (7-Zip pre-installed on runner)
       # ════════════════════════════════════════════════════════════════════════
+
+      # UPX is not pre-installed on windows-latest; grab the latest release binary.
+      - name: Windows · Install UPX
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          $rel = Invoke-RestMethod "https://api.github.com/repos/upx/upx/releases/latest"
+          $asset = $rel.assets | Where-Object { $_.name -match "win64\.zip$" } | Select-Object -First 1
+          if (-not $asset) { Write-Warning "UPX asset not found — skipping"; exit 0 }
+          $zip = "$env:TEMP\upx.zip"
+          Invoke-WebRequest $asset.browser_download_url -OutFile $zip
+          Expand-Archive $zip -DestinationPath "$env:TEMP\upx_extract" -Force
+          $upxExe = Get-ChildItem "$env:TEMP\upx_extract" -Recurse -Filter "upx.exe" | Select-Object -First 1
+          Copy-Item $upxExe.FullName "C:\Windows\System32\upx.exe"
+          Write-Host "UPX installed: $(upx --version | Select-Object -First 1)"
+
       - name: Package · Windows
         if: matrix.platform == 'windows'
         shell: pwsh
@@ -148,12 +164,19 @@ jobs:
           $pkg = "packages/$rid"
           New-Item -ItemType Directory -Force -Path $pkg | Out-Null
 
-          # ── SCD : copy the single .exe produced by PublishSingleFile ────────
+          # ── SCD : compress the single .exe with UPX, then copy ──────────────
           $scdDir = "out/scd/$rid"
           $scdExe = Get-ChildItem $scdDir -Filter "*.exe" -File | Select-Object -First 1
           if ($scdExe) {
             $dst = "$pkg/$app-$tag-$rid-scd.exe"
             Copy-Item $scdExe.FullName $dst
+            # UPX: LZMA best compression (~40 % size reduction on PE binaries)
+            # arm64 PE support landed in UPX 4.x — gracefully skip if it fails
+            upx --best --lzma $dst 2>$null
+            if ($LASTEXITCODE -ne 0) {
+              Write-Warning "UPX failed or unsupported for $rid — keeping uncompressed"
+              Copy-Item $scdExe.FullName $dst -Force
+            }
             Write-Host "SCD → $dst  ($('{0:N1} MB' -f ((Get-Item $dst).Length/1MB)))"
           } else {
             Write-Warning "SCD: no .exe found in $scdDir"
@@ -178,7 +201,7 @@ jobs:
             $cfgTmp = [System.IO.Path]::GetTempFileName()
             $config = @(
               ';!@InstallStart@!'
-              "Title=`"$app $tag ($rid) — FDD`""
+              "Title=`"$app $tag ($rid) - FDD`""
               "RunProgram=`"$mainExe`""
               'GUIFlags="8"'
               ';!@InstallEnd@!'
@@ -212,25 +235,32 @@ jobs:
           PKG="packages/$RID"
           mkdir -p "$PKG"
 
-          # Strip all debug sections from every executable in a directory
           strip_dir() {
-            find "$1" -maxdepth 3 -type f -perm /111 | while read -r b; do
-              strip "$b" 2>/dev/null || true
-            done
+            while IFS= read -r -d '' f; do
+              [ -x "$f" ] && strip "$f" 2>/dev/null || true
+            done < <(find "$1" -maxdepth 3 -type f -print0)
+          }
+
+          find_exec() {
+            while IFS= read -r -d '' f; do
+              [ -x "$f" ] && echo "$f" && return
+            done < <(find "$1" -maxdepth 1 -type f -print0)
           }
 
           make_dmg() {
-            local TYPE="$1"   # scd | fdd
+            local TYPE="$1"
             local SRC="$2"
-            [ ! -d "$SRC" ] && echo "[$TYPE] $SRC not found — skip" && return
+            [ ! -d "$SRC" ] && echo "[$TYPE] $SRC not found - skip" && return
 
+            local MAINBIN
+            MAINBIN=$(find_exec "$SRC")
+            [ -n "$MAINBIN" ] && strip "$MAINBIN" 2>/dev/null || true
             strip_dir "$SRC"
 
             local TMP_UDRW OUT
             TMP_UDRW=$(mktemp).dmg
             OUT="$PKG/${APP}-${TAG}-${RID}-${TYPE}.dmg"
 
-            # Stage as read-write image, then convert to compressed read-only
             hdiutil create \
               -volname "${APP}" \
               -srcfolder "$SRC" \
@@ -264,7 +294,6 @@ jobs:
             build-essential \
             rpm dpkg-dev fakeroot \
             patchelf
-          # fpm: universal packager (deb, rpm, …)
           sudo gem install --no-document fpm
 
       - name: Package · Linux
@@ -278,10 +307,8 @@ jobs:
           PKG="packages/$RID"
           mkdir -p "$PKG"
 
-          # RPM forbids leading 'v' and hyphens in version numbers
           RPM_VER=$(echo "${TAG#v}" | tr '-' '.')
 
-          # Architecture strings per tool
           case "$RID" in
             linux-x64)    DEB_ARCH=amd64   ; RPM_ARCH=x86_64   ;;
             linux-arm64)  DEB_ARCH=arm64   ; RPM_ARCH=aarch64  ;;
@@ -290,62 +317,105 @@ jobs:
           esac
 
           package_linux() {
-            local TYPE="$1"   # scd | fdd
+            local TYPE="$1"
             local SRC="$2"
 
-            # Locate the main native executable (apphost or single-file binary)
             local BIN
             BIN=$(find "$SRC" -maxdepth 1 -type f -executable | head -n1 || true)
             if [ -z "$BIN" ]; then
-              echo "[$TYPE] No executable found in $SRC — skipping"
+              echo "[$TYPE] No executable found in $SRC - skipping"
               return
             fi
 
-            # ── 1. Naked binary ──────────────────────────────────────────────
             local NAKED="$PKG/${APP}-${TAG}-${RID}-${TYPE}"
-            cp "$BIN" "$NAKED"
-            chmod +x "$NAKED"
 
-            # Strip all debug info (can save 30–50 % on uncompressed binaries)
-            strip --strip-all "$NAKED" 2>/dev/null || true
+            if [ "$TYPE" = "scd" ]; then
+              cp "$BIN" "$NAKED"
+              chmod +x "$NAKED"
+              strip --strip-all "$NAKED" 2>/dev/null || true
+              upx --best --lzma "$NAKED" 2>/dev/null \
+                || upx --best "$NAKED" 2>/dev/null \
+                || echo "[$TYPE] upx skipped"
+            else
+              find "$SRC" -maxdepth 2 -type f | while read -r f; do
+                strip "$f" 2>/dev/null || true
+              done
 
-            # UPX LZMA compression (try best quality; gracefully degrade for ARM)
-            upx --best --lzma "$NAKED" 2>/dev/null \
-              || upx --best "$NAKED" 2>/dev/null \
-              || echo "[$TYPE] upx skipped for $NAKED (unsupported arch or format)"
+              local APPHOST_NAME
+              APPHOST_NAME=$(basename "$BIN")
+              local PAYLOAD
+              PAYLOAD=$(mktemp)
+              tar -C "$SRC" -czf "$PAYLOAD" .
+
+              printf '%s\n' '#!/bin/sh' > "$NAKED"
+              printf '%s\n' '# Self-extracting FDD launcher' >> "$NAKED"
+              printf '%s\n' 'set -e' >> "$NAKED"
+              printf 'D="${XDG_DATA_HOME:-$HOME/.local/share}/%s"\n' "$APP" >> "$NAKED"
+              printf 'V="%s"\n' "$TAG" >> "$NAKED"
+              printf '%s\n' '[ -f "$D/.sfx-$V" ] || {' >> "$NAKED"
+              printf '  printf "Installing %s %s...\\n" "%s" "$V" >&2\n' "$APP" "$APP" >> "$NAKED"
+              printf '%s\n' '  rm -rf "$D" && mkdir -p "$D"' >> "$NAKED"
+              printf '%s\n' '  L=$(grep -an "^__P__$" "$0" | cut -d: -f1 | tail -1)' >> "$NAKED"
+              printf '%s\n' '  tail -n +"$((L+1))" "$0" | tar -xzf - -C "$D"' >> "$NAKED"
+              printf '%s\n' '  touch "$D/.sfx-$V"' >> "$NAKED"
+              printf '%s\n' '}' >> "$NAKED"
+              printf 'exec "$D/%s" "$@"\n' "$APPHOST_NAME" >> "$NAKED"
+              printf '%s\n' '__P__' >> "$NAKED"
+              cat "$PAYLOAD" >> "$NAKED"
+              rm -f "$PAYLOAD"
+              chmod +x "$NAKED"
+            fi
 
             echo "[$TYPE] naked → $NAKED  ($(du -sh "$NAKED" | cut -f1))"
 
-            # ── 2. .deb + .rpm ───────────────────────────────────────────────
             local PKG_ROOT="$PKG/pkgroot-${TYPE}"
-            mkdir -p "$PKG_ROOT/usr/local/bin"
-            # Use stripped + compressed binary in the packages too
-            cp "$NAKED" "$PKG_ROOT/usr/local/bin/$APP"
+            local FPM_PATHS
+            rm -rf "$PKG_ROOT"
 
-            # .deb
+            if [ "$TYPE" = "scd" ]; then
+              mkdir -p "$PKG_ROOT/usr/local/bin"
+              cp "$NAKED" "$PKG_ROOT/usr/local/bin/$APP"
+              FPM_PATHS="usr/local/bin/$APP"
+            else
+              mkdir -p "$PKG_ROOT/usr/lib/$APP"
+              mkdir -p "$PKG_ROOT/usr/local/bin"
+              cp -r "$SRC"/. "$PKG_ROOT/usr/lib/$APP/"
+              find "$PKG_ROOT/usr/lib/$APP" -maxdepth 2 -type f | while read -r f; do
+                strip "$f" 2>/dev/null || true
+              done
+
+              local APPHOST_NAME
+              APPHOST_NAME=$(basename "$BIN")
+              printf '%s\n' '#!/bin/sh' > "$PKG_ROOT/usr/local/bin/$APP"
+              printf 'exec "/usr/lib/%s/%s" "$@"\n' "$APP" "$APPHOST_NAME" >> "$PKG_ROOT/usr/local/bin/$APP"
+              chmod +x "$PKG_ROOT/usr/local/bin/$APP"
+              FPM_PATHS="usr/lib/$APP usr/local/bin/$APP"
+            fi
+
+            # shellcheck disable=SC2086
             fpm \
               -s dir -t deb \
               -n "$APP" \
               -v "${TAG#v}" \
               --architecture "$DEB_ARCH" \
-              --description "Github Trend — ${TYPE} build" \
+              --description "Github Trend - ${TYPE} build" \
               --prefix / \
               -C "$PKG_ROOT" \
               -p "$PKG/${APP}-${TAG}-${RID}-${TYPE}.deb" \
-              usr/local/bin/$APP \
+              $FPM_PATHS \
             || echo "[$TYPE] fpm deb skipped"
 
-            # .rpm
+            # shellcheck disable=SC2086
             fpm \
               -s dir -t rpm \
               -n "$APP" \
               -v "$RPM_VER" \
               --architecture "$RPM_ARCH" \
-              --description "Github Trend — ${TYPE} build" \
+              --description "Github Trend - ${TYPE} build" \
               --prefix / \
               -C "$PKG_ROOT" \
               -p "$PKG/${APP}-${TAG}-${RID}-${TYPE}.rpm" \
-              usr/local/bin/$APP \
+              $FPM_PATHS \
             || echo "[$TYPE] fpm rpm skipped"
 
             rm -rf "$PKG_ROOT"
@@ -355,7 +425,6 @@ jobs:
           package_linux "scd" "out/scd/$RID"
           package_linux "fdd" "out/fdd/$RID"
 
-      # ── List produced files ────────────────────────────────────────────────
       - name: List packages/${{ matrix.rid }}
         shell: bash
         run: |
@@ -363,7 +432,6 @@ jobs:
           find "packages/${{ matrix.rid }}" -maxdepth 1 -type f \
             -exec ls -lh {} \; 2>/dev/null || echo "(empty)"
 
-      # ── Upload to artifact store ───────────────────────────────────────────
       - name: Upload packages
         uses: actions/upload-artifact@v4
         with:
@@ -378,7 +446,7 @@ jobs:
     name: Create GitHub Release
     runs-on: ubuntu-latest
     needs: build
-    if: always()   # run even if some build jobs failed
+    if: always()
 
     steps:
       - name: Resolve release metadata
@@ -397,13 +465,11 @@ jobs:
 
           NAME="${{ inputs.release_name }}"
           [ -z "$NAME" ] && NAME="$TAG"
-
           DRAFT="${{ inputs.draft || 'false' }}"
 
-          echo "tag=$TAG"     >> "$GITHUB_OUTPUT"
-          echo "name=$NAME"   >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
           echo "draft=$DRAFT" >> "$GITHUB_OUTPUT"
-          echo "Release: $NAME  (tag=$TAG  draft=$DRAFT)"
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
