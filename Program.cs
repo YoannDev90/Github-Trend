@@ -46,13 +46,14 @@ internal class Program
         Directory.CreateDirectory(logDirectory);
 
         Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Information()
+            .MinimumLevel.Debug()
             .Enrich.FromLogContext()
-            .WriteTo.Console()
+            .WriteTo.Console(restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Information)
             .WriteTo.File(
                 Path.Combine(logDirectory, Constants.Logging.LogFilePattern),
                 rollingInterval: RollingInterval.Day,
-                retainedFileCountLimit: 7
+                retainedFileCountLimit: 7,
+                restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Debug
             )
             .CreateLogger();
     }

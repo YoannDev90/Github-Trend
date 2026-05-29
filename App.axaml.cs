@@ -10,17 +10,21 @@ public class App : Application
 {
     public override void Initialize()
     {
-        Log.Information("App.Initialize() called");
+        Log.Debug("Initializing application");
         AppLocalization.Instance.Initialize();
-        Log.Information("Localization initialized");
+        Log.Debug("Localization initialized");
         AvaloniaXamlLoader.Load(this);
-        Log.Information("Avalonia XAML loaded");
+        Log.Debug("Avalonia XAML loaded");
     }
 
     public override void OnFrameworkInitializationCompleted()
     {
+        Log.Debug("Framework initialization completed");
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
             desktop.MainWindow = new MainWindow();
+            Log.Debug("Main window created");
+        }
 
         base.OnFrameworkInitializationCompleted();
     }

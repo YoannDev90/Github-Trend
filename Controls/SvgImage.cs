@@ -50,17 +50,17 @@ public class SvgImage : Image
             {
                 Source = bitmap;
                 if (RenderSuccessLogged.TryAdd(uri, 0))
-                    Log.Information("SvgImage: rendu OK pour {Uri}", uri);
+                    Log.Debug("SVG rendered successfully: {Uri}", uri);
                 return;
             }
 
             if (MissingLogged.TryAdd(uri, 0))
-                Log.Warning("SvgImage: rendu null pour {Uri}", uri);
+                Log.Warning("SVG render returned null: {Uri}", uri);
         }
         catch (Exception ex)
         {
             if (RenderErrorLogged.TryAdd(uri, 0))
-                Log.Error(ex, "SvgImage: exception OnSourceChanged pour {Uri}", uri);
+                Log.Error(ex, "SVG source change failed: {Uri}", uri);
         }
     }
 
@@ -78,7 +78,7 @@ public class SvgImage : Image
                 if (stream == null)
                 {
                     if (MissingLogged.TryAdd(uri, 0))
-                        Log.Warning("SvgImage: introuvable {Uri}", uri);
+                        Log.Warning("SVG not found: {Uri}", uri);
                     return null;
                 }
 
@@ -87,7 +87,7 @@ public class SvgImage : Image
                 if (picture == null)
                 {
                     if (RenderErrorLogged.TryAdd(uri, 0))
-                        Log.Warning("SvgImage: échec de parsing SVG {Uri}", uri);
+                        Log.Warning("SVG parsing failed: {Uri}", uri);
                     return null;
                 }
 
@@ -95,7 +95,7 @@ public class SvgImage : Image
                 if (bounds.Width <= 0 || bounds.Height <= 0)
                 {
                     if (RenderErrorLogged.TryAdd(uri + "#bounds", 0))
-                        Log.Warning("SvgImage: dimensions invalides pour {Uri}", uri);
+                        Log.Warning("SVG has invalid dimensions: {Uri}", uri);
                     return null;
                 }
 
@@ -133,7 +133,7 @@ public class SvgImage : Image
             catch (Exception ex)
             {
                 if (RenderErrorLogged.TryAdd(uri, 0))
-                    Log.Error(ex, "SvgImage: erreur de rendu SVG {Uri}", uri);
+                    Log.Error(ex, "SVG render failed: {Uri}", uri);
                 return null;
             }
         });
