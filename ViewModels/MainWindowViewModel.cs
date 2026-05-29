@@ -892,7 +892,19 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             
             // .NET Info
             sb.AppendLine($".NET Runtime: {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}");
-            sb.AppendLine($"Process Architecture: {Process.GetCurrentProcess().ProcessorAffinity}");
+            
+            // ProcessorAffinity only available on Windows/Linux
+            if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux())
+            {
+                try
+                {
+                    sb.AppendLine($"Process Architecture: {Process.GetCurrentProcess().ProcessorAffinity}");
+                }
+                catch
+                {
+                    sb.AppendLine("Process Architecture: N/A");
+                }
+            }
             sb.AppendLine();
             
             // App Info
