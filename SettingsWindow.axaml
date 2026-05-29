@@ -21,7 +21,7 @@
                        FontSize="24"
                        FontWeight="Bold" />
 
-            <!-- App Info / Theme placeholder -->
+            <!-- App Info -->
             <Border Background="#FF161B22"
                     BorderBrush="#FF30363D"
                     BorderThickness="1"
@@ -35,7 +35,6 @@
                     <TextBlock Text="Version 1.0.0"
                                Foreground="#FF8B949E"
                                FontSize="12" />
-                    <!-- Additional settings could go here -->
                 </StackPanel>
             </Border>
 
@@ -52,11 +51,11 @@
                         FontWeight="SemiBold"
                         FontSize="16" />
 
-                    <TextBlock Text="{Binding GitHubAuthStatus}"
+                    <TextBlock Text="{Binding Auth.AuthStatus}"
                                Foreground="#FFC9D1D9"
                                TextWrapping="Wrap" />
 
-                    <TextBlock Text="{Binding GitHubAccountSummary}"
+                    <TextBlock Text="{Binding Auth.AccountSummary}"
                                Foreground="#FF8B949E"
                                FontSize="11"
                                TextWrapping="Wrap" />
@@ -66,14 +65,14 @@
                             BorderThickness="1"
                             CornerRadius="10"
                             Padding="10"
-                            IsVisible="{Binding HasGitHubDeviceCode}">
+                            IsVisible="{Binding Auth.HasDeviceCode}">
                         <StackPanel Spacing="8">
-                            <TextBlock Text="{Binding GitHubDeviceCode}"
+                            <TextBlock Text="{Binding Auth.DeviceCode}"
                                        Foreground="#FF2EA043"
                                        FontWeight="Bold"
                                        FontSize="18"
                                        TextWrapping="Wrap" />
-                            <Button Command="{Binding CopyGitHubCodeCommand}"
+                            <Button Command="{Binding Auth.CopyDeviceCodeCommand}"
                                     Padding="10,6"
                                     Background="#FF21262D"
                                     Foreground="#FFC9D1D9"
@@ -92,7 +91,7 @@
                     </Border>
 
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Button Command="{Binding GitHubSignInCommand}"
+                        <Button Command="{Binding Auth.SignInCommand}"
                                 Padding="12,8"
                                 Background="#FF238636"
                                 Foreground="White"
@@ -108,26 +107,26 @@
                             </StackPanel>
                         </Button>
 
-                        <Button Command="{Binding GitHubRefreshCommand}"
+                        <Button Command="{Binding Auth.RefreshSessionCommand}"
                                 Padding="12,8"
                                 Background="#FF21262D"
                                 Foreground="#FFC9D1D9"
                                 BorderBrush="#FF30363D"
                                 BorderThickness="1"
                                 CornerRadius="8"
-                                IsVisible="{Binding IsGitHubConnected}">
+                                IsVisible="{Binding Auth.IsConnected}">
                             <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/refresh.svg" Width="16"
                                                Height="16" />
                         </Button>
 
-                        <Button Command="{Binding GitHubSignOutCommand}"
+                        <Button Command="{Binding Auth.SignOutCommand}"
                                 Padding="12,8"
                                 Background="#FF21262D"
                                 Foreground="#FFF85149"
                                 BorderBrush="#FF8B949E"
                                 BorderThickness="1"
                                 CornerRadius="8"
-                                IsVisible="{Binding IsGitHubConnected}">
+                                IsVisible="{Binding Auth.IsConnected}">
                             <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/delete.svg" Width="16"
                                                Height="16" />
                         </Button>
@@ -152,7 +151,7 @@
                             BorderThickness="1"
                             CornerRadius="10"
                             Padding="12">
-                        <TextBlock Text="{Binding DebugInfo}"
+                        <TextBlock Text="{Binding Debug.DebugInfo}"
                                    Foreground="#FF8B949E"
                                    FontSize="10"
                                    FontFamily="Courier New"
@@ -172,7 +171,7 @@
                             Padding="12"
                             Height="200">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <TextBlock Text="{Binding AppLogs}"
+                            <TextBlock Text="{Binding Debug.AppLogs}"
                                        Foreground="#FF8B949E"
                                        FontSize="10"
                                        FontFamily="Courier New"
@@ -180,7 +179,7 @@
                         </ScrollViewer>
                     </Border>
 
-                    <Button Click="OnCopyLogsClick"
+                    <Button Command="{Binding Debug.CopyLogsCommand}"
                             HorizontalAlignment="Left"
                             Padding="16,10"
                             Background="#FF21262D"

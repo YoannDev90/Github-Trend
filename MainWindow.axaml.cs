@@ -7,18 +7,13 @@ using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
-using Avalonia.Media;
 using Avalonia.VisualTree;
 
 namespace Github_Trend;
 
 public partial class MainWindow : Window
 {
-    private readonly Button? _allButton;
-    private readonly Button? _dailyButton;
-    private readonly Button? _monthlyButton;
     private readonly ItemsControl? _trendingItemsControl;
-    private readonly Button? _weeklyButton;
     private double _cachedRepoBlockHeight = 260d;
     private bool _initialized;
 
@@ -26,12 +21,8 @@ public partial class MainWindow : Window
     {
         AvaloniaXamlLoader.Load(this);
         DataContext = ViewModel;
-        ViewModel.GitHubDeviceCodeCopyRequested += async (_, _) =>
+        ViewModel.DeviceCodeCopyRequested += async (_, _) =>
             await CopyGitHubDeviceCodeToClipboardAsync();
-        _dailyButton = this.FindControl<Button>("DailyTimeRangeButton");
-        _weeklyButton = this.FindControl<Button>("WeeklyTimeRangeButton");
-        _monthlyButton = this.FindControl<Button>("MonthlyTimeRangeButton");
-        _allButton = this.FindControl<Button>("AllTimeRangeButton");
         _trendingItemsControl = this.FindControl<ItemsControl>("TrendingItemsControl");
         Loaded += async (_, _) =>
         {
@@ -40,7 +31,6 @@ public partial class MainWindow : Window
 
             _initialized = true;
             await ViewModel.InitializeAsync();
-            UpdateTimeRangeButtonStyles();
             _ = GetRepositoryBlockHeight();
         };
     }
@@ -49,7 +39,7 @@ public partial class MainWindow : Window
 
     private async Task CopyGitHubDeviceCodeToClipboardAsync()
     {
-        var code = ViewModel.GitHubDeviceCode;
+        var code = ViewModel.Auth.DeviceCode;
         if (string.IsNullOrWhiteSpace(code))
             return;
 
@@ -60,7 +50,6 @@ public partial class MainWindow : Window
                 return;
 
             await clipboard.SetTextAsync(code);
-            ViewModel.NotifyGitHubCodeCopied();
         }
         catch
         {
@@ -119,50 +108,9 @@ public partial class MainWindow : Window
         return _cachedRepoBlockHeight;
     }
 
-    private void OnTimeRangeButtonClick(object? sender, RoutedEventArgs e)
-    {
-        if (sender is not Button button || button.Tag is null)
-            return;
-
-        if (!int.TryParse(button.Tag.ToString(), out var index))
-            return;
-
-        ViewModel.SelectedTimeRangeIndex = index;
-        UpdateTimeRangeButtonStyles();
-    }
-
     private async void OnSettingsButtonClick(object? sender, RoutedEventArgs e)
     {
         var settingsWindow = new SettingsWindow { DataContext = ViewModel };
         await settingsWindow.ShowDialog(this);
-    }
-
-    private void UpdateTimeRangeButtonStyles()
-    {
-        ApplyTimeRangeButtonStyle(_dailyButton, ViewModel.IsDailySelected);
-        ApplyTimeRangeButtonStyle(_weeklyButton, ViewModel.IsWeeklySelected);
-        ApplyTimeRangeButtonStyle(_monthlyButton, ViewModel.IsMonthlySelected);
-        ApplyTimeRangeButtonStyle(_allButton, ViewModel.IsAllSelected);
-    }
-
-    private static void ApplyTimeRangeButtonStyle(Button? button, bool isSelected)
-    {
-        if (button is null)
-            return;
-
-        if (isSelected)
-        {
-            button.Background = new SolidColorBrush(Color.Parse("#238636"));
-            button.BorderBrush = new SolidColorBrush(Color.Parse("#2EA043"));
-            button.Foreground = Brushes.White;
-            button.FontWeight = FontWeight.SemiBold;
-        }
-        else
-        {
-            button.Background = new SolidColorBrush(Color.Parse("#21262D"));
-            button.BorderBrush = new SolidColorBrush(Color.Parse("#30363D"));
-            button.Foreground = new SolidColorBrush(Color.Parse("#C9D1D9"));
-            button.FontWeight = FontWeight.SemiBold;
-        }
     }
 }

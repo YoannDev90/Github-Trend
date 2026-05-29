@@ -54,7 +54,7 @@
                                        FontSize="18"
                                        VerticalAlignment="Center" />
                             <Button Grid.Column="1"
-                                    Command="{Binding GitHubSignInCommand}"
+                                    Command="{Binding Auth.SignInCommand}"
                                     Padding="8"
                                     Background="#FF238636"
                                     Foreground="White"
@@ -90,7 +90,7 @@
                             <TextBlock Text="{Binding Source={x:Static loc:Localization.Instance}, Path=SearchTitle}"
                                        Foreground="#FFC9D1D9"
                                        FontWeight="SemiBold" />
-                            <TextBox Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                            <TextBox Text="{Binding Filter.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                      Background="#FF0D1117"
                                      Foreground="#FFC9D1D9"
                                      BorderBrush="#FF30363D"
@@ -127,75 +127,68 @@
                                       RowDefinitions="Auto,Auto"
                                       ColumnSpacing="8"
                                       RowSpacing="8">
-                                    <Button x:Name="DailyTimeRangeButton"
-                                            Click="OnTimeRangeButtonClick"
-                                            Tag="0"
+                                    <Button Command="{Binding SelectDailyCommand}"
                                             Content="{Binding Source={x:Static loc:Localization.Instance}, Path=TimeRangeDaily}"
                                             Height="44"
                                             HorizontalAlignment="Stretch"
                                             VerticalAlignment="Center"
                                             Padding="12"
-                                            Background="#FF21262D"
-                                            Foreground="#FFC9D1D9"
-                                            BorderBrush="#FF30363D"
                                             BorderThickness="1"
                                             HorizontalContentAlignment="Center"
                                             VerticalContentAlignment="Center"
                                             FontWeight="SemiBold"
-                                            Classes="time-range-pill" />
-                                    <Button x:Name="WeeklyTimeRangeButton"
-                                            Grid.Row="0" Grid.Column="1"
-                                            Click="OnTimeRangeButtonClick"
-                                            Tag="1"
+                                            Classes="time-range-pill"
+                                            Classes.selected="{Binding IsDailySelected}" />
+                                    <Button Grid.Row="0" Grid.Column="1"
+                                            Command="{Binding SelectWeeklyCommand}"
                                             Content="{Binding Source={x:Static loc:Localization.Instance}, Path=TimeRangeWeekly}"
                                             Height="44"
                                             HorizontalAlignment="Stretch"
                                             VerticalAlignment="Center"
                                             Padding="12"
-                                            Background="#FF21262D"
-                                            Foreground="#FFC9D1D9"
-                                            BorderBrush="#FF30363D"
                                             BorderThickness="1"
                                             HorizontalContentAlignment="Center"
                                             VerticalContentAlignment="Center"
                                             FontWeight="SemiBold"
-                                            Classes="time-range-pill" />
-                                    <Button x:Name="MonthlyTimeRangeButton"
-                                            Grid.Row="1" Grid.Column="0"
-                                            Click="OnTimeRangeButtonClick"
-                                            Tag="2"
+                                            Classes="time-range-pill"
+                                            Classes.selected="{Binding IsWeeklySelected}" />
+                                    <Button Grid.Row="1" Grid.Column="0"
+                                            Command="{Binding SelectMonthlyCommand}"
                                             Content="{Binding Source={x:Static loc:Localization.Instance}, Path=TimeRangeMonthly}"
                                             Height="44"
                                             HorizontalAlignment="Stretch"
                                             VerticalAlignment="Center"
                                             Padding="12"
-                                            Background="#FF21262D"
-                                            Foreground="#FFC9D1D9"
-                                            BorderBrush="#FF30363D"
                                             BorderThickness="1"
                                             HorizontalContentAlignment="Center"
                                             VerticalContentAlignment="Center"
                                             FontWeight="SemiBold"
-                                            Classes="time-range-pill" />
-                                    <Button x:Name="AllTimeRangeButton"
-                                            Grid.Row="1"
-                                            Grid.Column="1"
-                                            Click="OnTimeRangeButtonClick"
-                                            Tag="3"
+                                            Classes="time-range-pill"
+                                            Classes.selected="{Binding IsMonthlySelected}" />
+                                    <Button Grid.Row="1" Grid.Column="1"
+                                            Command="{Binding SelectAllCommand}"
                                             Content="∞"
                                             Height="44"
                                             HorizontalAlignment="Stretch"
                                             VerticalAlignment="Center"
                                             Padding="12"
-                                            Background="#FF21262D"
-                                            Foreground="#FFC9D1D9"
-                                            BorderBrush="#FF30363D"
                                             BorderThickness="1"
                                             HorizontalContentAlignment="Center"
                                             VerticalContentAlignment="Center"
                                             FontWeight="SemiBold"
-                                            Classes="time-range-pill" />
+                                            Classes="time-range-pill"
+                                            Classes.selected="{Binding IsAllSelected}" />
                                     <Grid.Styles>
+                                        <Style Selector="Button.time-range-pill">
+                                            <Setter Property="Background" Value="#FF21262D" />
+                                            <Setter Property="BorderBrush" Value="#FF30363D" />
+                                            <Setter Property="Foreground" Value="#FFC9D1D9" />
+                                        </Style>
+                                        <Style Selector="Button.time-range-pill.selected">
+                                            <Setter Property="Background" Value="#FF238636" />
+                                            <Setter Property="BorderBrush" Value="#FF2EA043" />
+                                            <Setter Property="Foreground" Value="White" />
+                                        </Style>
                                         <Style Selector="Button.time-range-pill:pointerover">
                                             <Setter Property="Background" Value="#FF30363D" />
                                             <Setter Property="BorderBrush" Value="#FF8B949E" />
@@ -223,13 +216,13 @@
                                         Background="#FF238636"
                                         CornerRadius="999"
                                         Padding="10,4">
-                                    <TextBlock Text="{Binding SelectedCount}"
+                                    <TextBlock Text="{Binding Filter.SelectedCount}"
                                                Foreground="White"
                                                FontWeight="SemiBold" />
                                 </Border>
                             </Grid>
 
-                            <ItemsControl ItemsSource="{Binding SelectedLanguages}">
+                            <ItemsControl ItemsSource="{Binding Filter.SelectedLanguages}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <WrapPanel />
@@ -269,7 +262,7 @@
                                         Background="#FF21262D"
                                         CornerRadius="999"
                                         Padding="10,4">
-                                    <TextBlock Text="{Binding VisibleCount}"
+                                    <TextBlock Text="{Binding Filter.VisibleCount}"
                                                Foreground="White"
                                                FontWeight="SemiBold" />
                                 </Border>
@@ -298,7 +291,7 @@
                                 </Button>
                             </Grid>
 
-                            <TextBlock Text="{Binding MatchingLanguagesLabel}"
+                            <TextBlock Text="{Binding Filter.MatchingLanguagesLabel}"
                                        Foreground="#FF8B949E"
                                        FontSize="12" />
 
@@ -309,7 +302,7 @@
                                     Padding="10">
                                 <ScrollViewer Height="320"
                                               VerticalScrollBarVisibility="Auto">
-                                    <ItemsControl ItemsSource="{Binding FilteredLanguages}">
+                                    <ItemsControl ItemsSource="{Binding Filter.FilteredLanguages}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="vm:LanguageOptionViewModel">
                                                 <Border Background="#FF161B22"
@@ -388,7 +381,7 @@
                                     BorderThickness="1"
                                     CornerRadius="999"
                                     Padding="10,5">
-                                <TextBlock Text="{Binding SelectedCount}"
+                                <TextBlock Text="{Binding Filter.SelectedCount}"
                                            Foreground="#FFE5E7EB"
                                            FontSize="11"
                                            FontWeight="SemiBold" />
@@ -399,7 +392,7 @@
                                     BorderThickness="1"
                                     CornerRadius="999"
                                     Padding="10,5">
-                                <TextBlock Text="{Binding VisibleCount}"
+                                <TextBlock Text="{Binding Filter.VisibleCount}"
                                            Foreground="#FFE5E7EB"
                                            FontSize="11"
                                            FontWeight="SemiBold" />

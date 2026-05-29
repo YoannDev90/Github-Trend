@@ -11,32 +11,31 @@ public partial class SettingsWindow : Window
     public SettingsWindow()
     {
         InitializeComponent();
+        DataContextChanged += OnDataContextChanged;
     }
 
-    private void OnCloseClick(object? sender, RoutedEventArgs e)
+    private void OnDataContextChanged(object? sender, EventArgs e)
     {
-        Close();
+        if (DataContext is MainWindowViewModel vm)
+            vm.Debug.CopyLogsRequested += OnCopyLogsRequested;
     }
 
-    private async void OnCopyLogsClick(object? sender, RoutedEventArgs e)
+    private async void OnCopyLogsRequested(object? sender, EventArgs e)
     {
         try
         {
-            if (DataContext is not MainWindowViewModel viewModel)
+            if (DataContext is not MainWindowViewModel vm)
                 return;
 
-            var allInfo =
-                $"{viewModel.DebugInfo}\n\n=== APPLICATION LOGS ===\n\n{viewModel.AppLogs}";
             var clipboard = GetTopLevel(this)?.Clipboard;
             if (clipboard is not null)
-            {
-                await clipboard.SetTextAsync(allInfo);
-                viewModel.NotifyGitHubCodeCopied();
-            }
+                await clipboard.SetTextAsync(vm.Debug.LogsContent);
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Failed to copy logs to clipboard");
         }
     }
+
+    private void OnCloseClick(object? sender, RoutedEventArgs e) => Close();
 }

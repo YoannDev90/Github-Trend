@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Channels;
@@ -161,7 +162,8 @@ public static class GithubTrendingService
     public static async IAsyncEnumerable<GithubTrendingRepository> StreamAsync(
         bool force = false,
         string? since = null,
-        string? language = null
+        string? language = null,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default
     )
     {
         var cacheKey = $"trending-{since}-{language}.json";
@@ -175,7 +177,7 @@ public static class GithubTrendingService
                 var lastWrite = File.GetLastWriteTimeUtc(cacheFile);
                 if (DateTime.UtcNow - lastWrite < CacheTtl)
                 {
-                    var cachedJson = await File.ReadAllTextAsync(cacheFile);
+                    var cachedJson = await File.ReadAllTextAsync(cacheFile, cancellationToken);
                     repositories = DeserializeTrending(cachedJson);
                     if (repositories != null)
                         Log.Information(
@@ -184,6 +186,10 @@ public static class GithubTrendingService
                             cacheKey
                         );
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                yield break;
             }
             catch
             {
@@ -203,7 +209,7 @@ public static class GithubTrendingService
 
             try
             {
-                var json = await Http.GetStringAsync(url);
+                var json = await Http.GetStringAsync(url, cancellationToken);
                 repositories = DeserializeTrending(json) ?? new List<GithubTrendingRepository>();
                 Log.Information(
                     "Trending network fetch ok ({Count}) for {CacheKey}",
@@ -212,16 +218,20 @@ public static class GithubTrendingService
                 );
                 try
                 {
-                    await File.WriteAllTextAsync(cacheFile, json);
+                    await File.WriteAllTextAsync(cacheFile, json, cancellationToken);
                 }
                 catch { }
+            }
+            catch (OperationCanceledException)
+            {
+                yield break;
             }
             catch
             {
                 if (File.Exists(cacheFile))
                     try
                     {
-                        var cachedJson = await File.ReadAllTextAsync(cacheFile);
+                        var cachedJson = await File.ReadAllTextAsync(cacheFile, cancellationToken);
                         repositories = DeserializeTrending(cachedJson);
                         if (repositories != null)
                             Log.Warning(
@@ -237,35 +247,47 @@ public static class GithubTrendingService
             }
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         var channel = Channel.CreateUnbounded<GithubTrendingRepository>();
 
-        _ = Task.Run(async () =>
-        {
-            try
+        _ = Task.Run(
+            async () =>
             {
-                await Task.WhenAll(
-                    repositories.Select(async repo =>
-                    {
-                        await EnrichmentLimiter.WaitAsync();
-                        try
+                try
+                {
+                    await Task.WhenAll(
+                        repositories.Select(async repo =>
                         {
-                            var enriched = await GithubRepositoryDetailsService.EnrichAsync(repo);
-                            await channel.Writer.WriteAsync(enriched);
-                        }
-                        finally
-                        {
-                            EnrichmentLimiter.Release();
-                        }
-                    })
-                );
-            }
-            finally
-            {
-                channel.Writer.Complete();
-            }
-        });
+                            await EnrichmentLimiter.WaitAsync(cancellationToken);
+                            try
+                            {
+                                cancellationToken.ThrowIfCancellationRequested();
+                                var enriched = await GithubRepositoryDetailsService.EnrichAsync(
+                                    repo
+                                );
+                                await channel.Writer.WriteAsync(enriched, cancellationToken);
+                            }
+                            finally
+                            {
+                                EnrichmentLimiter.Release();
+                            }
+                        })
+                    );
+                }
+                catch (OperationCanceledException)
+                {
+                    Log.Debug("Trending stream cancelled for {CacheKey}", cacheKey);
+                }
+                finally
+                {
+                    channel.Writer.TryComplete();
+                }
+            },
+            cancellationToken
+        );
 
-        await foreach (var repo in channel.Reader.ReadAllAsync())
+        await foreach (var repo in channel.Reader.ReadAllAsync(cancellationToken))
             yield return repo;
     }
 

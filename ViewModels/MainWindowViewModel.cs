@@ -1,20 +1,19 @@
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia.Media;
 using Github_Trend.Localization;
+using Github_Trend.Services;
 using Serilog;
 
 namespace Github_Trend;
@@ -29,141 +28,118 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         ("all", nameof(LocalizationService.TimeRangeAll)),
     };
 
-    private readonly List<LanguageOptionViewModel> _allLanguages = new();
-    private readonly GitHubAuthenticationService _githubAuthService = new();
-    private readonly SelectedLanguagesStore _selectedLanguagesStore = new();
+    private readonly IGithubTrendingService _trendingService;
+    private readonly IGithubColorsService _colorsService;
 
-    private string _appLogs = string.Empty;
-    private string _debugInfo = string.Empty;
-    private object?[] _githubAccountSummaryArgs = Array.Empty<object?>();
-    private string _githubAccountSummaryKey;
-    private object?[] _githubAuthStatusArgs = Array.Empty<object?>();
-    private string _githubAuthStatusKey;
-    private string? _githubAuthStatusOverride;
-    private GithubColorsCatalog? _githubColors;
-    private string _githubDeviceCode = string.Empty;
-    private bool _isGitHubAuthenticating;
-    private bool _isInitializing;
-
-    private bool _isRefreshing;
-    private string _searchText = string.Empty;
+    private string? _statusMessageOverride;
+    private string _statusMessageKey;
+    private object?[] _statusMessageArgs = Array.Empty<object?>();
 
     private int _selectedTimeRangeIndex;
-    private object?[] _statusMessageArgs = Array.Empty<object?>();
-    private string _statusMessageKey;
-    private string? _statusMessageOverride;
-    private List<GithubTrendingRepository>? _trendingData;
+    private System.Collections.Generic.List<GithubTrendingRepository>? _trendingData;
+    private CancellationTokenSource? _trendingCts;
+    private bool _isInitializing;
+    private bool _isRefreshing;
 
-    // Constructor to initialize commands
+    private static readonly SolidColorBrush DefaultLanguageBrush = new(Color.Parse("#FF3B82F6"));
+
     public MainWindowViewModel()
+        : this(new GithubTrendingServiceWrapper(), new GithubColorsServiceWrapper()) { }
+
+    internal MainWindowViewModel(
+        IGithubTrendingService trendingService,
+        IGithubColorsService colorsService
+    )
     {
+        _trendingService = trendingService;
+        _colorsService = colorsService;
+
+        var authService = new GitHubAuthenticationService();
+        Auth = new GitHubAuthViewModel(authService, SetStatusMessageFromKey);
+        Filter = new LanguageFilterViewModel(
+            new SelectedLanguagesStore(),
+            SetStatusMessageFromKey,
+            () => _ = RefreshTrendingRepositoriesAsync()
+        );
+        Debug = new DebugViewModel();
+
+        _statusMessageKey = nameof(LocalizationService.StatusLoadingColors);
+        _selectedTimeRangeIndex = 0;
+
+        SelectDailyCommand = new RelayCommand(_ => IsDailySelected = true);
+        SelectWeeklyCommand = new RelayCommand(_ => IsWeeklySelected = true);
+        SelectMonthlyCommand = new RelayCommand(_ => IsMonthlySelected = true);
+        SelectAllCommand = new RelayCommand(_ => IsAllSelected = true);
+
         RefreshCommand = new RelayCommand(
-            _ => ExecuteRefreshColors(),
+            _ => _ = RefreshColorsAsync(),
             _ => !_isInitializing && !_isRefreshing
         );
-        GitHubSignInCommand = new RelayCommand(
-            _ => ExecuteGitHubSignIn(),
-            _ => !_isInitializing && !_isGitHubAuthenticating
-        );
-        GitHubSignOutCommand = new RelayCommand(
-            _ => ExecuteGitHubSignOut(),
-            _ => IsGitHubConnected && !_isGitHubAuthenticating
-        );
-        GitHubRefreshCommand = new RelayCommand(
-            _ => ExecuteGitHubRefresh(),
-            _ => IsGitHubConnected && !_isGitHubAuthenticating
-        );
-        CopyGitHubCodeCommand = new RelayCommand(
-            _ => RaiseGitHubDeviceCodeCopyRequested(),
-            _ => HasGitHubDeviceCode
-        );
+
         OpenRepositoryCommand = new RelayCommand(
             ExecuteOpenRepository,
-            parameter =>
-                parameter is GithubTrendingRepository repo
-                && !string.IsNullOrWhiteSpace(repo.RepositoryLink)
+            p => p is GithubTrendingRepository r && !string.IsNullOrWhiteSpace(r.RepositoryLink)
         );
         StarRepositoryCommand = new RelayCommand(
-            ExecuteStarRepository,
-            parameter =>
-                parameter is GithubTrendingRepository repo
-                && !string.IsNullOrWhiteSpace(repo.Repository)
+            p => _ = ExecuteStarRepositoryAsync(p),
+            p => p is GithubTrendingRepository r && !string.IsNullOrWhiteSpace(r.Repository)
         );
         WatchRepositoryCommand = new RelayCommand(
-            ExecuteWatchRepository,
-            parameter =>
-                parameter is GithubTrendingRepository repo
-                && !string.IsNullOrWhiteSpace(repo.Repository)
+            p => _ = ExecuteWatchRepositoryAsync(p),
+            p => p is GithubTrendingRepository r && !string.IsNullOrWhiteSpace(r.Repository)
         );
-        _githubAuthService.SessionChanged += (_, _) => UpdateGitHubAuthState();
-        _selectedTimeRangeIndex = 0;
-        _githubAuthStatusKey = nameof(LocalizationService.GitHubAuthNotConfigured);
-        _githubAuthStatusArgs = Array.Empty<object?>();
-        _githubAccountSummaryKey = nameof(LocalizationService.GitHubAuthNoAccountConnected);
-        _githubAccountSummaryArgs = Array.Empty<object?>();
-        _statusMessageKey = nameof(LocalizationService.StatusLoadingColors);
-        _statusMessageArgs = Array.Empty<object?>();
-        LoadDebugInfo();
+
+        Auth.DeviceCodeCopyRequested += (_, _) =>
+            DeviceCodeCopyRequested?.Invoke(this, EventArgs.Empty);
+        Debug.CopyLogsRequested += (_, _) => CopyLogsRequested?.Invoke(this, EventArgs.Empty);
     }
 
+    // ── Sub-ViewModels ──────────────────────────────────────────────────────
+    public GitHubAuthViewModel Auth { get; }
+    public LanguageFilterViewModel Filter { get; }
+    public DebugViewModel Debug { get; }
+
+    // ── Commands ────────────────────────────────────────────────────────────
+    public ICommand SelectDailyCommand { get; }
+    public ICommand SelectWeeklyCommand { get; }
+    public ICommand SelectMonthlyCommand { get; }
+    public ICommand SelectAllCommand { get; }
     public ICommand RefreshCommand { get; }
-
-    public ICommand GitHubSignInCommand { get; }
-
-    public ICommand GitHubSignOutCommand { get; }
-
-    public ICommand GitHubRefreshCommand { get; }
-
-    public ICommand CopyGitHubCodeCommand { get; }
-
     public ICommand OpenRepositoryCommand { get; }
-
     public ICommand StarRepositoryCommand { get; }
-
     public ICommand WatchRepositoryCommand { get; }
 
-    public string GitHubDeviceCode
-    {
-        get => _githubDeviceCode;
-        set
-        {
-            if (_githubDeviceCode == value)
-                return;
+    // ── Events (forwarded from sub-VMs for the View) ────────────────────────
+    public event EventHandler? DeviceCodeCopyRequested;
+    public event EventHandler? CopyLogsRequested;
+    public event PropertyChangedEventHandler? PropertyChanged;
 
-            _githubDeviceCode = value;
-            OnPropertyChanged();
-            (CopyGitHubCodeCommand as RelayCommand)?.RaiseCanExecuteChanged();
-        }
-    }
+    // ── Status bar ──────────────────────────────────────────────────────────
+    public string StatusMessage =>
+        _statusMessageOverride
+        ?? Localization.Localization.Instance.GetString(_statusMessageKey, _statusMessageArgs);
 
-    public bool HasGitHubDeviceCode => !string.IsNullOrWhiteSpace(_githubDeviceCode);
-
-    public string AppLogs
-    {
-        get => _appLogs;
-        private set
-        {
-            if (_appLogs == value)
-                return;
-            _appLogs = value;
-            OnPropertyChanged();
-        }
-    }
-
-    public string DebugInfo
-    {
-        get => _debugInfo;
-        private set
-        {
-            if (_debugInfo == value)
-                return;
-            _debugInfo = value;
-            OnPropertyChanged();
-        }
-    }
-
+    // ── Trending ────────────────────────────────────────────────────────────
     public ObservableCollection<GithubTrendingRepository> TrendingRepositories { get; } = new();
 
+    public int TrendingCount => _trendingData?.Count ?? 0;
+
+    public string TrendingLabel =>
+        TrendingCount switch
+        {
+            0 => Localization.Localization.Instance.GetString(
+                nameof(LocalizationService.TrendingCountZero)
+            ),
+            1 => Localization.Localization.Instance.GetString(
+                nameof(LocalizationService.TrendingCountOne)
+            ),
+            _ => Localization.Localization.Instance.GetString(
+                nameof(LocalizationService.TrendingCountMany),
+                TrendingCount
+            ),
+        };
+
+    // ── Time range ──────────────────────────────────────────────────────────
     public int SelectedTimeRangeIndex
     {
         get => _selectedTimeRangeIndex;
@@ -171,7 +147,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         {
             if (_selectedTimeRangeIndex == value)
                 return;
-
             _selectedTimeRangeIndex = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(SelectedTimeRangeLabel));
@@ -193,7 +168,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 SelectedTimeRangeIndex = 0;
         }
     }
-
     public bool IsWeeklySelected
     {
         get => _selectedTimeRangeIndex == 1;
@@ -203,7 +177,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 SelectedTimeRangeIndex = 1;
         }
     }
-
     public bool IsMonthlySelected
     {
         get => _selectedTimeRangeIndex == 2;
@@ -213,7 +186,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 SelectedTimeRangeIndex = 2;
         }
     }
-
     public bool IsAllSelected
     {
         get => _selectedTimeRangeIndex == 3;
@@ -232,308 +204,57 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public string SelectedTimeRangeQuery =>
         TimeRanges[Math.Max(0, Math.Min(_selectedTimeRangeIndex, TimeRanges.Length - 1))].Query;
 
-    public GithubColorsCatalog? GithubColors
-    {
-        get => _githubColors;
-        private set
-        {
-            if (ReferenceEquals(_githubColors, value))
-                return;
-
-            _githubColors = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(ColorCount));
-        }
-    }
-
-    public ObservableCollection<LanguageOptionViewModel> FilteredLanguages { get; } = new();
-
-    public ObservableCollection<LanguageOptionViewModel> SelectedLanguages { get; } = new();
-
-    public string SearchText
-    {
-        get => _searchText;
-        set
-        {
-            if (_searchText == value)
-                return;
-
-            _searchText = value;
-            OnPropertyChanged();
-            ApplyFilter();
-        }
-    }
-
-    public string StatusMessage =>
-        _statusMessageOverride
-        ?? Localization.Localization.Instance.GetString(_statusMessageKey, _statusMessageArgs);
-
-    public bool IsGitHubConnected => _githubAuthService.IsConnected;
-
-    public bool IsGitHubAuthenticating
-    {
-        get => _isGitHubAuthenticating;
-        private set
-        {
-            if (_isGitHubAuthenticating == value)
-                return;
-
-            _isGitHubAuthenticating = value;
-            OnPropertyChanged();
-            RaiseGitHubCommandStateChanged();
-        }
-    }
-
-    public string GitHubAuthStatus =>
-        _githubAuthStatusOverride
-        ?? Localization.Localization.Instance.GetString(
-            _githubAuthStatusKey,
-            _githubAuthStatusArgs
-        );
-
-    public string GitHubAccountSummary =>
-        Localization.Localization.Instance.GetString(
-            _githubAccountSummaryKey,
-            _githubAccountSummaryArgs
-        );
-
-    public int ColorCount => GithubColors?.Colors.Count ?? 0;
-
-    public int SelectedCount => SelectedLanguages.Count;
-
-    public int VisibleCount => FilteredLanguages.Count;
-
-    public string MatchingLanguagesLabel =>
-        FilteredLanguages.Count switch
-        {
-            0 => Localization.Localization.Instance.GetString(
-                nameof(LocalizationService.NoLanguagesFound)
-            ),
-            1 => Localization.Localization.Instance.GetString(
-                nameof(LocalizationService.SuggestionCountOne)
-            ),
-            _ => Localization.Localization.Instance.GetString(
-                nameof(LocalizationService.SuggestionCountMany),
-                FilteredLanguages.Count
-            ),
-        };
-
-    public string SelectionSummary =>
-        SelectedLanguages.Count == 0
-            ? Localization.Localization.Instance.GetString(
-                nameof(LocalizationService.SelectionSummaryZero)
-            )
-        : SelectedLanguages.Count == 1
-            ? Localization.Localization.Instance.GetString(
-                nameof(LocalizationService.SelectionSummaryOne)
-            )
-        : Localization.Localization.Instance.GetString(
-            nameof(LocalizationService.SelectionSummaryMany),
-            SelectedLanguages.Count
-        );
-
-    public int TrendingCount => _trendingData?.Count ?? 0;
-
-    public string TrendingLabel =>
-        TrendingCount switch
-        {
-            0 => Localization.Localization.Instance.GetString(
-                nameof(LocalizationService.TrendingCountZero)
-            ),
-            1 => Localization.Localization.Instance.GetString(
-                nameof(LocalizationService.TrendingCountOne)
-            ),
-            _ => Localization.Localization.Instance.GetString(
-                nameof(LocalizationService.TrendingCountMany),
-                TrendingCount
-            ),
-        };
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    public event EventHandler? GitHubDeviceCodeCopyRequested;
-
+    // ── Initialisation ──────────────────────────────────────────────────────
     public async Task InitializeAsync()
     {
         try
         {
             _isInitializing = true;
+            Auth.SetInitializing(true);
 
-            var colorsTask = GithubColorsService.FetchAsync();
-            var selectionsTask = _selectedLanguagesStore.LoadAsync();
+            var colors = await _colorsService.FetchAsync();
+            await Filter.LoadAsync(colors);
 
-            await Task.WhenAll(colorsTask, selectionsTask);
-
-            GithubColors = colorsTask.Result;
-            RebuildLanguages(GithubColors, selectionsTask.Result);
-            RefreshSelectedLanguages();
-            ApplyFilter();
-            SetStatusMessage(nameof(LocalizationService.StatusColorsLoaded), ColorCount);
-            OnPropertyChanged(nameof(SelectionSummary));
-            OnPropertyChanged(nameof(SelectedCount));
-            OnPropertyChanged(nameof(VisibleCount));
-            await _githubAuthService.InitializeAsync();
-            UpdateGitHubAuthState();
+            SetStatusMessageFromKey(
+                nameof(LocalizationService.StatusColorsLoaded),
+                new object?[] { Filter.ColorCount }
+            );
             (RefreshCommand as RelayCommand)?.RaiseCanExecuteChanged();
+
+            await Auth.InitializeAsync();
         }
         catch (Exception ex)
         {
-            SetStatusMessage(nameof(LocalizationService.StatusColorsLoadError), ex.Message);
+            SetStatusMessageFromKey(
+                nameof(LocalizationService.StatusColorsLoadError),
+                new object?[] { ex.Message }
+            );
         }
         finally
         {
             _isInitializing = false;
+            Auth.SetInitializing(false);
             (RefreshCommand as RelayCommand)?.RaiseCanExecuteChanged();
-            RaiseGitHubCommandStateChanged();
+            Auth.RaiseCommandStateChanged();
         }
 
         Log.Information("Initial trending refresh queued");
         _ = RefreshTrendingRepositoriesAsync();
     }
 
-    private void ExecuteGitHubSignIn()
-    {
-        _ = SignInWithGitHubAsync();
-    }
-
-    private void ExecuteGitHubSignOut()
-    {
-        _ = SignOutGitHubAsync();
-    }
-
-    private void ExecuteGitHubRefresh()
-    {
-        _ = RefreshGitHubSessionAsync();
-    }
-
-    private void RaiseGitHubDeviceCodeCopyRequested()
-    {
-        GitHubDeviceCodeCopyRequested?.Invoke(this, EventArgs.Empty);
-    }
-
-    private void ExecuteStarRepository(object? parameter)
-    {
-        _ = ExecuteStarRepositoryAsync(parameter);
-    }
-
-    private void ExecuteWatchRepository(object? parameter)
-    {
-        _ = ExecuteWatchRepositoryAsync(parameter);
-    }
-
-    private async Task SignInWithGitHubAsync()
-    {
-        if (_isInitializing || _isGitHubAuthenticating)
-            return;
-
-        try
-        {
-            IsGitHubAuthenticating = true;
-            GitHubDeviceCode = string.Empty;
-            SetGitHubAuthStatusRaw(
-                Localization.Localization.Instance.GetString(
-                    nameof(LocalizationService.StatusGitHubSignInStarting)
-                )
-            );
-            var session = await _githubAuthService.BeginInteractiveSignInAsync(
-                message => SetGitHubAuthStatusRaw(message),
-                code =>
-                {
-                    GitHubDeviceCode = code;
-                    RaiseGitHubDeviceCodeCopyRequested();
-                }
-            );
-            UpdateGitHubAuthState(session);
-            SetStatusMessage(
-                nameof(LocalizationService.StatusGitHubSignInSuccess),
-                session?.Summary ?? string.Empty
-            );
-        }
-        catch (Exception ex)
-        {
-            ClearGitHubAuthStatusOverride();
-            SetGitHubAuthStatus(nameof(LocalizationService.StatusGitHubSignInFailed), ex.Message);
-            SetStatusMessage(nameof(LocalizationService.StatusGitHubSignInFailed), ex.Message);
-        }
-        finally
-        {
-            IsGitHubAuthenticating = false;
-            GitHubDeviceCode = string.Empty;
-            ClearGitHubAuthStatusOverride();
-            RaiseGitHubCommandStateChanged();
-        }
-    }
-
-    private async Task RefreshGitHubSessionAsync()
-    {
-        try
-        {
-            IsGitHubAuthenticating = true;
-            SetGitHubAuthStatus(nameof(LocalizationService.StatusGitHubRefreshStarting));
-            await _githubAuthService.RefreshCurrentAsync();
-            UpdateGitHubAuthState();
-            SetStatusMessage(nameof(LocalizationService.StatusGitHubRefreshSuccess));
-        }
-        catch (Exception ex)
-        {
-            SetGitHubAuthStatus(nameof(LocalizationService.StatusGitHubRefreshFailed), ex.Message);
-            SetStatusMessage(nameof(LocalizationService.StatusGitHubRefreshFailed), ex.Message);
-        }
-        finally
-        {
-            IsGitHubAuthenticating = false;
-            RaiseGitHubCommandStateChanged();
-        }
-    }
-
-    private async Task SignOutGitHubAsync()
-    {
-        await _githubAuthService.SignOutAsync();
-        UpdateGitHubAuthState();
-        SetStatusMessage(nameof(LocalizationService.StatusGitHubSignedOut));
-    }
-
-    private void UpdateGitHubAuthState(GitHubAuthSession? session = null)
-    {
-        session ??= _githubAuthService.CurrentSession;
-
-        if (session is null)
-        {
-            SetGitHubAuthStatus(nameof(LocalizationService.GitHubAuthNotConnected));
-            SetGitHubAccountSummary(nameof(LocalizationService.GitHubAuthNoAccountLinked));
-        }
-        else
-        {
-            SetGitHubAuthStatus(nameof(LocalizationService.GitHubAuthConnected), session.Summary);
-            SetGitHubAccountSummary(
-                nameof(LocalizationService.GitHubAuthLinkedAccount),
-                session.DisplayName,
-                session.Login
-            );
-        }
-
-        OnPropertyChanged(nameof(IsGitHubConnected));
-        RaiseGitHubCommandStateChanged();
-    }
-
-    private void RaiseGitHubCommandStateChanged()
-    {
-        (GitHubSignInCommand as RelayCommand)?.RaiseCanExecuteChanged();
-        (GitHubSignOutCommand as RelayCommand)?.RaiseCanExecuteChanged();
-        (GitHubRefreshCommand as RelayCommand)?.RaiseCanExecuteChanged();
-    }
-
-    private void ExecuteRefreshColors()
-    {
-        _ = RefreshColorsAsync();
-    }
-
+    // ── Trending refresh ─────────────────────────────────────────────────────
     private async Task RefreshTrendingRepositoriesAsync()
     {
+        var previousCts = _trendingCts;
+        var cts = new CancellationTokenSource();
+        _trendingCts = cts;
+        previousCts?.Cancel();
+        previousCts?.Dispose();
+
         try
         {
             var sinceValues = GetSinceValues();
-            var languages = GetSelectedLanguageFilters();
+            var languages = Filter.SelectedLanguageFilters;
 
             Log.Information(
                 "Trending refresh start since=[{Since}] languages=[{Languages}]",
@@ -542,42 +263,51 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             );
 
             TrendingRepositories.Clear();
-            _trendingData = new List<GithubTrendingRepository>();
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            _trendingData = new System.Collections.Generic.List<GithubTrendingRepository>();
+            var seen = new System.Collections.Generic.HashSet<string>(
+                StringComparer.OrdinalIgnoreCase
+            );
             OnPropertyChanged(nameof(TrendingCount));
             OnPropertyChanged(nameof(TrendingLabel));
+
+            var token = cts.Token;
 
             var streams = sinceValues
                 .SelectMany(since =>
                     languages.Select(language =>
-                        GithubTrendingService.StreamAsync(false, since, language)
+                        _trendingService.StreamAsync(false, since, language, token)
                     )
                 )
                 .ToList();
 
-            Log.Information("Trending planned streams: {Count}", streams.Count);
-
             var channel = Channel.CreateUnbounded<GithubTrendingRepository>();
 
-            _ = Task.Run(async () =>
-            {
-                try
+            _ = Task.Run(
+                async () =>
                 {
-                    await Task.WhenAll(
-                        streams.Select(async stream =>
-                        {
-                            await foreach (var repo in stream)
-                                await channel.Writer.WriteAsync(repo);
-                        })
-                    );
-                }
-                finally
-                {
-                    channel.Writer.Complete();
-                }
-            });
+                    try
+                    {
+                        await Task.WhenAll(
+                            streams.Select(async stream =>
+                            {
+                                await foreach (var repo in stream.WithCancellation(token))
+                                    await channel.Writer.WriteAsync(repo, token);
+                            })
+                        );
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        Log.Debug("Trending refresh cancelled");
+                    }
+                    finally
+                    {
+                        channel.Writer.TryComplete();
+                    }
+                },
+                token
+            );
 
-            await foreach (var repo in channel.Reader.ReadAllAsync())
+            await foreach (var repo in channel.Reader.ReadAllAsync(token))
             {
                 var key =
                     !string.IsNullOrWhiteSpace(repo.Repository) ? repo.Repository!
@@ -598,83 +328,40 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
             Log.Information("Trending stream complete: {Count}", _trendingData!.Count);
         }
+        catch (OperationCanceledException)
+        {
+            Log.Debug("Trending refresh superseded by newer request");
+        }
         catch (Exception ex)
         {
             Log.Error(ex, "Trending loading failed");
         }
-    }
-
-    private int FindSortedInsertIndex(GithubTrendingRepository repo)
-    {
-        var stars = ParseStars(repo.Stars);
-        for (var i = 0; i < TrendingRepositories.Count; i++)
+        finally
         {
-            if (ParseStars(TrendingRepositories[i].Stars) < stars)
-                return i;
+            if (ReferenceEquals(_trendingCts, cts))
+            {
+                cts.Dispose();
+                _trendingCts = null;
+            }
         }
-        return TrendingRepositories.Count;
     }
 
-    private IReadOnlyList<string?> GetSinceValues()
-    {
-        var selected = SelectedTimeRangeQuery;
-        return selected == "all" ? new[] { "daily", "weekly", "monthly" } : new[] { selected };
-    }
-
-    private IReadOnlyList<string?> GetSelectedLanguageFilters()
-    {
-        var languages = SelectedLanguages
-            .Select(language => language.Language)
-            .Where(language => !string.IsNullOrWhiteSpace(language))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        return languages.Count == 0 ? new string?[] { null } : languages.Cast<string?>().ToArray();
-    }
-
-    private static int ParseStars(string? value)
-    {
-        return int.TryParse(value?.Replace(",", string.Empty), out var parsed) ? parsed : 0;
-    }
-
-    private static readonly SolidColorBrush DefaultLanguageBrush = new(Color.Parse("#FF3B82F6"));
-
-    private GithubTrendingRepository ApplyLanguageBrush(GithubTrendingRepository repository)
-    {
-        if (
-            GithubColors?.Colors != null
-            && !string.IsNullOrWhiteSpace(repository.Language)
-            && GithubColors.Colors.TryGetValue(repository.Language, out var colorEntry)
-            && !string.IsNullOrWhiteSpace(colorEntry.Color)
-            && Color.TryParse(colorEntry.Color, out var color)
-        )
-            return repository.CloneWith(languageBrush: new SolidColorBrush(color));
-
-        return repository.CloneWith(languageBrush: DefaultLanguageBrush);
-    }
-
+    // ── Colors refresh ───────────────────────────────────────────────────────
     private async Task RefreshColorsAsync()
     {
         if (_isInitializing || _isRefreshing)
             return;
-
         try
         {
             _isRefreshing = true;
-            SetStatusMessage(nameof(LocalizationService.StatusColorsRefreshing));
+            SetStatusMessageFromKey(
+                nameof(LocalizationService.StatusColorsRefreshing),
+                Array.Empty<object?>()
+            );
             (RefreshCommand as RelayCommand)?.RaiseCanExecuteChanged();
 
-            var newCatalog = await GithubColorsService.FetchAsync(true);
-            GithubColors = newCatalog;
-
-            // preserve current selections
-            var currentSelected = _allLanguages
-                .Where(l => l.IsSelected)
-                .Select(l => l.Language)
-                .ToArray();
-            RebuildLanguages(GithubColors, currentSelected);
-            RefreshSelectedLanguages();
-            ApplyFilter();
+            var catalog = await _colorsService.FetchAsync(force: true);
+            Filter.RefreshColors(catalog);
 
             if (TrendingRepositories.Count > 0)
             {
@@ -684,15 +371,18 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                     TrendingRepositories.Add(repo);
             }
 
-            SetStatusMessage(nameof(LocalizationService.StatusColorsRefreshed), ColorCount);
-            OnPropertyChanged(nameof(ColorCount));
-            OnPropertyChanged(nameof(VisibleCount));
-            OnPropertyChanged(nameof(SelectedCount));
+            SetStatusMessageFromKey(
+                nameof(LocalizationService.StatusColorsRefreshed),
+                new object?[] { Filter.ColorCount }
+            );
             (RefreshCommand as RelayCommand)?.RaiseCanExecuteChanged();
         }
         catch (Exception ex)
         {
-            SetStatusMessage(nameof(LocalizationService.StatusColorsRefreshError), ex.Message);
+            SetStatusMessageFromKey(
+                nameof(LocalizationService.StatusColorsRefreshError),
+                new object?[] { ex.Message }
+            );
         }
         finally
         {
@@ -701,274 +391,215 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
-    private void RebuildLanguages(
-        GithubColorsCatalog githubColors,
-        IReadOnlyCollection<string> selectedLanguages
-    )
-    {
-        _allLanguages.Clear();
-
-        var selectedSet = new HashSet<string>(selectedLanguages, StringComparer.OrdinalIgnoreCase);
-
-        foreach (
-            var language in githubColors
-                .Colors.Keys.Where(language => !string.IsNullOrWhiteSpace(language))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(language => language, StringComparer.OrdinalIgnoreCase)
-        )
-            _allLanguages.Add(
-                new LanguageOptionViewModel(
-                    language,
-                    githubColors.Colors.TryGetValue(language, out var colorEntry)
-                        ? colorEntry.Color
-                        : null,
-                    selectedSet.Contains(language),
-                    OnLanguageSelectionChanged
-                )
-            );
-    }
-
-    private void OnLanguageSelectionChanged()
-    {
-        if (_isInitializing)
-            return;
-
-        RefreshSelectedLanguages();
-        _ = PersistSelectionsAsync();
-    }
-
-    private void RefreshSelectedLanguages()
-    {
-        SelectedLanguages.Clear();
-
-        foreach (
-            var language in _allLanguages
-                .Where(language => language.IsSelected)
-                .OrderBy(language => language.Language, StringComparer.OrdinalIgnoreCase)
-        )
-            SelectedLanguages.Add(language);
-
-        OnPropertyChanged(nameof(SelectedCount));
-        OnPropertyChanged(nameof(SelectionSummary));
-
-        if (!_isInitializing)
-        {
-            Log.Information("Trending selection changed -> refresh queued");
-            _ = RefreshTrendingRepositoriesAsync();
-        }
-    }
-
-    private async Task PersistSelectionsAsync()
-    {
-        try
-        {
-            await _selectedLanguagesStore.SaveAsync(
-                _allLanguages
-                    .Where(language => language.IsSelected)
-                    .Select(language => language.Language)
-            );
-            SetStatusMessage(
-                nameof(LocalizationService.StatusSelectionSaved),
-                SelectedLanguages.Count
-            );
-            OnPropertyChanged(nameof(SelectionSummary));
-        }
-        catch (Exception ex)
-        {
-            SetStatusMessage(nameof(LocalizationService.StatusSelectionSaveError), ex.Message);
-        }
-    }
-
-    private void ApplyFilter()
-    {
-        var search = _searchText.Trim();
-        var filtered = string.IsNullOrWhiteSpace(search)
-            ? _allLanguages
-            : _allLanguages.Where(language =>
-                language.Language.Contains(search, StringComparison.OrdinalIgnoreCase)
-            );
-
-        var ordered = filtered
-            .OrderByDescending(language => language.IsSelected)
-            .ThenBy(language => language.Language, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        FilteredLanguages.Clear();
-
-        foreach (var language in ordered)
-            FilteredLanguages.Add(language);
-
-        OnPropertyChanged(nameof(FilteredLanguages));
-        OnPropertyChanged(nameof(MatchingLanguagesLabel));
-        OnPropertyChanged(nameof(VisibleCount));
-    }
-
-    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
-
+    // ── Repository actions ────────────────────────────────────────────────────
     private void ExecuteOpenRepository(object? parameter)
     {
         if (
-            parameter is GithubTrendingRepository repo
-            && !string.IsNullOrWhiteSpace(repo.RepositoryLink)
+            parameter is not GithubTrendingRepository repo
+            || string.IsNullOrWhiteSpace(repo.RepositoryLink)
         )
-            try
-            {
-                Process.Start(
-                    new ProcessStartInfo { FileName = repo.RepositoryLink, UseShellExecute = true }
-                );
-                Log.Information("Opened repository: {Url}", repo.RepositoryLink);
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Failed to open repository: {Url}", repo.RepositoryLink);
-                SetStatusMessage(nameof(LocalizationService.OpenRepositoryFailure));
-            }
+            return;
+        try
+        {
+            Process.Start(
+                new ProcessStartInfo { FileName = repo.RepositoryLink, UseShellExecute = true }
+            );
+            Log.Information("Opened repository: {Url}", repo.RepositoryLink);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to open repository: {Url}", repo.RepositoryLink);
+            SetStatusMessageFromKey(
+                nameof(LocalizationService.OpenRepositoryFailure),
+                Array.Empty<object?>()
+            );
+        }
     }
 
     private async Task ExecuteStarRepositoryAsync(object? parameter)
     {
         if (
-            parameter is GithubTrendingRepository repo
-            && !string.IsNullOrWhiteSpace(repo.Repository)
+            parameter is not GithubTrendingRepository repo
+            || string.IsNullOrWhiteSpace(repo.Repository)
         )
+            return;
+
+        if (!Auth.IsConnected)
         {
-            if (!IsGitHubConnected)
+            SetStatusMessageFromKey(
+                nameof(LocalizationService.ConnectGitHubToStar),
+                Array.Empty<object?>()
+            );
+            return;
+        }
+
+        try
+        {
+            var apiClient = new GitHubApiClient(new GitHubAuthenticationService());
+            var slug = GetRepositorySlug(repo.Repository);
+            var response = await apiClient.SendAsync(() =>
+                new HttpRequestMessage(
+                    HttpMethod.Put,
+                    $"{Constants.GitHub.ApiBaseUrl}/user/starred/{slug}"
+                )
+            );
+
+            if (!response.IsSuccessStatusCode)
             {
-                SetStatusMessage(nameof(LocalizationService.ConnectGitHubToStar));
+                var error = await response.Content.ReadAsStringAsync();
+                Log.Warning(
+                    "Failed to star {Slug}. Status={Status} Body={Body}",
+                    slug,
+                    (int)response.StatusCode,
+                    error
+                );
+                SetStatusMessageRaw(
+                    BuildRepoActionFailureMessage(
+                        Localization.Localization.Instance.GetString(
+                            nameof(LocalizationService.ActionStar)
+                        ),
+                        repo.DisplayTitle,
+                        response.StatusCode,
+                        error
+                    )
+                );
                 return;
             }
 
-            try
-            {
-                var apiClient = new GitHubApiClient(_githubAuthService);
-                var slug = GetRepositorySlug(repo.Repository);
-                var response = await apiClient.SendAsync(() =>
-                    new HttpRequestMessage(
-                        HttpMethod.Put,
-                        $"{Constants.GitHub.ApiBaseUrl}/user/starred/{slug}"
-                    )
-                );
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    var error = await response.Content.ReadAsStringAsync();
-                    Log.Warning(
-                        "Failed to star repository {Slug}. Status={StatusCode} Body={Body}",
-                        slug,
-                        (int)response.StatusCode,
-                        error
-                    );
-                    SetStatusMessageFromTemplate(
-                        BuildRepoActionFailureMessage(
-                            Localization.Localization.Instance.GetString(
-                                nameof(LocalizationService.ActionStar)
-                            ),
-                            repo.DisplayTitle,
-                            response.StatusCode,
-                            error
-                        )
-                    );
-                    return;
-                }
-
-                SetStatusMessage(
-                    nameof(LocalizationService.StarRepositorySuccess),
-                    repo.DisplayTitle
-                );
-                Log.Information("Starred repository on GitHub: {Slug}", slug);
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Failed to star repository: {Repo}", repo.Repository);
-                SetStatusMessage(nameof(LocalizationService.StarRepositoryFailure));
-            }
+            SetStatusMessageFromKey(
+                nameof(LocalizationService.StarRepositorySuccess),
+                new object?[] { repo.DisplayTitle }
+            );
+            Log.Information("Starred repository: {Slug}", slug);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to star repository: {Repo}", repo.Repository);
+            SetStatusMessageFromKey(
+                nameof(LocalizationService.StarRepositoryFailure),
+                Array.Empty<object?>()
+            );
         }
     }
 
     private async Task ExecuteWatchRepositoryAsync(object? parameter)
     {
         if (
-            parameter is GithubTrendingRepository repo
-            && !string.IsNullOrWhiteSpace(repo.Repository)
+            parameter is not GithubTrendingRepository repo
+            || string.IsNullOrWhiteSpace(repo.Repository)
         )
+            return;
+
+        if (!Auth.IsConnected)
         {
-            if (!IsGitHubConnected)
+            SetStatusMessageFromKey(
+                nameof(LocalizationService.ConnectGitHubToWatch),
+                Array.Empty<object?>()
+            );
+            return;
+        }
+
+        try
+        {
+            var apiClient = new GitHubApiClient(new GitHubAuthenticationService());
+            var slug = GetRepositorySlug(repo.Repository);
+            var response = await apiClient.SendAsync(() =>
+                new HttpRequestMessage(
+                    HttpMethod.Put,
+                    $"{Constants.GitHub.ApiBaseUrl}/repos/{slug}/subscription"
+                )
+                {
+                    Content = new StringContent(
+                        "{\"subscribed\":true,\"ignored\":false}",
+                        Encoding.UTF8,
+                        "application/json"
+                    ),
+                }
+            );
+
+            if (!response.IsSuccessStatusCode)
             {
-                SetStatusMessage(nameof(LocalizationService.ConnectGitHubToWatch));
+                var error = await response.Content.ReadAsStringAsync();
+                Log.Warning(
+                    "Failed to watch {Slug}. Status={Status} Body={Body}",
+                    slug,
+                    (int)response.StatusCode,
+                    error
+                );
+                SetStatusMessageRaw(
+                    BuildRepoActionFailureMessage(
+                        Localization.Localization.Instance.GetString(
+                            nameof(LocalizationService.ActionWatch)
+                        ),
+                        repo.DisplayTitle,
+                        response.StatusCode,
+                        error
+                    )
+                );
                 return;
             }
 
-            try
-            {
-                var apiClient = new GitHubApiClient(_githubAuthService);
-                var slug = GetRepositorySlug(repo.Repository);
-                var response = await apiClient.SendAsync(() =>
-                    new HttpRequestMessage(
-                        HttpMethod.Put,
-                        $"{Constants.GitHub.ApiBaseUrl}/repos/{slug}/subscription"
-                    )
-                    {
-                        Content = new StringContent(
-                            "{\"subscribed\":true,\"ignored\":false}",
-                            Encoding.UTF8,
-                            "application/json"
-                        ),
-                    }
-                );
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    var error = await response.Content.ReadAsStringAsync();
-                    Log.Warning(
-                        "Failed to watch repository {Slug}. Status={StatusCode} Body={Body}",
-                        slug,
-                        (int)response.StatusCode,
-                        error
-                    );
-                    SetStatusMessageFromTemplate(
-                        BuildRepoActionFailureMessage(
-                            Localization.Localization.Instance.GetString(
-                                nameof(LocalizationService.ActionWatch)
-                            ),
-                            repo.DisplayTitle,
-                            response.StatusCode,
-                            error
-                        )
-                    );
-                    return;
-                }
-
-                SetStatusMessage(
-                    nameof(LocalizationService.WatchRepositorySuccess),
-                    repo.DisplayTitle
-                );
-                Log.Information("Watched repository on GitHub: {Slug}", slug);
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Failed to watch repository: {Repo}", repo.Repository);
-                SetStatusMessage(nameof(LocalizationService.WatchRepositoryFailure));
-            }
+            SetStatusMessageFromKey(
+                nameof(LocalizationService.WatchRepositorySuccess),
+                new object?[] { repo.DisplayTitle }
+            );
+            Log.Information("Watched repository: {Slug}", slug);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to watch repository: {Repo}", repo.Repository);
+            SetStatusMessageFromKey(
+                nameof(LocalizationService.WatchRepositoryFailure),
+                Array.Empty<object?>()
+            );
         }
     }
 
-    private static string GetRepositorySlug(string repositoryUrl)
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    private System.Collections.Generic.IReadOnlyList<string?> GetSinceValues()
     {
-        var trimmed = repositoryUrl.Trim();
-        if (trimmed.Contains("://", StringComparison.OrdinalIgnoreCase))
-        {
-            var parts = trimmed.Split(
-                '/',
-                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
-            );
-            if (parts.Length >= 2)
-                return $"{parts[^2]}/{parts[^1]}";
-        }
+        var q = SelectedTimeRangeQuery;
+        return q == "all" ? new[] { "daily", "weekly", "monthly" } : new[] { q };
+    }
 
-        return trimmed;
+    private int FindSortedInsertIndex(GithubTrendingRepository repo)
+    {
+        var stars = ParseStars(repo.Stars);
+        for (var i = 0; i < TrendingRepositories.Count; i++)
+            if (ParseStars(TrendingRepositories[i].Stars) < stars)
+                return i;
+        return TrendingRepositories.Count;
+    }
+
+    private static int ParseStars(string? value) =>
+        int.TryParse(value?.Replace(",", string.Empty), out var n) ? n : 0;
+
+    private GithubTrendingRepository ApplyLanguageBrush(GithubTrendingRepository repo)
+    {
+        if (
+            Filter.Colors?.Colors != null
+            && !string.IsNullOrWhiteSpace(repo.Language)
+            && Filter.Colors.Colors.TryGetValue(repo.Language, out var entry)
+            && !string.IsNullOrWhiteSpace(entry.Color)
+            && Color.TryParse(entry.Color, out var color)
+        )
+            return repo.CloneWith(languageBrush: new SolidColorBrush(color));
+
+        return repo.CloneWith(languageBrush: DefaultLanguageBrush);
+    }
+
+    private void SetStatusMessageFromKey(string key, object?[] args)
+    {
+        _statusMessageOverride = null;
+        _statusMessageKey = key;
+        _statusMessageArgs = args;
+        OnPropertyChanged(nameof(StatusMessage));
+    }
+
+    private void SetStatusMessageRaw(string message)
+    {
+        _statusMessageOverride = message;
+        OnPropertyChanged(nameof(StatusMessage));
     }
 
     private static string BuildRepoActionFailureMessage(
@@ -1014,133 +645,21 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         );
     }
 
-    public void NotifyGitHubCodeCopied()
+    private static string GetRepositorySlug(string url)
     {
-        SetStatusMessage(nameof(LocalizationService.GitHubDeviceCodeCopied));
-    }
-
-    private void SetStatusMessage(string resourceKey, params object?[] args)
-    {
-        _statusMessageOverride = null;
-        _statusMessageKey = resourceKey;
-        _statusMessageArgs = args;
-        OnPropertyChanged(nameof(StatusMessage));
-    }
-
-    private void SetStatusMessageFromTemplate(string message)
-    {
-        _statusMessageOverride = message;
-        OnPropertyChanged(nameof(StatusMessage));
-    }
-
-    private void SetGitHubAuthStatus(string resourceKey, params object?[] args)
-    {
-        _githubAuthStatusOverride = null;
-        _githubAuthStatusKey = resourceKey;
-        _githubAuthStatusArgs = args;
-        OnPropertyChanged(nameof(GitHubAuthStatus));
-    }
-
-    private void SetGitHubAuthStatusRaw(string message)
-    {
-        _githubAuthStatusOverride = message;
-        OnPropertyChanged(nameof(GitHubAuthStatus));
-    }
-
-    private void ClearGitHubAuthStatusOverride()
-    {
-        if (_githubAuthStatusOverride is null)
-            return;
-
-        _githubAuthStatusOverride = null;
-        OnPropertyChanged(nameof(GitHubAuthStatus));
-    }
-
-    private void SetGitHubAccountSummary(string resourceKey, params object?[] args)
-    {
-        _githubAccountSummaryKey = resourceKey;
-        _githubAccountSummaryArgs = args;
-        OnPropertyChanged(nameof(GitHubAccountSummary));
-    }
-
-    private void LoadDebugInfo()
-    {
-        try
+        var t = url.Trim();
+        if (t.Contains("://", StringComparison.OrdinalIgnoreCase))
         {
-            var sb = new StringBuilder();
-            sb.AppendLine("=== DEBUG INFORMATION ===");
-            sb.AppendLine();
-
-            // OS Info
-            sb.AppendLine($"OS: {RuntimeInformation.OSDescription}");
-            sb.AppendLine($"Architecture: {RuntimeInformation.ProcessArchitecture}");
-            sb.AppendLine($"Runtime: {RuntimeInformation.RuntimeIdentifier}");
-            sb.AppendLine();
-
-            // .NET Info
-            sb.AppendLine($".NET Runtime: {RuntimeInformation.FrameworkDescription}");
-
-            // ProcessorAffinity only available on Windows/Linux
-            if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux())
-                try
-                {
-                    sb.AppendLine(
-                        $"Process Architecture: {Process.GetCurrentProcess().ProcessorAffinity}"
-                    );
-                }
-                catch
-                {
-                    sb.AppendLine("Process Architecture: N/A");
-                }
-
-            sb.AppendLine();
-
-            // App Info
-            sb.AppendLine($"Application Path: {AppContext.BaseDirectory}");
-            sb.AppendLine($"Current Directory: {Environment.CurrentDirectory}");
-            sb.AppendLine($"User: {Environment.UserName}");
-            sb.AppendLine();
-
-            // Environment
-            sb.AppendLine($"Processor Count: {Environment.ProcessorCount}");
-            sb.AppendLine($"Available Memory: {GC.GetTotalMemory(false) / 1024 / 1024} MB");
-
-            DebugInfo = sb.ToString();
-
-            // Load logs
-            var logDir = Path.Combine(AppContext.BaseDirectory, Constants.Logging.LogDirectoryName);
-            if (Directory.Exists(logDir))
-            {
-                var logFiles = Directory
-                    .GetFiles(logDir, "*.log")
-                    .OrderByDescending(f => f)
-                    .ToList();
-                if (logFiles.Any())
-                {
-                    var latestLog = logFiles.First();
-                    try
-                    {
-                        AppLogs = File.ReadAllText(latestLog);
-                    }
-                    catch
-                    {
-                        AppLogs = "Unable to read log file.";
-                    }
-                }
-                else
-                {
-                    AppLogs = "No log files found.";
-                }
-            }
-            else
-            {
-                AppLogs = "Log directory not found.";
-            }
+            var parts = t.Split(
+                '/',
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+            );
+            if (parts.Length >= 2)
+                return $"{parts[^2]}/{parts[^1]}";
         }
-        catch (Exception ex)
-        {
-            DebugInfo = $"Error loading debug info: {ex.Message}";
-            AppLogs = $"Error loading logs: {ex.Message}";
-        }
+        return t;
     }
+
+    private void OnPropertyChanged([CallerMemberName] string? name = null) =>
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }

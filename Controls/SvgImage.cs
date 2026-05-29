@@ -54,7 +54,6 @@ public class SvgImage : Image
                 return;
             }
 
-            // Log une seule fois par URI pour éviter le spam massif dans la liste.
             if (MissingLogged.TryAdd(uri, 0))
                 Log.Warning("SvgImage: rendu null pour {Uri}", uri);
         }
@@ -117,12 +116,10 @@ public class SvgImage : Image
                 canvas.Clear(SKColors.Transparent);
                 canvas.Scale(scale);
 
-                // Force a monochrome white icon while preserving alpha.
                 using var paint = new SKPaint
                 {
                     ColorFilter = SKColorFilter.CreateBlendMode(SKColors.White, SKBlendMode.SrcIn),
                     IsAntialias = true,
-                    // FilterQuality is obsolete in newer SkiaSharp versions; leave default sampling.
                 };
                 canvas.DrawPicture(picture, paint);
                 canvas.Flush();
@@ -152,7 +149,6 @@ public class SvgImage : Image
                 if (AssetLoader.Exists(assetUri))
                     return AssetLoader.Open(assetUri);
 
-                // fallback: si jamais l'asset n'est pas packé, tentative fichier direct
                 var fileName = Path.GetFileName(assetUri.AbsolutePath);
                 var localPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Icons", fileName);
                 if (File.Exists(localPath))

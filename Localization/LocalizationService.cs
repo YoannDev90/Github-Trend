@@ -16,7 +16,6 @@ public sealed class LocalizationService
 {
     private static readonly ILogger Logger = Log.ForContext<LocalizationService>();
 
-    // ResourceManager for accessing compiled .resx files
     private static readonly ResourceManager ResourceManager = new(
         "Github-Trend.Localization.Resources",
         typeof(LocalizationService).Assembly
