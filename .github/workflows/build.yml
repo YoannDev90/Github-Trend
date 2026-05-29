@@ -117,8 +117,8 @@ jobs:
 
           check_dir "SCD" "out/scd/${{ matrix.rid }}" "$MIN_SCD_KB"
 
-      # Helpful debug for CI: list and identify published files for linux RIDs.
-      - name: Debug · list SCD outputs
+      # Help debug for CI: list and identify published files for linux RIDs.
+      - name: Debug  list SCD outputs
         if: matrix.platform == 'linux'
         shell: bash
         run: |
@@ -136,37 +136,10 @@ jobs:
 
       # ════════════════════════════════════════════════════════════════════════
       #  WINDOWS PACKAGING
-      #  Independent build → single .exe compressed with UPX
+      #  Independent build → single .exe
       # ════════════════════════════════════════════════════════════════════════
 
-      # UPX is not pre-installed on windows-latest; grab the latest release binary.
-      - name: Windows · Install UPX
-        if: matrix.platform == 'windows'
-        shell: pwsh
-        run: |
-          try {
-            $headers = @{}
-            if ($env:GITHUB_TOKEN) { $headers['Authorization'] = "Bearer $env:GITHUB_TOKEN" }
-            $rel   = Invoke-RestMethod "https://api.github.com/repos/upx/upx/releases/latest" -Headers $headers
-            $asset = $rel.assets | Where-Object { $_.name -match "win64\.zip$" } | Select-Object -First 1
-            if (-not $asset) { throw "No win64 UPX asset found in latest release" }
-
-            $zip = "$env:TEMP\upx.zip"
-            Invoke-WebRequest $asset.browser_download_url -OutFile $zip -UseBasicParsing
-            Expand-Archive $zip -DestinationPath "$env:TEMP\upx_out" -Force
-            $upxExe = Get-ChildItem "$env:TEMP\upx_out" -Recurse -Filter "upx.exe" | Select-Object -First 1
-            if (-not $upxExe) { throw "upx.exe not found in downloaded archive" }
-
-            Copy-Item $upxExe.FullName "C:\Windows\System32\upx.exe" -Force
-            $ver = & upx --version 2>&1 | Select-Object -First 1
-            Write-Host "UPX ready: $ver"
-          } catch {
-            Write-Warning "UPX install failed: $_  — SCD will ship uncompressed"
-          }
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Package · Windows
+      - name: Package  Windows
         if: matrix.platform == 'windows'
         shell: pwsh
         env:
@@ -179,26 +152,13 @@ jobs:
           $pkg = "packages/$rid"
           New-Item -ItemType Directory -Force -Path $pkg | Out-Null
 
-          # Independent build: compress the single .exe with UPX, then copy
+          # Independent build: just copy over the executable
           $scdDir = "out/scd/$rid"
           $scdExe = Get-ChildItem $scdDir -Filter "*.exe" -File | Select-Object -First 1
           if ($scdExe) {
             $dst = "$pkg/$app-$version-$rid.exe"
             Copy-Item $scdExe.FullName $dst
-            # UPX: LZMA best compression (~40 % size reduction on PE binaries)
-            # arm64 PE support landed in UPX 4.x — gracefully skip if it fails
-            & upx --best --lzma $dst 2>$null
-            $upx_exit = $LASTEXITCODE
-            if ($upx_exit -ne 0) {
-              Write-Warning "UPX failed or unsupported for $rid (exit code $upx_exit) — keeping uncompressed"
-              try {
-                Copy-Item $scdExe.FullName $dst -Force
-              } catch {
-                Write-Warning "Failed to copy original binary back to destination: $_"
-              }
-            }
             Write-Host "SCD → $dst  ($('{0:N1} MB' -f ((Get-Item $dst).Length/1MB)))"
-            # Ensure the PowerShell step exits with success even if UPX returned a non-zero code
             exit 0
           } else {
             Write-Warning "SCD: no .exe found in $scdDir"
@@ -364,4 +324,3 @@ jobs:
           name: pkg-${{ matrix.rid }}
           path: packages/${{ matrix.rid }}/
           if-no-files-found: warn
-
