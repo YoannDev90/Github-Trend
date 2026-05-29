@@ -6,6 +6,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using Serilog;
 
@@ -155,6 +156,117 @@ public static class GithubTrendingService
 
         var enriched = await Task.WhenAll(enrichTasks);
         return enriched.ToList();
+    }
+
+    public static async IAsyncEnumerable<GithubTrendingRepository> StreamAsync(
+        bool force = false,
+        string? since = null,
+        string? language = null
+    )
+    {
+        var cacheKey = $"trending-{since}-{language}.json";
+        var cacheFile = Path.Combine(Path.GetDirectoryName(CacheFilePath)!, cacheKey);
+
+        List<GithubTrendingRepository>? repositories = null;
+
+        if (!force && File.Exists(cacheFile))
+            try
+            {
+                var lastWrite = File.GetLastWriteTimeUtc(cacheFile);
+                if (DateTime.UtcNow - lastWrite < CacheTtl)
+                {
+                    var cachedJson = await File.ReadAllTextAsync(cacheFile);
+                    repositories = DeserializeTrending(cachedJson);
+                    if (repositories != null)
+                        Log.Information(
+                            "Trending cache hit ({Count}) for {CacheKey}",
+                            repositories.Count,
+                            cacheKey
+                        );
+                }
+            }
+            catch
+            {
+                // ignore cache read errors
+            }
+
+        if (repositories == null)
+        {
+            var url = Constants.GitHubTrendingUrl;
+            var queryParts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(since))
+                queryParts.Add($"since={Uri.EscapeDataString(since)}");
+            if (!string.IsNullOrWhiteSpace(language))
+                queryParts.Add($"language={Uri.EscapeDataString(language)}");
+            if (queryParts.Count > 0)
+                url += "?" + string.Join("&", queryParts);
+
+            try
+            {
+                var json = await Http.GetStringAsync(url);
+                repositories = DeserializeTrending(json) ?? new List<GithubTrendingRepository>();
+                Log.Information(
+                    "Trending network fetch ok ({Count}) for {CacheKey}",
+                    repositories.Count,
+                    cacheKey
+                );
+                try
+                {
+                    await File.WriteAllTextAsync(cacheFile, json);
+                }
+                catch { }
+            }
+            catch
+            {
+                if (File.Exists(cacheFile))
+                    try
+                    {
+                        var cachedJson = await File.ReadAllTextAsync(cacheFile);
+                        repositories = DeserializeTrending(cachedJson);
+                        if (repositories != null)
+                            Log.Warning(
+                                "Trending stale-cache fallback ({Count}) for {CacheKey}",
+                                repositories.Count,
+                                cacheKey
+                            );
+                    }
+                    catch { }
+
+                if (repositories == null)
+                    yield break;
+            }
+        }
+
+        var channel = Channel.CreateUnbounded<GithubTrendingRepository>();
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.WhenAll(
+                    repositories.Select(async repo =>
+                    {
+                        await EnrichmentLimiter.WaitAsync();
+                        try
+                        {
+                            var enriched = await GithubRepositoryDetailsService.EnrichAsync(repo);
+                            await channel.Writer.WriteAsync(enriched);
+                        }
+                        finally
+                        {
+                            EnrichmentLimiter.Release();
+                        }
+                    })
+                );
+            }
+            finally
+            {
+                channel.Writer.Complete();
+            }
+        });
+
+        await foreach (var repo in channel.Reader.ReadAllAsync())
+            yield return repo;
     }
 
     private static List<GithubTrendingRepository>? DeserializeTrending(string json)

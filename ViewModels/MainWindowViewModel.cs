@@ -10,6 +10,7 @@ using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia.Media;
@@ -540,36 +541,78 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 string.Join(',', languages.Select(x => x ?? "<all>"))
             );
 
-            var fetchTasks = sinceValues
-                .SelectMany(since =>
-                    languages.Select(language =>
-                        GithubTrendingService.FetchAsync(false, since, language)
-                    )
-                )
-                .ToArray();
-
-            Log.Information("Trending planned requests: {Count}", fetchTasks.Length);
-
-            var results = await Task.WhenAll(fetchTasks);
-            Log.Information("Trending completed requests: {Count}", results.Length);
-
-            var merged = MergeTrendingResults(results);
-            var visualRepositories = ApplyLanguageBrushes(merged);
-            _trendingData = visualRepositories;
-
-            Log.Information("Trending merged repos: {Count}", merged.Count);
-
             TrendingRepositories.Clear();
-            foreach (var repo in visualRepositories)
-                TrendingRepositories.Add(repo);
-
+            _trendingData = new List<GithubTrendingRepository>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             OnPropertyChanged(nameof(TrendingCount));
             OnPropertyChanged(nameof(TrendingLabel));
+
+            var streams = sinceValues
+                .SelectMany(since =>
+                    languages.Select(language =>
+                        GithubTrendingService.StreamAsync(false, since, language)
+                    )
+                )
+                .ToList();
+
+            Log.Information("Trending planned streams: {Count}", streams.Count);
+
+            var channel = Channel.CreateUnbounded<GithubTrendingRepository>();
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.WhenAll(
+                        streams.Select(async stream =>
+                        {
+                            await foreach (var repo in stream)
+                                await channel.Writer.WriteAsync(repo);
+                        })
+                    );
+                }
+                finally
+                {
+                    channel.Writer.Complete();
+                }
+            });
+
+            await foreach (var repo in channel.Reader.ReadAllAsync())
+            {
+                var key =
+                    !string.IsNullOrWhiteSpace(repo.Repository) ? repo.Repository!
+                    : !string.IsNullOrWhiteSpace(repo.Name) ? repo.Name!
+                    : null;
+
+                if (key != null && !seen.Add(key))
+                    continue;
+
+                var visual = ApplyLanguageBrush(repo);
+                _trendingData!.Add(visual);
+
+                var insertIndex = FindSortedInsertIndex(visual);
+                TrendingRepositories.Insert(insertIndex, visual);
+                OnPropertyChanged(nameof(TrendingCount));
+                OnPropertyChanged(nameof(TrendingLabel));
+            }
+
+            Log.Information("Trending stream complete: {Count}", _trendingData!.Count);
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Trending loading failed");
         }
+    }
+
+    private int FindSortedInsertIndex(GithubTrendingRepository repo)
+    {
+        var stars = ParseStars(repo.Stars);
+        for (var i = 0; i < TrendingRepositories.Count; i++)
+        {
+            if (ParseStars(TrendingRepositories[i].Stars) < stars)
+                return i;
+        }
+        return TrendingRepositories.Count;
     }
 
     private IReadOnlyList<string?> GetSinceValues()
@@ -589,60 +632,25 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         return languages.Count == 0 ? new string?[] { null } : languages.Cast<string?>().ToArray();
     }
 
-    private static List<GithubTrendingRepository> MergeTrendingResults(
-        IEnumerable<IEnumerable<GithubTrendingRepository>> results
-    )
-    {
-        var merged = new Dictionary<string, GithubTrendingRepository>(
-            StringComparer.OrdinalIgnoreCase
-        );
-
-        foreach (var repo in results.SelectMany(result => result))
-        {
-            var key =
-                !string.IsNullOrWhiteSpace(repo.Repository) ? repo.Repository!
-                : !string.IsNullOrWhiteSpace(repo.Name) ? repo.Name!
-                : Guid.NewGuid().ToString("N");
-
-            if (!merged.ContainsKey(key))
-                merged[key] = repo;
-        }
-
-        return merged
-            .Values.OrderByDescending(repo => ParseStars(repo.Stars))
-            .ThenBy(
-                repo => repo.Repository ?? repo.Name ?? string.Empty,
-                StringComparer.OrdinalIgnoreCase
-            )
-            .ToList();
-    }
-
     private static int ParseStars(string? value)
     {
         return int.TryParse(value?.Replace(",", string.Empty), out var parsed) ? parsed : 0;
     }
 
-    private List<GithubTrendingRepository> ApplyLanguageBrushes(
-        IEnumerable<GithubTrendingRepository> repositories
-    )
+    private static readonly SolidColorBrush DefaultLanguageBrush = new(Color.Parse("#FF3B82F6"));
+
+    private GithubTrendingRepository ApplyLanguageBrush(GithubTrendingRepository repository)
     {
-        var defaultBrush = new SolidColorBrush(Color.Parse("#FF3B82F6"));
+        if (
+            GithubColors?.Colors != null
+            && !string.IsNullOrWhiteSpace(repository.Language)
+            && GithubColors.Colors.TryGetValue(repository.Language, out var colorEntry)
+            && !string.IsNullOrWhiteSpace(colorEntry.Color)
+            && Color.TryParse(colorEntry.Color, out var color)
+        )
+            return repository.CloneWith(languageBrush: new SolidColorBrush(color));
 
-        return repositories
-            .Select(repository =>
-            {
-                if (
-                    GithubColors?.Colors != null
-                    && !string.IsNullOrWhiteSpace(repository.Language)
-                    && GithubColors.Colors.TryGetValue(repository.Language, out var colorEntry)
-                    && !string.IsNullOrWhiteSpace(colorEntry.Color)
-                    && Color.TryParse(colorEntry.Color, out var color)
-                )
-                    return repository.CloneWith(languageBrush: new SolidColorBrush(color));
-
-                return repository.CloneWith(languageBrush: defaultBrush);
-            })
-            .ToList();
+        return repository.CloneWith(languageBrush: DefaultLanguageBrush);
     }
 
     private async Task RefreshColorsAsync()
@@ -670,10 +678,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
             if (TrendingRepositories.Count > 0)
             {
-                var refreshedRepositories = ApplyLanguageBrushes(TrendingRepositories).ToList();
+                var refreshed = TrendingRepositories.Select(ApplyLanguageBrush).ToList();
                 TrendingRepositories.Clear();
-
-                foreach (var repo in refreshedRepositories)
+                foreach (var repo in refreshed)
                     TrendingRepositories.Add(repo);
             }
 
