@@ -152,6 +152,14 @@ namespace Github_Trend
             UpdateTimeRangeButtonStyles();
         }
 
+        private async void OnSettingsButtonClick(object? sender, RoutedEventArgs e)
+        {
+            var settingsWindow = new SettingsWindow
+            {
+                DataContext = _viewModel
+            };
+            await settingsWindow.ShowDialog(this);
+        }
 
         private void UpdateTimeRangeButtonStyles()
         {

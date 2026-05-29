@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia.Media;
@@ -43,6 +45,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         _githubAccountSummaryArgs = Array.Empty<object?>();
         _statusMessageKey = nameof(LocalizationService.StatusLoadingColors);
         _statusMessageArgs = Array.Empty<object?>();
+        LoadDebugInfo();
     }
 
     private bool _isRefreshing;
@@ -64,6 +67,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _githubAccountSummaryKey;
     private object?[] _githubAccountSummaryArgs = Array.Empty<object?>();
     private string _githubDeviceCode = string.Empty;
+    private string _appLogs = string.Empty;
+    private string _debugInfo = string.Empty;
 
     private readonly ObservableCollection<GithubTrendingRepository> _trendingRepositories = new();
     private List<GithubTrendingRepository>? _trendingData;
@@ -81,7 +86,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public ICommand GitHubRefreshCommand { get; }
 
     public ICommand CopyGitHubCodeCommand { get; }
-
+    
     public ICommand OpenRepositoryCommand { get; }
 
     public ICommand StarRepositoryCommand { get; }
@@ -107,6 +112,30 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     }
 
     public bool HasGitHubDeviceCode => !string.IsNullOrWhiteSpace(_githubDeviceCode);
+
+    public string AppLogs
+    {
+        get => _appLogs;
+        private set
+        {
+            if (_appLogs == value)
+                return;
+            _appLogs = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string DebugInfo
+    {
+        get => _debugInfo;
+        private set
+        {
+            if (_debugInfo == value)
+                return;
+            _debugInfo = value;
+            OnPropertyChanged();
+        }
+    }
 
 
     public ObservableCollection<GithubTrendingRepository> TrendingRepositories => _trendingRepositories;
@@ -847,5 +876,68 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(GitHubAccountSummary));
     }
 
-
+    private void LoadDebugInfo()
+    {
+        try
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("=== DEBUG INFORMATION ===");
+            sb.AppendLine();
+            
+            // OS Info
+            sb.AppendLine($"OS: {System.Runtime.InteropServices.RuntimeInformation.OSDescription}");
+            sb.AppendLine($"Architecture: {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
+            sb.AppendLine($"Runtime: {System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier}");
+            sb.AppendLine();
+            
+            // .NET Info
+            sb.AppendLine($".NET Runtime: {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}");
+            sb.AppendLine($"Process Architecture: {Process.GetCurrentProcess().ProcessorAffinity}");
+            sb.AppendLine();
+            
+            // App Info
+            sb.AppendLine($"Application Path: {AppContext.BaseDirectory}");
+            sb.AppendLine($"Current Directory: {Environment.CurrentDirectory}");
+            sb.AppendLine($"User: {Environment.UserName}");
+            sb.AppendLine();
+            
+            // Environment
+            sb.AppendLine($"Processor Count: {Environment.ProcessorCount}");
+            sb.AppendLine($"Available Memory: {GC.GetTotalMemory(false) / 1024 / 1024} MB");
+            
+            DebugInfo = sb.ToString();
+            
+            // Load logs
+            var logDir = Path.Combine(AppContext.BaseDirectory, Constants.Logging.LogDirectoryName);
+            if (Directory.Exists(logDir))
+            {
+                var logFiles = Directory.GetFiles(logDir, "*.log").OrderByDescending(f => f).ToList();
+                if (logFiles.Any())
+                {
+                    var latestLog = logFiles.First();
+                    try
+                    {
+                        AppLogs = File.ReadAllText(latestLog);
+                    }
+                    catch
+                    {
+                        AppLogs = "Unable to read log file.";
+                    }
+                }
+                else
+                {
+                    AppLogs = "No log files found.";
+                }
+            }
+            else
+            {
+                AppLogs = "Log directory not found.";
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugInfo = $"Error loading debug info: {ex.Message}";
+            AppLogs = $"Error loading logs: {ex.Message}";
+        }
+    }
 }

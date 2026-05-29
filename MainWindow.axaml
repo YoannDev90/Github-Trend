@@ -41,92 +41,44 @@
                           ClipToBounds="True">
                 <StackPanel Margin="16" Spacing="14">
 
+                    <!-- Settings Button & Profile Header -->
                     <Border Background="#FF0D1117"
                             BorderBrush="#FF30363D"
                             BorderThickness="1"
                             CornerRadius="14"
                             Padding="14">
-                        <StackPanel Spacing="10">
-                            <TextBlock Text="{Binding Source={x:Static loc:Localization.Instance}, Path=GitHubAccountSectionTitle}"
+                        <Grid ColumnDefinitions="*,Auto,Auto">
+                            <TextBlock Text="GitHub Trend"
                                        Foreground="#FFC9D1D9"
-                                       FontWeight="SemiBold"/>
-
-                            <TextBlock Text="{Binding GitHubAuthStatus}"
-                                       Foreground="#FFC9D1D9"
-                                       TextWrapping="Wrap"/>
-
-                            <TextBlock Text="{Binding GitHubAccountSummary}"
-                                       Foreground="#FF8B949E"
-                                       FontSize="11"
-                                       TextWrapping="Wrap"/>
-
-                            <Border Background="#FF161B22"
+                                       FontWeight="Bold"
+                                       FontSize="18"
+                                       VerticalAlignment="Center"/>
+                            <Button Grid.Column="1"
+                                    Command="{Binding GitHubSignInCommand}"
+                                    Padding="8"
+                                    Background="#FF238636"
+                                    Foreground="White"
+                                    BorderBrush="#FF2EA043"
+                                    BorderThickness="1"
+                                    CornerRadius="8">
+                                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/github.svg"
+                                                   Width="18"
+                                                   Height="18"/>
+                            </Button>
+                            <Button Grid.Column="2"
+                                    Click="OnSettingsButtonClick"
+                                    Margin="8,0,0,0"
+                                    Padding="8"
+                                    Background="#FF21262D"
+                                    Foreground="#FFC9D1D9"
                                     BorderBrush="#FF30363D"
                                     BorderThickness="1"
-                                    CornerRadius="10"
-                                    Padding="10"
-                                    IsVisible="{Binding HasGitHubDeviceCode}">
-                                <StackPanel Spacing="8">
-                                    <TextBlock Text="{Binding GitHubDeviceCode}"
-                                               Foreground="#FF2EA043"
-                                               FontWeight="Bold"
-                                               FontSize="18"
-                                               TextWrapping="Wrap"/>
-                                    <Button Command="{Binding CopyGitHubCodeCommand}"
-                                            Padding="10,6"
-                                            Background="#FF21262D"
-                                            Foreground="#FFC9D1D9"
-                                            BorderBrush="#FF30363D"
-                                            BorderThickness="1"
-                                            CornerRadius="8">
-                                        <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/save.svg"
-                                                           Width="18"
-                                                           Height="18"/>
-                                    </Button>
-                                </StackPanel>
-                            </Border>
-
-
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Button Command="{Binding GitHubSignInCommand}"
-                                        Padding="12,8"
-                                        Background="#FF238636"
-                                        Foreground="White"
-                                        BorderBrush="#FF2EA043"
-                                        BorderThickness="1"
-                                        CornerRadius="8">
-                                    <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/github.svg"
-                                                       Width="18"
-                                                       Height="18"/>
-                                </Button>
-
-                                <Button Command="{Binding GitHubRefreshCommand}"
-                                        Padding="12,8"
-                                        Background="#FF21262D"
-                                        Foreground="#FFC9D1D9"
-                                        BorderBrush="#FF30363D"
-                                        BorderThickness="1"
-                                        CornerRadius="8"
-                                        IsVisible="{Binding IsGitHubConnected}">
-                                    <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/refresh.svg"
-                                                       Width="18"
-                                                       Height="18"/>
-                                </Button>
-
-                                <Button Command="{Binding GitHubSignOutCommand}"
-                                        Padding="12,8"
-                                        Background="#FF21262D"
-                                        Foreground="#FFF85149"
-                                        BorderBrush="#FF8B949E"
-                                        BorderThickness="1"
-                                        CornerRadius="8"
-                                        IsVisible="{Binding IsGitHubConnected}">
-                                    <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/delete.svg"
-                                                       Width="18"
-                                                       Height="18"/>
-                                </Button>
-                            </StackPanel>
-                        </StackPanel>
+                                    CornerRadius="8">
+                                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/settings.svg"
+                                                   Width="18"
+                                                   Height="18"/>
+                            </Button>
+                        </Grid>
                     </Border>
 
                     <Border Background="#FF0D1117"
@@ -667,4 +619,6 @@
         </ScrollViewer>
     </Grid>
 </Window>
+
+
 
