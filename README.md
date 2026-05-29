@@ -24,7 +24,12 @@ Pre-built packages are available for your platform:
 
 - **Windows** (x64, arm64)
 - **Linux** (x64, arm64)
-- **macOS** (x64, arm64)
+
+| OS | Architectures | Status |
+|----|----|---|
+| ✅ Windows | x64, arm64 | Supported (Auto-extracting installer) |
+| ✅ Linux | x64, arm64 | Supported (Binary, DEB, RPM, AppImage) |
+| ⏳ macOS | x64, arm64 | Waiting for a contributor/tester |
 
 1. Download the latest release from the [releases page](https://github.com/YoannDev90/Github-Trend/releases)
 2. Extract the package for your platform
@@ -32,8 +37,8 @@ Pre-built packages are available for your platform:
 #### Windows
 
 ```
-1. Extract the .zip file
-2. Run Github-Trend.exe
+1. Download the _setup.exe file
+2. Run the installer and follow the instructions
 ```
 
 #### Linux
@@ -44,12 +49,6 @@ cd Github-Trend-linux-x64
 ./Github-Trend
 ```
 
-#### macOS
-
-```
-1. Extract the .zip file
-2. Run the application
-```
 
 ### Build from Source (Advanced)
 

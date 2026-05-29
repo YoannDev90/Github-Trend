@@ -60,8 +60,6 @@ jobs:
         include:
           - { os: windows-latest, platform: windows, rid: win-x64    }
           - { os: windows-latest, platform: windows, rid: win-arm64  }
-          - { os: macos-latest,   platform: macos,   rid: osx-x64    }
-          - { os: macos-latest,   platform: macos,   rid: osx-arm64  }
           - { os: ubuntu-latest,  platform: linux,   rid: linux-x64  }
           - { os: ubuntu-latest,  platform: linux,   rid: linux-arm64 }
 
@@ -152,7 +150,7 @@ jobs:
 
       # ════════════════════════════════════════════════════════════════════════
       #  WINDOWS PACKAGING
-      #  Independent build → single .exe
+      #  Independent build → Inno Setup Custom Installer
       # ════════════════════════════════════════════════════════════════════════
 
       - name: Package · Windows
@@ -167,77 +165,52 @@ jobs:
           $rid = "${{ matrix.rid }}"
           $pkg = "packages/$rid"
           New-Item -ItemType Directory -Force -Path $pkg | Out-Null
+          
+          # Clean version string (remove suffix for InnoSetup if present, e.g. -ci)
+          $cleanVersion = $version -replace '-.*', ''
+          if ([string]::IsNullOrWhiteSpace($cleanVersion)) { $cleanVersion = "1.0.0" }
 
-          # Independent build: just copy over the executable
+          # Ensure UPX is available
+          if (!(Get-Command upx -ErrorAction SilentlyContinue)) { choco install upx --no-progress }
+
           $scdDir = "out/scd/$rid"
-          $scdExe = Get-ChildItem $scdDir -Filter "*.exe" -File | Select-Object -First 1
-          if ($scdExe) {
-            $dst = "$pkg/$app-$version-$rid.exe"
-            Copy-Item $scdExe.FullName $dst
-            Write-Host "SCD → $dst  ($('{0:N1} MB' -f ((Get-Item $dst).Length/1MB)))"
-            exit 0
-          } else {
-            Write-Warning "SCD: no .exe found in $scdDir"
+          Write-Host "Running UPX over $scdDir..."
+          
+          $filesToUpx = Get-ChildItem $scdDir -Include *.exe,*.dll -File -Recurse
+          foreach ($f in $filesToUpx) {
+              & upx -q --best --lzma --force $f.FullName 2>$null
           }
+          
+          # Write Inno Setup Script
+          $issPath = "installer_$rid.iss"
+          $issContent = @"
+          [Setup]
+          AppName=Github Trend
+          AppVersion=$cleanVersion
+          DefaultDirName={autopf}\Github-Trend
+          DefaultGroupName=Github-Trend
+          OutputDir=$($PWD.Path)\$pkg
+          OutputBaseFilename=$app-$version-$rid-setup
+          Compression=lzma2/ultra64
+          SolidCompression=yes
+          ArchitecturesInstallIn64BitMode=$(if ($rid -like '*arm64*') {'arm64'} else {'x64'})
+          PrivilegesRequired=lowest
 
-      # ════════════════════════════════════════════════════════════════════════
-      #  MACOS PACKAGING
-      #  Independent build → .dmg
-      # ════════════════════════════════════════════════════════════════════════
-      - name: Package · macOS
-        if: matrix.platform == 'macos'
-        shell: bash
-        env:
-          TAG: ${{ steps.tag.outputs.value }}
-        run: |
-          APP="${{ env.APP_NAME }}"
-          VERSION="${TAG#v}"
-          RID="${{ matrix.rid }}"
-          PKG="packages/$RID"
-          mkdir -p "$PKG"
+          [Files]
+          Source: "$($PWD.Path)\$scdDir\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
-          strip_dir() {
-            while IFS= read -r -d '' f; do
-              [ -x "$f" ] && strip "$f" 2>/dev/null || true
-            done < <(find "$1" -maxdepth 3 -type f -print0)
-          }
+          [Icons]
+          Name: "{group}\Github Trend"; Filename: "{app}\Github-Trend.exe"
+          Name: "{autodesktop}\Github Trend"; Filename: "{app}\Github-Trend.exe"; Tasks: desktopicon
 
-          find_exec() {
-            while IFS= read -r -d '' f; do
-              [ -x "$f" ] && echo "$f" && return
-            done < <(find "$1" -maxdepth 1 -type f -print0)
-          }
-
-          make_dmg() {
-            local TYPE="$1"
-            local SRC="$2"
-            [ ! -d "$SRC" ] && echo "[$TYPE] $SRC not found - skip" && return
-
-            local MAINBIN
-            MAINBIN=$(find_exec "$SRC")
-            [ -n "$MAINBIN" ] && strip "$MAINBIN" 2>/dev/null || true
-            strip_dir "$SRC"
-
-            local TMP_UDRW OUT
-            TMP_UDRW=$(mktemp).dmg
-            OUT="$PKG/${APP}-${VERSION}-${RID}.dmg"
-
-            hdiutil create \
-              -volname "${APP}" \
-              -srcfolder "$SRC" \
-              -ov -format UDRW \
-              "$TMP_UDRW" >/dev/null
-
-            hdiutil convert "$TMP_UDRW" \
-              -format UDZO \
-              -imagekey zlib-level=9 \
-              -o "$OUT" >/dev/null
-
-            rm -f "$TMP_UDRW"
-            echo "[$TYPE] DMG → $OUT  ($(du -sh "$OUT" | cut -f1))"
-          }
-
-          make_dmg "scd" "out/scd/$RID"
+          [Tasks]
+          Name: "desktopicon"; Description: "Create a &desktop icon"; GroupDescription: "Additional icons:"
+          "@
+          Set-Content -Path $issPath -Value $issContent -Encoding UTF8
+          
+          # Compile Inno Setup Script
+          iscc $issPath
+          Write-Host "Installer compiled successfully in $pkg"
 
       # ════════════════════════════════════════════════════════════════════════
       #  LINUX PACKAGING
@@ -388,24 +361,17 @@ jobs:
           VERSION="${VERSION#v}"
           
           # Calcul silencieux des SHA (s'ils n'existent pas car le job a ignoré une plateforme, le sha sera vide, ce qui importe peu tant qu'on fournit l'autre)
-          MAC_INTEL_SHA=$(sha256sum assets/github-trend-${VERSION}-osx-x64.dmg 2>/dev/null | awk '{ print $1 }' || echo "SKIP")
-          MAC_ARM_SHA=$(sha256sum assets/github-trend-${VERSION}-osx-arm64.dmg 2>/dev/null | awk '{ print $1 }' || echo "SKIP")
           LINUX_X64_SHA=$(sha256sum assets/github-trend-${VERSION}-linux-x64.tar.gz 2>/dev/null | awk '{ print $1 }' || echo "SKIP")
           LINUX_ARM_SHA=$(sha256sum assets/github-trend-${VERSION}-linux-arm64.tar.gz 2>/dev/null | awk '{ print $1 }' || echo "SKIP")
           
           # Templates
           cp packaging/arch/PKGBUILD assets/PKGBUILD
-          cp packaging/homebrew/github-trend.rb assets/github-trend.rb
+          cp packaging/homebrew/github-trend.rb assets/github-trend.rb 2>/dev/null || true
           
           # PKGBUILD injection
           sed -i "s/@VERSION@/$VERSION/g" assets/PKGBUILD
           sed -i "s/@LINUX_X64_SHA@/$LINUX_X64_SHA/g" assets/PKGBUILD
           sed -i "s/@LINUX_ARM_SHA@/$LINUX_ARM_SHA/g" assets/PKGBUILD
-          
-          # Homebrew injection
-          sed -i "s/@VERSION@/$VERSION/g" assets/github-trend.rb
-          sed -i "s/@MAC_INTEL_SHA@/$MAC_INTEL_SHA/g" assets/github-trend.rb
-          sed -i "s/@MAC_ARM_SHA@/$MAC_ARM_SHA/g" assets/github-trend.rb
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
