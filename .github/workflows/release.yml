@@ -195,13 +195,15 @@ jobs:
           SolidCompression=yes
           ArchitecturesInstallIn64BitMode=$(if ($rid -like '*arm64*') {'arm64'} else {'x64'})
           PrivilegesRequired=lowest
+          SetupIconFile=$($PWD.Path)\Assets\icon.ico
+          UninstallDisplayIcon={app}\Github-Trend.exe
 
           [Files]
           Source: "$($PWD.Path)\$scdDir\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
           [Icons]
-          Name: "{group}\Github Trend"; Filename: "{app}\Github-Trend.exe"
-          Name: "{autodesktop}\Github Trend"; Filename: "{app}\Github-Trend.exe"; Tasks: desktopicon
+          Name: "{group}\Github Trend"; Filename: "{app}\Github-Trend.exe"; IconFilename: "{app}\Github-Trend.exe"
+          Name: "{autodesktop}\Github Trend"; Filename: "{app}\Github-Trend.exe"; Tasks: desktopicon; IconFilename: "{app}\Github-Trend.exe"
 
           [Tasks]
           Name: "desktopicon"; Description: "Create a &desktop icon"; GroupDescription: "Additional icons:"
