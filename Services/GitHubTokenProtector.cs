@@ -17,7 +17,8 @@ public sealed class GitHubTokenProtector
 
     public string Protect(string? plaintext)
     {
-        if (string.IsNullOrWhiteSpace(plaintext)) return string.Empty;
+        if (string.IsNullOrWhiteSpace(plaintext))
+            return string.Empty;
 
         var plainBytes = Encoding.UTF8.GetBytes(plaintext);
         var nonce = RandomNumberGenerator.GetBytes(12);
@@ -38,10 +39,12 @@ public sealed class GitHubTokenProtector
 
     public string? Unprotect(string? encrypted)
     {
-        if (string.IsNullOrWhiteSpace(encrypted)) return null;
+        if (string.IsNullOrWhiteSpace(encrypted))
+            return null;
 
         var payload = Convert.FromBase64String(encrypted);
-        if (payload.Length < 12 + 16) return null;
+        if (payload.Length < 12 + 16)
+            return null;
 
         var nonce = payload[..12];
         var tag = payload[12..28];
@@ -52,7 +55,13 @@ public sealed class GitHubTokenProtector
         {
             using (var aes = new AesGcm(_key, 16))
             {
-                aes.Decrypt(nonce, cipherBytes, tag, plainBytes, Encoding.UTF8.GetBytes(TokenPurpose));
+                aes.Decrypt(
+                    nonce,
+                    cipherBytes,
+                    tag,
+                    plainBytes,
+                    Encoding.UTF8.GetBytes(TokenPurpose)
+                );
             }
         }
         catch (CryptographicException)
@@ -67,14 +76,16 @@ public sealed class GitHubTokenProtector
     {
         var folder = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Github_Trend");
+            "Github_Trend"
+        );
         Directory.CreateDirectory(folder);
 
         var keyPath = Path.Combine(folder, "github-token.key");
         if (File.Exists(keyPath))
         {
             var existing = Convert.FromBase64String(File.ReadAllText(keyPath));
-            if (existing.Length == 32) return existing;
+            if (existing.Length == 32)
+                return existing;
         }
 
         var key = RandomNumberGenerator.GetBytes(32);
@@ -93,9 +104,6 @@ public sealed class GitHubTokenProtector
                 File.SetUnixFileMode(keyPath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
 #endif
         }
-        catch
-        {
-            // best-effort only
-        }
+        catch { }
     }
 }

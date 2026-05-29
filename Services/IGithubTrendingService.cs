@@ -13,7 +13,6 @@ public interface IGithubTrendingService
     );
 }
 
-/// <summary>Thin wrapper around the static GithubTrendingService.</summary>
 public sealed class GithubTrendingServiceWrapper : IGithubTrendingService
 {
     public IAsyncEnumerable<GithubTrendingRepository> StreamAsync(

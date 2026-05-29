@@ -3,7 +3,6 @@ using System.Windows.Input;
 
 namespace Github_Trend;
 
-// Minimal ICommand implementation for simple command bindings
 public sealed class RelayCommand : ICommand
 {
     private readonly Func<object?, bool>? _canExecute;

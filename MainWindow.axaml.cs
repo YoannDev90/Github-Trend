@@ -51,10 +51,7 @@ public partial class MainWindow : Window
 
             await clipboard.SetTextAsync(code);
         }
-        catch
-        {
-            // best-effort only
-        }
+        catch { }
     }
 
     private void OnTrendingScrollWheelChanged(object? sender, PointerWheelEventArgs e)

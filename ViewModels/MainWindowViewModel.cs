@@ -94,12 +94,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         Debug.CopyLogsRequested += (_, _) => CopyLogsRequested?.Invoke(this, EventArgs.Empty);
     }
 
-    // ── Sub-ViewModels ──────────────────────────────────────────────────────
     public GitHubAuthViewModel Auth { get; }
     public LanguageFilterViewModel Filter { get; }
     public DebugViewModel Debug { get; }
 
-    // ── Commands ────────────────────────────────────────────────────────────
     public ICommand SelectDailyCommand { get; }
     public ICommand SelectWeeklyCommand { get; }
     public ICommand SelectMonthlyCommand { get; }
@@ -109,17 +107,14 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public ICommand StarRepositoryCommand { get; }
     public ICommand WatchRepositoryCommand { get; }
 
-    // ── Events (forwarded from sub-VMs for the View) ────────────────────────
     public event EventHandler? DeviceCodeCopyRequested;
     public event EventHandler? CopyLogsRequested;
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    // ── Status bar ──────────────────────────────────────────────────────────
     public string StatusMessage =>
         _statusMessageOverride
         ?? Localization.Localization.Instance.GetString(_statusMessageKey, _statusMessageArgs);
 
-    // ── Trending ────────────────────────────────────────────────────────────
     public ObservableCollection<GithubTrendingRepository> TrendingRepositories { get; } = new();
 
     public int TrendingCount => _trendingData?.Count ?? 0;
@@ -139,7 +134,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             ),
         };
 
-    // ── Time range ──────────────────────────────────────────────────────────
     public int SelectedTimeRangeIndex
     {
         get => _selectedTimeRangeIndex;
@@ -204,7 +198,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public string SelectedTimeRangeQuery =>
         TimeRanges[Math.Max(0, Math.Min(_selectedTimeRangeIndex, TimeRanges.Length - 1))].Query;
 
-    // ── Initialisation ──────────────────────────────────────────────────────
     public async Task InitializeAsync()
     {
         try
@@ -242,7 +235,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         _ = RefreshTrendingRepositoriesAsync();
     }
 
-    // ── Trending refresh ─────────────────────────────────────────────────────
     private async Task RefreshTrendingRepositoriesAsync()
     {
         var previousCts = _trendingCts;
@@ -346,7 +338,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
-    // ── Colors refresh ───────────────────────────────────────────────────────
     private async Task RefreshColorsAsync()
     {
         if (_isInitializing || _isRefreshing)
@@ -391,7 +382,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
-    // ── Repository actions ────────────────────────────────────────────────────
     private void ExecuteOpenRepository(object? parameter)
     {
         if (
@@ -555,7 +545,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
     private System.Collections.Generic.IReadOnlyList<string?> GetSinceValues()
     {
         var q = SelectedTimeRangeQuery;

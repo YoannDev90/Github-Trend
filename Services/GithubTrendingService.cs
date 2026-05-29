@@ -49,7 +49,6 @@ public static class GithubTrendingService
         );
         Debug.WriteLine($"[Trending] cache file: {cacheFile}");
 
-        // If not forcing, try return fresh cache first
         if (!force && File.Exists(cacheFile))
             try
             {
@@ -69,12 +68,8 @@ public static class GithubTrendingService
                     }
                 }
             }
-            catch
-            {
-                // ignore cache read errors and attempt network fetch
-            }
+            catch { }
 
-        // Build URL with query parameters
         var url = Constants.GitHubTrendingUrl;
         var queryParts = new List<string>();
         if (!string.IsNullOrWhiteSpace(since))
@@ -87,7 +82,6 @@ public static class GithubTrendingService
 
         Log.Debug("Trending request URL: {Url}", url);
 
-        // Attempt network fetch and update cache. If network fails, fallback to cache if available.
         try
         {
             var json = await Http.GetStringAsync(url);
@@ -98,22 +92,17 @@ public static class GithubTrendingService
                 cacheKey
             );
 
-            // try write cache (best-effort)
             try
             {
                 await File.WriteAllTextAsync(cacheFile, json);
                 Log.Debug("Trending cache updated: {CacheFile}", cacheFile);
             }
-            catch
-            {
-                // ignore cache write failures
-            }
+            catch { }
 
             return await EnrichTrendingAsync(trending);
         }
         catch
         {
-            // network failed, try to return cache (even stale) if present
             if (File.Exists(cacheFile))
                 try
                 {
@@ -129,12 +118,9 @@ public static class GithubTrendingService
                         return await EnrichTrendingAsync(cached);
                     }
                 }
-                catch
-                {
-                    // fall through to rethrow
-                }
+                catch { }
 
-            throw; // rethrow original network exception
+            throw;
         }
     }
 
@@ -191,10 +177,7 @@ public static class GithubTrendingService
             {
                 yield break;
             }
-            catch
-            {
-                // ignore cache read errors
-            }
+            catch { }
 
         if (repositories == null)
         {

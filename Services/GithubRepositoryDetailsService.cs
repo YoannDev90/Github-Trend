@@ -540,10 +540,7 @@ public static class GithubRepositoryDetailsService
                         return CreateBitmapFromBytes(staleBytes);
                 }
             }
-            catch
-            {
-                // ignore stale image fallback failures
-            }
+            catch { }
 
             Log.Debug(ex, "Banner load failed for {Url}", url);
             return null;

@@ -1,4 +1,4 @@
-# Github Trend
+# GitHub Trend
 
 Browse GitHub's trending repositories in style with a rich, card-based desktop interface. Stay on top of what's hot in
 the developer world, right from your desktop.
@@ -25,11 +25,11 @@ Pre-built packages are available for your platform:
 - **Windows** (x64, arm64)
 - **Linux** (x64, arm64)
 
-| OS | Architectures | Status |
-|----|----|---|
-| ✅ Windows | x64, arm64 | Supported (Auto-extracting installer) |
-| ✅ Linux | x64, arm64 | Supported (Binary, DEB, RPM, AppImage) |
-| ⏳ macOS | x64, arm64 | Waiting for a contributor/tester |
+| OS        | Architectures | Status                                 |
+|-----------|---------------|----------------------------------------|
+| ✅ Windows | x64, arm64    | Supported (Auto-extracting installer)  |
+| ✅ Linux   | x64, arm64    | Supported (Binary, DEB, RPM, AppImage) |
+| ⏳ macOS   | x64, arm64    | Waiting for a contributor/tester       |
 
 1. Download the latest release from the [releases page](https://github.com/YoannDev90/Github-Trend/releases)
 2. Extract the package for your platform
@@ -48,11 +48,6 @@ tar -xzf Github-Trend-linux-x64.tar.gz
 cd Github-Trend-linux-x64
 ./Github-Trend
 ```
-
-
-### Build from Source (Advanced)
-
-If you want to build from source, see [DEVELOPMENT.md](DEVELOPMENT.md) for technical setup instructions.
 
 ## 🔐 Authentication
 

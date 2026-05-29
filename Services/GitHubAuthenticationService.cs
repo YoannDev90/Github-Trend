@@ -171,10 +171,7 @@ public sealed class GitHubAuthenticationService
                 await RefreshCurrentAsync();
                 record = _currentRecord!;
             }
-            catch
-            {
-                // keep the stored session visible and let the caller trigger re-auth if needed
-            }
+            catch { }
 
         CurrentSession = ToSession(record);
         RaiseSessionChanged();
@@ -336,7 +333,6 @@ public sealed class GitHubAuthenticationService
         }
         catch
         {
-            // best-effort open in default browser
             return false;
         }
     }
