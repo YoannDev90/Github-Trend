@@ -42,40 +42,42 @@ dotnet build
 ### Core Application Files
 
 - **`App.axaml` / `App.axaml.cs`**
-  - Application bootstrap and entry point
-  - Global styling and resource definitions
-  - Application-level event handlers
+    - Application bootstrap and entry point
+    - Global styling and resource definitions
+    - Application-level event handlers
 
 - **`MainWindow.axaml` / `MainWindow.axaml.cs`**
-  - Main UI layout and UI logic
-  - Parent window for the entire application
-  - Data binding setup
+    - Main UI layout and UI logic
+    - Parent window for the entire application
+    - Data binding setup
 
 - **`Program.cs`**
-  - Entry point for the application
-  - Window creation and initialization
+    - Entry point for the application
+    - Window creation and initialization
 
 - **`Constants.cs`**
-  - Centralized configuration repository
-  - GitHub API endpoints
-  - OAuth configuration (client ID, client secret placeholder)
-  - Data source URLs
+    - Centralized configuration repository
+    - GitHub API endpoints
+    - OAuth configuration (client ID, client secret placeholder)
+    - Data source URLs
 
 ### Architecture Directories
 
 #### ViewModels/
+
 MVVM view models that manage application state and commands:
 
 - **`MainWindowViewModel.cs`** - Primary view model for the main window
-  - Manages trending repository list
-  - Handles filtering and language selection
-  - Orchestrates data loading
-  
+    - Manages trending repository list
+    - Handles filtering and language selection
+    - Orchestrates data loading
+
 - **`LanguageOptionViewModel.cs`** - Represents selectable programming languages
 - **`TimeRangeOptionViewModel.cs`** - Represents time range filters
 - **`RelayCommand.cs`** - ICommand implementation for binding user interactions to view model methods
 
 #### Models/
+
 Data models representing domain entities:
 
 - **`GithubTrendingRepository.cs`** - Trending repository from the trending feed
@@ -88,60 +90,63 @@ Data models representing domain entities:
 - **`GitHubAuthTokenRecord.cs`** - Stored token record
 
 #### Services/
+
 Service layer providing business logic and external integrations:
 
 - **`GitHubApiClient.cs`** - Direct GitHub REST API interactions
-  - Repository details fetching
-  - Star/watch operations
-  - User profile queries
+    - Repository details fetching
+    - Star/watch operations
+    - User profile queries
 
 - **`GithubTrendingService.cs`** - Fetches trending repository data
-  - Queries the trending endpoint
-  - Maps raw data to domain models
+    - Queries the trending endpoint
+    - Maps raw data to domain models
 
 - **`GithubColorsService.cs`** - Language color information
-  - Fetches language-to-color mappings
-  - Caches color data locally
+    - Fetches language-to-color mappings
+    - Caches color data locally
 
 - **`GitHubAuthenticationService.cs`** - Primary OAuth flow orchestration
-  - Manages authentication state
-  - Delegates to specialized auth services
+    - Manages authentication state
+    - Delegates to specialized auth services
 
 - **`GitHubDeviceFlowAuthService.cs`** - Device flow OAuth implementation
-  - Initiates device flow
-  - Polls for completion
-  - Exchanges code for token
+    - Initiates device flow
+    - Polls for completion
+    - Exchanges code for token
 
 - **`GitHubLoopbackAuthServer.cs`** - Local loopback server for legacy flows
-  - Handles OAuth callbacks
+    - Handles OAuth callbacks
 
 - **`GitHubAuthTokenStore.cs`** - Token persistence layer
-  - Loads and saves tokens locally
-  - Works with crypto service for protection
+    - Loads and saves tokens locally
+    - Works with crypto service for protection
 
 - **`GitHubTokenProtector.cs`** - Cryptographic token protection
-  - Encrypts tokens before storage
-  - Decrypts tokens on load
+    - Encrypts tokens before storage
+    - Decrypts tokens on load
 
 - **`GitHubTokenRefreshService.cs`** - Token refresh logic
-  - Handles expired token scenarios
-  - Requests new tokens when needed
+    - Handles expired token scenarios
+    - Requests new tokens when needed
 
 - **`SelectedLanguagesStore.cs`** - User language filter preferences
-  - Persists selected language filters
+    - Persists selected language filters
 
 - **`GithubRepositoryDetailsService.cs`** - Repository enrichment
-  - Combines data from trending feed with GitHub API metadata
-  - Fetches contributors
-  - Handles license and topic information
+    - Combines data from trending feed with GitHub API metadata
+    - Fetches contributors
+    - Handles license and topic information
 
 #### Controls/
+
 Custom Avalonia controls:
 
 - **`SvgImage.cs`** - Custom control for rendering SVG images
-  - Used for icons (delete, github, open, refresh, save, star, watch)
+    - Used for icons (delete, github, open, refresh, save, star, watch)
 
 #### Localization/
+
 Internationalization and localization:
 
 - **`LocalizationService.cs`** - Service for managing localized strings
@@ -157,27 +162,30 @@ Internationalization and localization:
 ### Assets
 
 - **`Assets/Icons/`** - SVG icon files used throughout the UI
-  - `delete.svg`, `github.svg`, `open.svg`, `refresh.svg`, `save.svg`, `star.svg`, `watch.svg`
+    - `delete.svg`, `github.svg`, `open.svg`, `refresh.svg`, `save.svg`, `star.svg`, `watch.svg`
 
 ## 🔌 External Data Sources
 
 ### Trending Repositories
+
 - **Endpoint**: `https://githubtrending.lessx.xyz/trending`
 - **Purpose**: Provides list of trending repositories
 - **Scope**: Used to populate the main trending feed
 
 ### Language Colors
+
 - **Endpoint**: `https://raw.githubusercontent.com/ozh/github-colors/master/colors.json`
 - **Purpose**: Maps programming languages to their canonical colors
 - **Scope**: Visual differentiation in the UI
 
 ### GitHub REST API
+
 - **Base URL**: `https://api.github.com`
 - **Purpose**: Repository details, contributors, licensing, starring, watching
 - **Authentication**: OAuth user access token
 - **Scopes Required**:
-  - `public_repo` - for querying public repository data
-  - `notifications` - for watch functionality
+    - `public_repo` - for querying public repository data
+    - `notifications` - for watch functionality
 
 ## 🔐 Authentication Architecture
 
@@ -205,21 +213,25 @@ The app implements GitHub's Device Authorization Grant flow:
 The application follows the MVVM pattern:
 
 ### Model
+
 - Data models in `Models/` directory
 - Represent domain entities and API responses
 
 ### ViewModel
+
 - Located in `ViewModels/` directory
 - Exposes Collections and Commands to the View
 - Manages application state
 - Handles business logic coordination
 
 ### View
+
 - XAML files (`*.axaml`)
 - Defines the UI layout
 - Binds to ViewModel properties via DataContext
 
 ### Command Pattern
+
 - `RelayCommand` implements `ICommand` interface
 - Allows binding UI events to ViewModel methods
 - Supports parameter passing and can-execute checks
@@ -241,11 +253,13 @@ Run the provided script to publish to multiple platforms:
 ```
 
 This creates:
+
 - **FDD (Framework-Dependent Deployment)** - Requires .NET runtime
 - **SCD (Self-Contained Deployment)** - Includes runtime, larger size
 - **Packages** - Compressed archives for distribution
 
 Output directories:
+
 - `publish/fdd/` - Framework-dependent builds
 - `publish/scd/` - Self-contained builds
 - `publish/packages/` - Distribution packages
@@ -320,7 +334,8 @@ Output directories:
 
 ## 🤖 Transparency & AI Usage
 
-This project uses AI as a development aid for code implementation and documentation. However, **all AI-generated content is carefully reviewed by the project maintainer** to ensure quality, accuracy, and adherence to project standards.
+This project uses AI as a development aid for code implementation and documentation. However, **all AI-generated content
+is carefully reviewed by the project maintainer** to ensure quality, accuracy, and adherence to project standards.
 
 ### Contributing with AI
 
@@ -331,9 +346,11 @@ If you use AI tools to assist with your contributions (code, documentation, test
 3. **Cite or mention** in your PR if significant portions were AI-assisted
 4. **Be prepared** to refine and iterate based on feedback
 
-We welcome contributions from developers of all skill levels, and using AI as a tool is perfectly acceptable—we just ask that you take responsibility for reviewing and understanding what you're submitting.
+We welcome contributions from developers of all skill levels, and using AI as a tool is perfectly acceptable—we just ask
+that you take responsibility for reviewing and understanding what you're submitting.
 
-**Quality over perfection**: It's okay if your contribution isn't perfect; what matters is that you've put thought into it and are willing to improve it through the review process.
+**Quality over perfection**: It's okay if your contribution isn't perfect; what matters is that you've put thought into
+it and are willing to improve it through the review process.
 
 ## 📝 Notes for Developers
 
@@ -348,10 +365,12 @@ We welcome contributions from developers of all skill levels, and using AI as a 
 ### Enable Debug Output
 
 Set environment variable (varies by platform):
+
 - Windows: `set AVALONIA_LOG_LEVEL=Debug`
 - Linux/macOS: `export AVALONIA_LOG_LEVEL=Debug`
 
 Then run:
+
 ```bash
 dotnet run
 ```

@@ -28,10 +28,7 @@ public sealed class SelectedLanguagesStore
 
     public async Task<IReadOnlyList<string>> LoadAsync()
     {
-        if (!File.Exists(_filePath))
-        {
-            return Array.Empty<string>();
-        }
+        if (!File.Exists(_filePath)) return Array.Empty<string>();
 
         var json = await File.ReadAllTextAsync(_filePath);
         return JsonSerializer.Deserialize<List<string>>(json) ?? new List<string>();
@@ -49,4 +46,3 @@ public sealed class SelectedLanguagesStore
         await File.WriteAllTextAsync(_filePath, json);
     }
 }
-

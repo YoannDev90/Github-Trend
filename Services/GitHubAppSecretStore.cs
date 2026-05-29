@@ -25,10 +25,7 @@ public sealed class GitHubAppSecretStore
 
     public string? Load()
     {
-        if (!File.Exists(_filePath))
-        {
-            return null;
-        }
+        if (!File.Exists(_filePath)) return null;
 
         try
         {
@@ -45,9 +42,7 @@ public sealed class GitHubAppSecretStore
     public void Save(string clientSecret)
     {
         if (string.IsNullOrWhiteSpace(clientSecret))
-        {
             throw new ArgumentException("Client secret cannot be empty.", nameof(clientSecret));
-        }
 
         var record = new SecretRecord(_protector.Protect(clientSecret), DateTimeOffset.UtcNow);
         var json = JsonSerializer.Serialize(record, JsonOptions);
@@ -56,4 +51,3 @@ public sealed class GitHubAppSecretStore
 
     private sealed record SecretRecord(string EncryptedClientSecret, DateTimeOffset SavedAt);
 }
-

@@ -12,19 +12,17 @@ namespace Github_Trend;
 public sealed class GitHubAuthenticationService
 {
     private static readonly TimeSpan RefreshSkew = TimeSpan.FromMinutes(5);
+    private readonly GitHubDeviceFlowAuthService _deviceFlowService;
     private readonly GitHubAuthOptions _options;
     private readonly GitHubTokenProtector _protector;
+    private readonly SemaphoreSlim _refreshLock = new(1, 1);
     private readonly GitHubTokenRefreshService _tokenService;
     private readonly GitHubAuthTokenStore _tokenStore;
-    private readonly GitHubDeviceFlowAuthService _deviceFlowService;
-    private readonly SemaphoreSlim _refreshLock = new(1, 1);
 
     private GitHubAuthTokenRecord? _currentRecord;
 
     public GitHubAuthenticationService()
-        : this(new GitHubAuthOptions())
-    {
-    }
+        : this(new GitHubAuthOptions()) { }
 
     public GitHubAuthenticationService(GitHubAuthOptions options)
     {
@@ -35,22 +33,34 @@ public sealed class GitHubAuthenticationService
         _deviceFlowService = new GitHubDeviceFlowAuthService(_options.ClientId, _options);
     }
 
-    public event EventHandler? SessionChanged;
-
     public GitHubAuthSession? CurrentSession { get; private set; }
 
-    public bool IsConnected => CurrentSession is not null && _currentRecord is not null && _currentRecord.RevokedAt is null;
+    public bool IsConnected =>
+        CurrentSession is not null
+        && _currentRecord is not null
+        && _currentRecord.RevokedAt is null;
 
-    public string StatusText => CurrentSession is null
-        ? Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.GitHubAuthNotConnected))
-        : Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.GitHubAuthConnected), CurrentSession.Summary);
+    public string StatusText =>
+        CurrentSession is null
+            ? Localization.Localization.Instance.GetString(
+                nameof(LocalizationService.GitHubAuthNotConnected)
+            )
+            : Localization.Localization.Instance.GetString(
+                nameof(LocalizationService.GitHubAuthConnected),
+                CurrentSession.Summary
+            );
+
+    public event EventHandler? SessionChanged;
 
     public async Task InitializeAsync()
     {
         await LoadCurrentSessionAsync();
     }
 
-    public async Task<GitHubAuthSession?> BeginInteractiveSignInAsync(Action<string>? onProgress = null, Action<string>? onUserCodeAvailable = null)
+    public async Task<GitHubAuthSession?> BeginInteractiveSignInAsync(
+        Action<string>? onProgress = null,
+        Action<string>? onUserCodeAvailable = null
+    )
     {
         await InitializeAsync();
         EnsureAuthConfigured();
@@ -59,32 +69,53 @@ public sealed class GitHubAuthenticationService
         {
             var deviceCodeResponse = await _deviceFlowService.RequestDeviceCodeAsync();
 
-            if (string.IsNullOrWhiteSpace(deviceCodeResponse.UserCode) || string.IsNullOrWhiteSpace(deviceCodeResponse.VerificationUri))
-            {
-                throw new InvalidOperationException(Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.InvalidDeviceCodeResponse)));
-            }
+            if (
+                string.IsNullOrWhiteSpace(deviceCodeResponse.UserCode)
+                || string.IsNullOrWhiteSpace(deviceCodeResponse.VerificationUri)
+            )
+                throw new InvalidOperationException(
+                    Localization.Localization.Instance.GetString(
+                        nameof(LocalizationService.InvalidDeviceCodeResponse)
+                    )
+                );
 
-            var verificationUrl = deviceCodeResponse.VerificationUriComplete ?? deviceCodeResponse.VerificationUri;
+            var verificationUrl =
+                deviceCodeResponse.VerificationUriComplete ?? deviceCodeResponse.VerificationUri;
             if (string.IsNullOrWhiteSpace(verificationUrl))
-            {
-                throw new InvalidOperationException(Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.MissingVerificationUrl)));
-            }
+                throw new InvalidOperationException(
+                    Localization.Localization.Instance.GetString(
+                        nameof(LocalizationService.MissingVerificationUrl)
+                    )
+                );
 
             var opened = OpenBrowser(new Uri(verificationUrl));
-            onProgress?.Invoke(opened
-                ? Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.GitHubAuthDeviceCodePromptOpen), deviceCodeResponse.UserCode)
-                : Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.GitHubAuthDeviceCodePromptManual), deviceCodeResponse.UserCode, verificationUrl));
+            onProgress?.Invoke(
+                opened
+                    ? Localization.Localization.Instance.GetString(
+                        nameof(LocalizationService.GitHubAuthDeviceCodePromptOpen),
+                        deviceCodeResponse.UserCode
+                    )
+                    : Localization.Localization.Instance.GetString(
+                        nameof(LocalizationService.GitHubAuthDeviceCodePromptManual),
+                        deviceCodeResponse.UserCode,
+                        verificationUrl
+                    )
+            );
             onUserCodeAvailable?.Invoke(deviceCodeResponse.UserCode!);
 
             var (success, tokenResponse, error) = await _deviceFlowService.PollForTokenAsync(
                 deviceCodeResponse.DeviceCode!,
                 deviceCodeResponse.Interval,
-                deviceCodeResponse.ExpiresIn);
+                deviceCodeResponse.ExpiresIn
+            );
 
             if (!success || tokenResponse?.AccessToken == null)
-            {
-                throw new InvalidOperationException(Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.DeviceFlowAuthenticationFailed), error ?? string.Empty));
-            }
+                throw new InvalidOperationException(
+                    Localization.Localization.Instance.GetString(
+                        nameof(LocalizationService.DeviceFlowAuthenticationFailed),
+                        error ?? string.Empty
+                    )
+                );
 
             var profile = await _tokenService.FetchUserProfileAsync(tokenResponse.AccessToken);
             var localUserId = GetLocalUserId();
@@ -103,7 +134,7 @@ public sealed class GitHubAuthenticationService
                 Login = profile.Login,
                 Name = profile.Name,
                 Email = profile.Email,
-                AvatarUrl = profile.AvatarUrl
+                AvatarUrl = profile.AvatarUrl,
             };
 
             await _tokenStore.UpsertAsync(record);
@@ -131,18 +162,19 @@ public sealed class GitHubAuthenticationService
         }
 
         _currentRecord = record;
-         if (record.IsExpired(RefreshSkew) && !string.IsNullOrWhiteSpace(record.RefreshTokenEncrypted))
-         {
-             try
-             {
-                 await RefreshCurrentAsync();
-                 record = _currentRecord!;
-             }
-             catch
-             {
-                 // keep the stored session visible and let the caller trigger re-auth if needed
-             }
-         }
+        if (
+            record.IsExpired(RefreshSkew)
+            && !string.IsNullOrWhiteSpace(record.RefreshTokenEncrypted)
+        )
+            try
+            {
+                await RefreshCurrentAsync();
+                record = _currentRecord!;
+            }
+            catch
+            {
+                // keep the stored session visible and let the caller trigger re-auth if needed
+            }
 
         CurrentSession = ToSession(record);
         RaiseSessionChanged();
@@ -164,9 +196,7 @@ public sealed class GitHubAuthenticationService
             }
 
             if (string.IsNullOrWhiteSpace(record.RefreshTokenEncrypted))
-            {
                 return ToSession(record);
-            }
 
             var refreshToken = _protector.Unprotect(record.RefreshTokenEncrypted);
             if (string.IsNullOrWhiteSpace(refreshToken))
@@ -209,9 +239,7 @@ public sealed class GitHubAuthenticationService
     {
         var record = await _tokenStore.GetCurrentAsync();
         if (record is null)
-        {
             return;
-        }
 
         record.RevokedAt = DateTimeOffset.UtcNow;
         record.UpdatedAt = DateTimeOffset.UtcNow;
@@ -225,18 +253,14 @@ public sealed class GitHubAuthenticationService
     {
         var record = await _tokenStore.GetCurrentAsync();
         if (record is null || record.RevokedAt is not null)
-        {
             return null;
-        }
 
         if (refreshIfNeeded && record.IsExpired(RefreshSkew))
         {
             var refreshed = await RefreshCurrentAsync();
             record = _currentRecord;
             if (refreshed is null || record is null)
-            {
                 return null;
-            }
         }
 
         var accessToken = _protector.Unprotect(record.AccessTokenEncrypted);
@@ -253,14 +277,10 @@ public sealed class GitHubAuthenticationService
     {
         var accessToken = await GetAccessTokenAsync(refreshIfNeeded);
         if (string.IsNullOrWhiteSpace(accessToken))
-        {
             return null;
-        }
 
         return await _tokenService.FetchUserProfileAsync(accessToken);
     }
-
-
 
     private async Task MarkDisconnectedAsync(GitHubAuthTokenRecord record)
     {
@@ -272,13 +292,19 @@ public sealed class GitHubAuthenticationService
         RaiseSessionChanged();
     }
 
-    private void RaiseSessionChanged() => SessionChanged?.Invoke(this, EventArgs.Empty);
+    private void RaiseSessionChanged()
+    {
+        SessionChanged?.Invoke(this, EventArgs.Empty);
+    }
 
     private static string GetLocalUserId()
-        => $"{Environment.UserName}@{Environment.MachineName}";
+    {
+        return $"{Environment.UserName}@{Environment.MachineName}";
+    }
 
     private static GitHubAuthSession ToSession(GitHubAuthTokenRecord record)
-        => new(
+    {
+        return new GitHubAuthSession(
             record.UserId,
             record.GitHubAccountId,
             record.Login ?? "github-user",
@@ -287,24 +313,25 @@ public sealed class GitHubAuthenticationService
             record.AvatarUrl,
             record.ScopeList,
             record.ExpiresAt,
-            record.RefreshTokenExpiresAt);
+            record.RefreshTokenExpiresAt
+        );
+    }
 
     private void EnsureAuthConfigured()
     {
         if (string.IsNullOrWhiteSpace(_options.ClientId))
-        {
-            throw new InvalidOperationException(Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.GitHubClientIdNotConfigured)));
-        }
+            throw new InvalidOperationException(
+                Localization.Localization.Instance.GetString(
+                    nameof(LocalizationService.GitHubClientIdNotConfigured)
+                )
+            );
     }
 
     private static bool OpenBrowser(Uri uri)
     {
         try
         {
-            Process.Start(new ProcessStartInfo(uri.ToString())
-            {
-                UseShellExecute = true
-            });
+            Process.Start(new ProcessStartInfo(uri.ToString()) { UseShellExecute = true });
             return true;
         }
         catch
@@ -314,5 +341,3 @@ public sealed class GitHubAuthenticationService
         }
     }
 }
-
-

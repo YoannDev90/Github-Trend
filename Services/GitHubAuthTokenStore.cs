@@ -15,6 +15,7 @@ public sealed class GitHubAuthTokenStore
     };
 
     private readonly string _filePath;
+
     public GitHubAuthTokenStore()
     {
         var folder = Path.Combine(
@@ -26,13 +27,11 @@ public sealed class GitHubAuthTokenStore
 
     public async Task<IReadOnlyList<GitHubAuthTokenRecord>> LoadAllAsync()
     {
-        if (!File.Exists(_filePath))
-        {
-            return Array.Empty<GitHubAuthTokenRecord>();
-        }
+        if (!File.Exists(_filePath)) return Array.Empty<GitHubAuthTokenRecord>();
 
         var json = await File.ReadAllTextAsync(_filePath);
-        return JsonSerializer.Deserialize<List<GitHubAuthTokenRecord>>(json, JsonOptions) ?? new List<GitHubAuthTokenRecord>();
+        return JsonSerializer.Deserialize<List<GitHubAuthTokenRecord>>(json, JsonOptions) ??
+               new List<GitHubAuthTokenRecord>();
     }
 
     public async Task<GitHubAuthTokenRecord?> GetCurrentAsync()
@@ -47,7 +46,8 @@ public sealed class GitHubAuthTokenStore
     public async Task UpsertAsync(GitHubAuthTokenRecord record)
     {
         var records = (await LoadAllAsync()).ToList();
-        records.RemoveAll(existing => existing.UserId == record.UserId && existing.GitHubAccountId == record.GitHubAccountId);
+        records.RemoveAll(existing =>
+            existing.UserId == record.UserId && existing.GitHubAccountId == record.GitHubAccountId);
         records.Add(record);
         await WriteAllAsync(records);
     }
@@ -56,10 +56,7 @@ public sealed class GitHubAuthTokenStore
     {
         var records = (await LoadAllAsync()).ToList();
         var target = records.FirstOrDefault(record => record.GitHubAccountId == githubAccountId);
-        if (target is null)
-        {
-            return;
-        }
+        if (target is null) return;
 
         target.RevokedAt = DateTimeOffset.UtcNow;
         target.UpdatedAt = DateTimeOffset.UtcNow;
@@ -72,6 +69,3 @@ public sealed class GitHubAuthTokenStore
         await File.WriteAllTextAsync(_filePath, json);
     }
 }
-
-
-

@@ -17,9 +17,9 @@ public sealed class GitHubTokenRefreshService
     };
 
     private readonly HttpClient _httpClient;
-    private readonly Github_Trend.GitHubAuthOptions _options;
+    private readonly GitHubAuthOptions _options;
 
-    public GitHubTokenRefreshService(Github_Trend.GitHubAuthOptions options, HttpClient? httpClient = null)
+    public GitHubTokenRefreshService(GitHubAuthOptions options, HttpClient? httpClient = null)
     {
         _options = options;
         _httpClient = httpClient ?? CreateHttpClient();
@@ -46,12 +46,11 @@ public sealed class GitHubTokenRefreshService
         using var response = await _httpClient.SendAsync(request);
         var json = await response.Content.ReadAsStringAsync();
         if (!response.IsSuccessStatusCode)
-        {
-            throw new InvalidOperationException($"GitHub token exchange failed: {(int)response.StatusCode} {response.ReasonPhrase} - {json}");
-        }
+            throw new InvalidOperationException(
+                $"GitHub token exchange failed: {(int)response.StatusCode} {response.ReasonPhrase} - {json}");
 
         var token = JsonSerializer.Deserialize<GitHubTokenResponse>(json, JsonOptions)
-            ?? throw new InvalidOperationException("GitHub token response was empty.");
+                    ?? throw new InvalidOperationException("GitHub token response was empty.");
 
         return BuildResult(token);
     }
@@ -77,12 +76,11 @@ public sealed class GitHubTokenRefreshService
         using var response = await _httpClient.SendAsync(request);
         var json = await response.Content.ReadAsStringAsync();
         if (!response.IsSuccessStatusCode)
-        {
-            throw new InvalidOperationException($"GitHub refresh failed: {(int)response.StatusCode} {response.ReasonPhrase} - {json}");
-        }
+            throw new InvalidOperationException(
+                $"GitHub refresh failed: {(int)response.StatusCode} {response.ReasonPhrase} - {json}");
 
         var token = JsonSerializer.Deserialize<GitHubTokenResponse>(json, JsonOptions)
-            ?? throw new InvalidOperationException("GitHub refresh response was empty.");
+                    ?? throw new InvalidOperationException("GitHub refresh response was empty.");
 
         return BuildResult(token);
     }
@@ -98,39 +96,39 @@ public sealed class GitHubTokenRefreshService
         using var response = await _httpClient.SendAsync(request);
         var json = await response.Content.ReadAsStringAsync();
         if (!response.IsSuccessStatusCode)
-        {
-            throw new InvalidOperationException($"GitHub user profile fetch failed: {(int)response.StatusCode} {response.ReasonPhrase} - {json}");
-        }
+            throw new InvalidOperationException(
+                $"GitHub user profile fetch failed: {(int)response.StatusCode} {response.ReasonPhrase} - {json}");
 
         return JsonSerializer.Deserialize<GitHubUserProfile>(json, JsonOptions)
-            ?? throw new InvalidOperationException("GitHub user profile response was empty.");
+               ?? throw new InvalidOperationException("GitHub user profile response was empty.");
     }
 
     private static GitHubTokenExchangeResult BuildResult(GitHubTokenResponse token)
     {
-        var accessToken = token.AccessToken ?? throw new InvalidOperationException("GitHub token response missing access_token.");
+        var accessToken = token.AccessToken ??
+                          throw new InvalidOperationException("GitHub token response missing access_token.");
         var scopeList = ParseScopes(token.Scope);
         var expiresAt = DateTimeOffset.UtcNow.AddSeconds(Math.Max(0, token.ExpiresIn ?? 0));
         DateTimeOffset? refreshExpiresAt = null;
         if (token.RefreshTokenExpiresIn is > 0)
-        {
             refreshExpiresAt = DateTimeOffset.UtcNow.AddSeconds(token.RefreshTokenExpiresIn.Value);
-        }
 
-         return new GitHubTokenExchangeResult(
-             accessToken,
-             token.RefreshToken,
-             scopeList,
-             expiresAt,
-             refreshExpiresAt);
+        return new GitHubTokenExchangeResult(
+            accessToken,
+            token.RefreshToken,
+            scopeList,
+            expiresAt,
+            refreshExpiresAt);
     }
 
     private static IReadOnlyList<string> ParseScopes(string? scope)
-        => string.IsNullOrWhiteSpace(scope)
+    {
+        return string.IsNullOrWhiteSpace(scope)
             ? Array.Empty<string>()
             : scope.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
+    }
 
     private static HttpClient CreateHttpClient()
     {
@@ -141,23 +139,18 @@ public sealed class GitHubTokenRefreshService
 
     private sealed record GitHubTokenResponse
     {
-        [JsonPropertyName("access_token")]
-        public string? AccessToken { get; init; }
+        [JsonPropertyName("access_token")] public string? AccessToken { get; init; }
 
-        [JsonPropertyName("refresh_token")]
-        public string? RefreshToken { get; init; }
+        [JsonPropertyName("refresh_token")] public string? RefreshToken { get; init; }
 
-        [JsonPropertyName("expires_in")]
-        public int? ExpiresIn { get; init; }
+        [JsonPropertyName("expires_in")] public int? ExpiresIn { get; init; }
 
         [JsonPropertyName("refresh_token_expires_in")]
         public int? RefreshTokenExpiresIn { get; init; }
 
-        [JsonPropertyName("scope")]
-        public string? Scope { get; init; }
+        [JsonPropertyName("scope")] public string? Scope { get; init; }
 
-        [JsonPropertyName("token_type")]
-        public string? TokenType { get; init; }
+        [JsonPropertyName("token_type")] public string? TokenType { get; init; }
     }
 }
 
@@ -187,4 +180,3 @@ public sealed class GitHubTokenExchangeResult
 
     public DateTimeOffset? RefreshTokenExpiresAt { get; }
 }
-

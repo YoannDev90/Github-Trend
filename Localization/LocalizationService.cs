@@ -15,24 +15,20 @@ public static class Localization
 public sealed class LocalizationService
 {
     private static readonly ILogger Logger = Log.ForContext<LocalizationService>();
-    
+
     // ResourceManager for accessing compiled .resx files
     private static readonly ResourceManager ResourceManager = new(
         "Github-Trend.Localization.Resources",
         typeof(LocalizationService).Assembly
     );
-    
 
-    private CultureInfo _currentCulture = CultureInfo.CurrentUICulture;
     private static readonly IReadOnlyList<CultureInfo> SupportedCultures = new[]
     {
         CultureInfo.GetCultureInfo("en-US"),
-        CultureInfo.GetCultureInfo("fr-FR")
+        CultureInfo.GetCultureInfo("fr-FR"),
     };
 
-
-
-    public CultureInfo CurrentCulture => _currentCulture;
+    public CultureInfo CurrentCulture { get; private set; } = CultureInfo.CurrentUICulture;
 
     public string WindowTitle => GetString(nameof(WindowTitle));
     public string GitHubAccountSectionTitle => GetString(nameof(GitHubAccountSectionTitle));
@@ -106,14 +102,21 @@ public sealed class LocalizationService
     public string ConnectGitHubToWatch => GetString(nameof(ConnectGitHubToWatch));
     public string WatchRepositorySuccess => GetString(nameof(WatchRepositorySuccess));
     public string WatchRepositoryFailure => GetString(nameof(WatchRepositoryFailure));
-    public string RepoActionBlockedByIntegration => GetString(nameof(RepoActionBlockedByIntegration));
-    public string RepoActionWatchRequiresNotificationsScope => GetString(nameof(RepoActionWatchRequiresNotificationsScope));
+    public string RepoActionBlockedByIntegration =>
+        GetString(nameof(RepoActionBlockedByIntegration));
+
+    public string RepoActionWatchRequiresNotificationsScope =>
+        GetString(nameof(RepoActionWatchRequiresNotificationsScope));
+
     public string RepoActionFailedHttp => GetString(nameof(RepoActionFailedHttp));
-    public string GitHubAuthDeviceCodePromptOpen => GetString(nameof(GitHubAuthDeviceCodePromptOpen));
-    public string GitHubAuthDeviceCodePromptManual => GetString(nameof(GitHubAuthDeviceCodePromptManual));
+    public string GitHubAuthDeviceCodePromptOpen =>
+        GetString(nameof(GitHubAuthDeviceCodePromptOpen));
+    public string GitHubAuthDeviceCodePromptManual =>
+        GetString(nameof(GitHubAuthDeviceCodePromptManual));
     public string InvalidDeviceCodeResponse => GetString(nameof(InvalidDeviceCodeResponse));
     public string MissingVerificationUrl => GetString(nameof(MissingVerificationUrl));
-    public string DeviceFlowAuthenticationFailed => GetString(nameof(DeviceFlowAuthenticationFailed));
+    public string DeviceFlowAuthenticationFailed =>
+        GetString(nameof(DeviceFlowAuthenticationFailed));
     public string GitHubClientIdNotConfigured => GetString(nameof(GitHubClientIdNotConfigured));
     public string ActionStar => GetString(nameof(ActionStar));
     public string ActionWatch => GetString(nameof(ActionWatch));
@@ -127,36 +130,43 @@ public sealed class LocalizationService
 
     public string GetString(string key, params object?[] args)
     {
-        string template = key;
-        
+        var template = key;
+
         try
         {
-            var resourceTemplate = ResourceManager.GetString(key, _currentCulture);
+            var resourceTemplate = ResourceManager.GetString(key, CurrentCulture);
             if (resourceTemplate is not null)
-            {
                 template = resourceTemplate;
-            }
             else
-            {
-                Logger.Warning("GetString({Key}) not found in resources (Culture: {Culture})", key, _currentCulture.Name);
-            }
+                Logger.Warning(
+                    "GetString({Key}) not found in resources (Culture: {Culture})",
+                    key,
+                    CurrentCulture.Name
+                );
         }
         catch (Exception ex)
         {
-            Logger.Warning(ex, "GetString({Key}) failed with culture {Culture}", key, _currentCulture.Name);
+            Logger.Warning(
+                ex,
+                "GetString({Key}) failed with culture {Culture}",
+                key,
+                CurrentCulture.Name
+            );
         }
-        
-        return args.Length == 0
-            ? template
-            : string.Format(_currentCulture, template, args);
+
+        return args.Length == 0 ? template : string.Format(CurrentCulture, template, args);
     }
 
     private void ApplyCulture(CultureInfo culture)
     {
         var targetCulture = ResolveSupportedCulture(culture ?? CultureInfo.CurrentUICulture);
-        Logger.Information("Applying culture: {TargetCulture} (resolved from {RequestedCulture})", targetCulture.Name, culture?.Name ?? "default");
-        
-        _currentCulture = targetCulture;
+        Logger.Information(
+            "Applying culture: {TargetCulture} (resolved from {RequestedCulture})",
+            targetCulture.Name,
+            culture?.Name ?? "default"
+        );
+
+        CurrentCulture = targetCulture;
         CultureInfo.CurrentCulture = targetCulture;
         CultureInfo.CurrentUICulture = targetCulture;
         CultureInfo.DefaultThreadCurrentCulture = targetCulture;
@@ -167,22 +177,33 @@ public sealed class LocalizationService
     private static CultureInfo ResolveSupportedCulture(CultureInfo culture)
     {
         Logger.Debug("Attempting to resolve supported culture for: {Culture}", culture.Name);
-        var exact = SupportedCultures.FirstOrDefault(candidate => string.Equals(candidate.Name, culture.Name, StringComparison.OrdinalIgnoreCase));
+        var exact = SupportedCultures.FirstOrDefault(candidate =>
+            string.Equals(candidate.Name, culture.Name, StringComparison.OrdinalIgnoreCase)
+        );
         if (exact is not null)
         {
             Logger.Debug("Found exact culture match: {Culture}", exact.Name);
             return exact;
         }
 
-        var byLanguage = SupportedCultures.FirstOrDefault(candidate => string.Equals(candidate.TwoLetterISOLanguageName, culture.TwoLetterISOLanguageName, StringComparison.OrdinalIgnoreCase));
+        var byLanguage = SupportedCultures.FirstOrDefault(candidate =>
+            string.Equals(
+                candidate.TwoLetterISOLanguageName,
+                culture.TwoLetterISOLanguageName,
+                StringComparison.OrdinalIgnoreCase
+            )
+        );
         if (byLanguage is not null)
         {
-            Logger.Debug("Found language match: {Culture} for language {Language}", byLanguage.Name, culture.TwoLetterISOLanguageName);
+            Logger.Debug(
+                "Found language match: {Culture} for language {Language}",
+                byLanguage.Name,
+                culture.TwoLetterISOLanguageName
+            );
             return byLanguage;
         }
+
         Logger.Warning("No supported culture found for {Culture}, using original", culture.Name);
         return byLanguage ?? culture;
     }
-
 }
-

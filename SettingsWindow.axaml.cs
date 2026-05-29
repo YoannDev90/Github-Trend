@@ -1,8 +1,8 @@
+using System;
 using Avalonia.Controls;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
-using System;
-using System.Threading.Tasks;
+using Serilog;
 
 namespace Github_Trend;
 
@@ -25,8 +25,9 @@ public partial class SettingsWindow : Window
             if (DataContext is not MainWindowViewModel viewModel)
                 return;
 
-            var allInfo = $"{viewModel.DebugInfo}\n\n=== APPLICATION LOGS ===\n\n{viewModel.AppLogs}";
-            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+            var allInfo =
+                $"{viewModel.DebugInfo}\n\n=== APPLICATION LOGS ===\n\n{viewModel.AppLogs}";
+            var clipboard = GetTopLevel(this)?.Clipboard;
             if (clipboard is not null)
             {
                 await clipboard.SetTextAsync(allInfo);
@@ -35,7 +36,7 @@ public partial class SettingsWindow : Window
         }
         catch (Exception ex)
         {
-            Serilog.Log.Error(ex, "Failed to copy logs to clipboard");
+            Log.Error(ex, "Failed to copy logs to clipboard");
         }
     }
 }

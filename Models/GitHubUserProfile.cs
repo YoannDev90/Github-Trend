@@ -21,4 +21,3 @@ public sealed class GitHubUserProfile
 
     public string DisplayName => !string.IsNullOrWhiteSpace(Name) ? Name! : Login ?? "GitHub user";
 }
-

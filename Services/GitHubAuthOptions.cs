@@ -18,18 +18,17 @@ public sealed class GitHubAuthOptions
 
     public string ApiVersion { get; init; } = Constants.GitHub.ApiVersion;
 
-    public bool PrivateRepoAccessEnabled { get; init; } = Constants.GitHubApp.PrivateRepoAccessEnabled;
+    public bool PrivateRepoAccessEnabled { get; init; } =
+        Constants.GitHubApp.PrivateRepoAccessEnabled;
 
-    public string Scope => PrivateRepoAccessEnabled
-        ? "read:user user:email repo notifications"
-        : "read:user user:email public_repo notifications";
+    public string Scope =>
+        PrivateRepoAccessEnabled
+            ? "read:user user:email repo notifications"
+            : "read:user user:email public_repo notifications";
 
     public void Validate()
     {
         if (string.IsNullOrWhiteSpace(ClientId))
-        {
             throw new InvalidOperationException("Missing GitHub App client id in Constants.cs.");
-        }
     }
 }
-

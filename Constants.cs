@@ -4,7 +4,8 @@ namespace Github_Trend;
 
 public static class Constants
 {
-    public const string GitHubColorsUrl = "https://raw.githubusercontent.com/ozh/github-colors/master/colors.json";
+    public const string GitHubColorsUrl =
+        "https://raw.githubusercontent.com/ozh/github-colors/master/colors.json";
     public const string GitHubTrendingUrl = "https://githubtrending.lessx.xyz/trending";
 
     public static class GitHub
@@ -27,12 +28,12 @@ public static class Constants
 
     public static class Trending
     {
-        public static readonly TimeSpan TrendingCacheTtl = TimeSpan.FromHours(24);
-        public static readonly TimeSpan RepositoryDetailsCacheTtl = TimeSpan.FromHours(1);
-        public static readonly TimeSpan ImageCacheTtl = TimeSpan.FromHours(1);
         public const int MaxParallelEnrichmentRequests = 3;
         public const int MaxContributorPreviewCount = 15;
         public const int AnonymousContributorPreviewCount = 5;
+        public static readonly TimeSpan TrendingCacheTtl = TimeSpan.FromHours(24);
+        public static readonly TimeSpan RepositoryDetailsCacheTtl = TimeSpan.FromHours(1);
+        public static readonly TimeSpan ImageCacheTtl = TimeSpan.FromHours(1);
     }
 
     public static class RateLimit
@@ -52,4 +53,3 @@ public static class Constants
         public const string LogFilePattern = "app-.log";
     }
 }
-

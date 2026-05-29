@@ -17,10 +17,7 @@ public sealed class GitHubTokenProtector
 
     public string Protect(string? plaintext)
     {
-        if (string.IsNullOrWhiteSpace(plaintext))
-        {
-            return string.Empty;
-        }
+        if (string.IsNullOrWhiteSpace(plaintext)) return string.Empty;
 
         var plainBytes = Encoding.UTF8.GetBytes(plaintext);
         var nonce = RandomNumberGenerator.GetBytes(12);
@@ -41,16 +38,10 @@ public sealed class GitHubTokenProtector
 
     public string? Unprotect(string? encrypted)
     {
-        if (string.IsNullOrWhiteSpace(encrypted))
-        {
-            return null;
-        }
+        if (string.IsNullOrWhiteSpace(encrypted)) return null;
 
         var payload = Convert.FromBase64String(encrypted);
-        if (payload.Length < 12 + 16)
-        {
-            return null;
-        }
+        if (payload.Length < 12 + 16) return null;
 
         var nonce = payload[..12];
         var tag = payload[12..28];
@@ -74,7 +65,6 @@ public sealed class GitHubTokenProtector
 
     private static byte[] LoadOrCreateKey()
     {
-
         var folder = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Github_Trend");
@@ -84,10 +74,7 @@ public sealed class GitHubTokenProtector
         if (File.Exists(keyPath))
         {
             var existing = Convert.FromBase64String(File.ReadAllText(keyPath));
-            if (existing.Length == 32)
-            {
-                return existing;
-            }
+            if (existing.Length == 32) return existing;
         }
 
         var key = RandomNumberGenerator.GetBytes(32);
@@ -103,9 +90,7 @@ public sealed class GitHubTokenProtector
         {
 #if NET6_0_OR_GREATER
             if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
-            {
                 File.SetUnixFileMode(keyPath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-            }
 #endif
         }
         catch
@@ -114,4 +99,3 @@ public sealed class GitHubTokenProtector
         }
     }
 }
-

@@ -11,41 +11,41 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Avalonia" Version="12.0.3" />
-        <PackageReference Include="Avalonia.Desktop" Version="12.0.3" />
-        <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.3" />
-        <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.3" />
-        <PackageReference Include="Svg.Controls.Avalonia" Version="12.0.0.11" />
+        <PackageReference Include="Avalonia" Version="12.0.3"/>
+        <PackageReference Include="Avalonia.Desktop" Version="12.0.3"/>
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.3"/>
+        <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.3"/>
+        <PackageReference Include="Svg.Controls.Avalonia" Version="12.0.0.11"/>
 
-        <PackageReference Include="Serilog" Version="4.0.1" />
-        <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
-        <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
+        <PackageReference Include="Serilog" Version="4.0.1"/>
+        <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1"/>
+        <PackageReference Include="Serilog.Sinks.File" Version="5.0.0"/>
         <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.1">
             <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
             <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
         </PackageReference>
-        <PackageReference Include="Svg.Controls.Skia.Avalonia" Version="12.0.0.11" />
+        <PackageReference Include="Svg.Controls.Skia.Avalonia" Version="12.0.0.11"/>
     </ItemGroup>
 
     <ItemGroup>
-        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+        <FrameworkReference Include="Microsoft.AspNetCore.App"/>
     </ItemGroup>
 
-     <ItemGroup>
-       <Folder Include="Screenshots\" />
-     </ItemGroup>
-     
-     <ItemGroup>
-         <AvaloniaResource Include="Assets\Icons\**" />
-         <AvaloniaResource Include="Assets\icon.ico" />
-         <Content Include="Assets\Icons\**\*.svg">
-             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-         </Content>
-     </ItemGroup>
-     
-     <!-- Compile .resx files to embedded resources -->
-     <ItemGroup>
-         <EmbeddedResource Include="Localization\Resources.resx" />
-         <EmbeddedResource Include="Localization\Resources.fr.resx" />
-     </ItemGroup>
- </Project>
+    <ItemGroup>
+        <Folder Include="Screenshots\"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <AvaloniaResource Include="Assets\Icons\**"/>
+        <AvaloniaResource Include="Assets\icon.ico"/>
+        <Content Include="Assets\Icons\**\*.svg">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+
+    <!-- Compile .resx files to embedded resources -->
+    <ItemGroup>
+        <EmbeddedResource Include="Localization\Resources.resx"/>
+        <EmbeddedResource Include="Localization\Resources.fr.resx"/>
+    </ItemGroup>
+</Project>

@@ -29,7 +29,6 @@ public static class GithubColorsService
     {
         // If not forcing, try return fresh cache first
         if (!force && File.Exists(CacheFilePath))
-        {
             try
             {
                 var lastWrite = File.GetLastWriteTimeUtc(CacheFilePath);
@@ -37,17 +36,13 @@ public static class GithubColorsService
                 {
                     var cachedJson = await File.ReadAllTextAsync(CacheFilePath);
                     var cached = DeserializeColors(cachedJson);
-                    if (cached != null)
-                    {
-                        return new GithubColorsCatalog(cached);
-                    }
+                    if (cached != null) return new GithubColorsCatalog(cached);
                 }
             }
             catch
             {
                 // ignore cache read errors and attempt network fetch
             }
-        }
 
         // Attempt network fetch and update cache. If network fails, fallback to cache if available.
         try
@@ -71,21 +66,16 @@ public static class GithubColorsService
         {
             // network failed, try to return cache (even stale) if present
             if (File.Exists(CacheFilePath))
-            {
                 try
                 {
                     var cachedJson = await File.ReadAllTextAsync(CacheFilePath);
                     var cached = DeserializeColors(cachedJson);
-                    if (cached != null)
-                    {
-                        return new GithubColorsCatalog(cached);
-                    }
+                    if (cached != null) return new GithubColorsCatalog(cached);
                 }
                 catch
                 {
                     // fall through to rethrow
                 }
-            }
 
             throw; // rethrow original network exception
         }

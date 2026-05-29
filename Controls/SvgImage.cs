@@ -6,29 +6,32 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
-using SkiaSharp;
 using Serilog;
+using SkiaSharp;
+using Svg.Skia;
 
 namespace Github_Trend.Controls;
 
 public class SvgImage : Image
 {
-    public static readonly StyledProperty<string?> SourceUriProperty =
-        AvaloniaProperty.Register<SvgImage, string?>(nameof(SourceUri));
+    public static readonly StyledProperty<string?> SourceUriProperty = AvaloniaProperty.Register<
+        SvgImage,
+        string?
+    >(nameof(SourceUri));
 
     private static readonly ConcurrentDictionary<string, byte> MissingLogged = new();
     private static readonly ConcurrentDictionary<string, byte> RenderErrorLogged = new();
     private static readonly ConcurrentDictionary<string, byte> RenderSuccessLogged = new();
 
+    static SvgImage()
+    {
+        SourceUriProperty.Changed.AddClassHandler<SvgImage>((s, e) => s.OnSourceChanged(e));
+    }
+
     public string? SourceUri
     {
         get => GetValue(SourceUriProperty);
         set => SetValue(SourceUriProperty, value);
-    }
-
-    static SvgImage()
-    {
-        SourceUriProperty.Changed.AddClassHandler<SvgImage>((s, e) => s.OnSourceChanged(e));
     }
 
     private async void OnSourceChanged(AvaloniaPropertyChangedEventArgs e)
@@ -38,7 +41,11 @@ public class SvgImage : Image
 
         try
         {
-            var bitmap = await RenderSvgToBitmapAsync(uri, (int)(Width > 0 ? Width : 18), (int)(Height > 0 ? Height : 18));
+            var bitmap = await RenderSvgToBitmapAsync(
+                uri,
+                (int)(Width > 0 ? Width : 18),
+                (int)(Height > 0 ? Height : 18)
+            );
             if (bitmap != null)
             {
                 Source = bitmap;
@@ -58,7 +65,11 @@ public class SvgImage : Image
         }
     }
 
-    private static async Task<Bitmap?> RenderSvgToBitmapAsync(string uri, int targetWidth, int targetHeight)
+    private static async Task<Bitmap?> RenderSvgToBitmapAsync(
+        string uri,
+        int targetWidth,
+        int targetHeight
+    )
     {
         return await Task.Run(() =>
         {
@@ -72,7 +83,7 @@ public class SvgImage : Image
                     return null;
                 }
 
-                var svg = new Svg.Skia.SKSvg();
+                var svg = new SKSvg();
                 var picture = svg.Load(stream);
                 if (picture == null)
                 {
@@ -96,7 +107,12 @@ public class SvgImage : Image
                 var bmpWidth = Math.Max(1, (int)Math.Round(bounds.Width * scale));
                 var bmpHeight = Math.Max(1, (int)Math.Round(bounds.Height * scale));
 
-                using var bitmap = new SKBitmap(bmpWidth, bmpHeight, SKColorType.Rgba8888, SKAlphaType.Premul);
+                using var bitmap = new SKBitmap(
+                    bmpWidth,
+                    bmpHeight,
+                    SKColorType.Rgba8888,
+                    SKAlphaType.Premul
+                );
                 using var canvas = new SKCanvas(bitmap);
                 canvas.Clear(SKColors.Transparent);
                 canvas.Scale(scale);

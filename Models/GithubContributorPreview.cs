@@ -24,4 +24,3 @@ public sealed class GithubContributorPreview
 }
 
 #pragma warning restore 300
-

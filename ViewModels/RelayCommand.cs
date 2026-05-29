@@ -6,8 +6,10 @@ namespace Github_Trend;
 // Minimal ICommand implementation for simple command bindings
 public sealed class RelayCommand : ICommand
 {
-    private readonly Action<object?> _execute;
     private readonly Func<object?, bool>? _canExecute;
+    private readonly Action<object?> _execute;
+
+    private EventHandler? _canExecuteChangedHandlers;
 
     public RelayCommand(Action<object?> execute, Func<object?, bool>? canExecute = null)
     {
@@ -15,9 +17,15 @@ public sealed class RelayCommand : ICommand
         _canExecute = canExecute;
     }
 
-    public bool CanExecute(object? parameter) => _canExecute?.Invoke(parameter) ?? true;
+    public bool CanExecute(object? parameter)
+    {
+        return _canExecute?.Invoke(parameter) ?? true;
+    }
 
-    public void Execute(object? parameter) => _execute(parameter);
+    public void Execute(object? parameter)
+    {
+        _execute(parameter);
+    }
 
     public event EventHandler? CanExecuteChanged
     {
@@ -25,12 +33,8 @@ public sealed class RelayCommand : ICommand
         remove => _canExecuteChangedHandlers -= value;
     }
 
-    private EventHandler? _canExecuteChangedHandlers;
-
     public void RaiseCanExecuteChanged()
     {
         _canExecuteChangedHandlers?.Invoke(this, EventArgs.Empty);
     }
 }
-
-

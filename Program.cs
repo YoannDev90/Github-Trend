@@ -1,12 +1,11 @@
-﻿using Avalonia;
-using System;
+﻿using System;
 using System.IO;
+using Avalonia;
 using Serilog;
 
 namespace Github_Trend;
 
-
-class Program
+internal class Program
 {
     // Initialization code. Don't use any Avalonia, third-party APIs or any
     // SynchronizationContext-reliant code before AppMain is called: things aren't initialized
@@ -32,8 +31,9 @@ class Program
     }
 
     // Avalonia configuration, don't remove; also used by visual designer.
-    public static AppBuilder BuildAvaloniaApp()
-        => AppBuilder.Configure<App>()
+    public static AppBuilder BuildAvaloniaApp() =>
+        AppBuilder
+            .Configure<App>()
             .UsePlatformDetect()
 #if DEBUG
             .WithDeveloperTools()
@@ -43,7 +43,10 @@ class Program
 
     private static void ConfigureLogging()
     {
-        var logDirectory = Path.Combine(AppContext.BaseDirectory, Constants.Logging.LogDirectoryName);
+        var logDirectory = Path.Combine(
+            AppContext.BaseDirectory,
+            Constants.Logging.LogDirectoryName
+        );
         Directory.CreateDirectory(logDirectory);
 
         Log.Logger = new LoggerConfiguration()
@@ -53,7 +56,8 @@ class Program
             .WriteTo.File(
                 Path.Combine(logDirectory, Constants.Logging.LogFilePattern),
                 rollingInterval: RollingInterval.Day,
-                retainedFileCountLimit: 7)
+                retainedFileCountLimit: 7
+            )
             .CreateLogger();
     }
 }

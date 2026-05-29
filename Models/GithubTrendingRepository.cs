@@ -10,7 +10,9 @@ namespace Github_Trend;
 
 public sealed class GithubTrendingRepository
 {
-    private static readonly IBrush DefaultLanguageBrush = new SolidColorBrush(Color.Parse("#FF3B82F6"));
+    private static readonly IBrush DefaultLanguageBrush = new SolidColorBrush(
+        Color.Parse("#FF3B82F6")
+    );
 
     [JsonConstructor]
     public GithubTrendingRepository(
@@ -29,7 +31,8 @@ public sealed class GithubTrendingRepository
         List<GithubContributorPreview>? contributors,
         int contributorsTotalCount,
         List<string>? topics,
-        string? updatedAt)
+        string? updatedAt
+    )
     {
         Builders = builders;
         Repository = repository;
@@ -67,8 +70,26 @@ public sealed class GithubTrendingRepository
         int contributorsTotalCount,
         List<string>? topics,
         string? updatedAt,
-        IBrush? languageBrush)
-        : this(builders, repository, name, description, language, stars, forks, increased, htmlUrl, bannerUrl, bannerImage, license, contributors, contributorsTotalCount, topics, updatedAt)
+        IBrush? languageBrush
+    )
+        : this(
+            builders,
+            repository,
+            name,
+            description,
+            language,
+            stars,
+            forks,
+            increased,
+            htmlUrl,
+            bannerUrl,
+            bannerImage,
+            license,
+            contributors,
+            contributorsTotalCount,
+            topics,
+            updatedAt
+        )
     {
         LanguageBrush = languageBrush ?? DefaultLanguageBrush;
     }
@@ -91,21 +112,22 @@ public sealed class GithubTrendingRepository
     public string? UpdatedAt { get; }
     public IBrush LanguageBrush { get; }
 
-    public string DisplayTitle => !string.IsNullOrWhiteSpace(Name)
-        ? Name!
-        : !string.IsNullOrWhiteSpace(Repository)
-            ? GetRepositorySlug(Repository)
-            : string.Empty;
+    public string DisplayTitle =>
+        !string.IsNullOrWhiteSpace(Name) ? Name!
+        : !string.IsNullOrWhiteSpace(Repository) ? GetRepositorySlug(Repository)
+        : string.Empty;
 
-    public string RepositoryLink => !string.IsNullOrWhiteSpace(HtmlUrl)
-        ? HtmlUrl!
-        : !string.IsNullOrWhiteSpace(Repository)
-            ? Repository!
-            : string.Empty;
+    public string RepositoryLink =>
+        !string.IsNullOrWhiteSpace(HtmlUrl) ? HtmlUrl!
+        : !string.IsNullOrWhiteSpace(Repository) ? Repository!
+        : string.Empty;
 
-    public string LicenseBadgeText => string.IsNullOrWhiteSpace(License)
-        ? Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.UnknownLicense))
-        : License!;
+    public string LicenseBadgeText =>
+        string.IsNullOrWhiteSpace(License)
+            ? Localization.Localization.Instance.GetString(
+                nameof(LocalizationService.UnknownLicense)
+            )
+            : License!;
 
     public int StarsCount => ParseCount(Stars);
 
@@ -115,21 +137,24 @@ public sealed class GithubTrendingRepository
 
     public string ForksLabel => ForksCount.ToString("N0", CultureInfo.CurrentCulture);
 
-    public string LanguageBadgeText => string.IsNullOrWhiteSpace(Language)
-        ? Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.UnknownLanguage))
-        : Language!;
+    public string LanguageBadgeText =>
+        string.IsNullOrWhiteSpace(Language)
+            ? Localization.Localization.Instance.GetString(
+                nameof(LocalizationService.UnknownLanguage)
+            )
+            : Language!;
 
     public bool HasContributors => Contributors is { Count: > 0 };
 
     public int DisplayedContributorsCount => Contributors?.Count ?? 0;
 
-    public int RemainingContributorsCount => Math.Max(0, ContributorsTotalCount - DisplayedContributorsCount);
+    public int RemainingContributorsCount =>
+        Math.Max(0, ContributorsTotalCount - DisplayedContributorsCount);
 
     public bool HasRemainingContributors => RemainingContributorsCount > 0;
 
-    public string RemainingContributorsLabel => HasRemainingContributors
-        ? $"+{RemainingContributorsCount}"
-        : string.Empty;
+    public string RemainingContributorsLabel =>
+        HasRemainingContributors ? $"+{RemainingContributorsCount}" : string.Empty;
 
     public bool HasTopics => Topics is { Count: > 0 };
 
@@ -152,8 +177,10 @@ public sealed class GithubTrendingRepository
         int? contributorsTotalCount = null,
         List<string>? topics = null,
         string? updatedAt = null,
-        IBrush? languageBrush = null)
-        => new(
+        IBrush? languageBrush = null
+    )
+    {
+        return new GithubTrendingRepository(
             builders ?? Builders,
             repository ?? Repository,
             name ?? Name,
@@ -170,7 +197,9 @@ public sealed class GithubTrendingRepository
             contributorsTotalCount ?? ContributorsTotalCount,
             topics ?? Topics,
             updatedAt ?? UpdatedAt,
-            languageBrush ?? LanguageBrush);
+            languageBrush ?? LanguageBrush
+        );
+    }
 
     private static string GetRepositorySlug(string repositoryUrl)
     {
@@ -178,64 +207,79 @@ public sealed class GithubTrendingRepository
 
         if (trimmed.Contains("://", StringComparison.OrdinalIgnoreCase))
         {
-            var parts = trimmed.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var parts = trimmed.Split(
+                '/',
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+            );
             if (parts.Length >= 2)
-            {
                 return $"{parts[^2]}/{parts[^1]}";
-            }
         }
 
         return trimmed;
     }
 
     private static int ParseCount(string? value)
-        => int.TryParse(value?.Replace(",", string.Empty), out var parsed) ? parsed : 0;
+    {
+        return int.TryParse(value?.Replace(",", string.Empty), out var parsed) ? parsed : 0;
+    }
 
     private static string FormatLastUpdatedBadge(string? updatedAt)
     {
         if (!DateTimeOffset.TryParse(updatedAt, out var updated))
-        {
-            return Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.UpdatedUnknown));
-        }
+            return Localization.Localization.Instance.GetString(
+                nameof(LocalizationService.UpdatedUnknown)
+            );
 
         var delta = DateTimeOffset.UtcNow - updated.ToUniversalTime();
         if (delta.TotalMinutes < 60)
-        {
             return delta.TotalMinutes < 1
-                ? Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.UpdatedJustNow))
-                : Github_Trend.Localization.Localization.Instance.GetString(
-                    Math.Max(1, (int)delta.TotalMinutes) == 1 ? nameof(LocalizationService.UpdatedMinutesAgoOne) : nameof(LocalizationService.UpdatedMinutesAgoMany),
-                    Math.Max(1, (int)delta.TotalMinutes));
-        }
+                ? Localization.Localization.Instance.GetString(
+                    nameof(LocalizationService.UpdatedJustNow)
+                )
+                : Localization.Localization.Instance.GetString(
+                    Math.Max(1, (int)delta.TotalMinutes) == 1
+                        ? nameof(LocalizationService.UpdatedMinutesAgoOne)
+                        : nameof(LocalizationService.UpdatedMinutesAgoMany),
+                    Math.Max(1, (int)delta.TotalMinutes)
+                );
 
         if (delta.TotalHours < 24)
-        {
             return delta.TotalHours < 2
-                ? Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.UpdatedHoursAgoOne))
-                : Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.UpdatedHoursAgoMany), Math.Max(1, (int)delta.TotalHours));
-        }
+                ? Localization.Localization.Instance.GetString(
+                    nameof(LocalizationService.UpdatedHoursAgoOne)
+                )
+                : Localization.Localization.Instance.GetString(
+                    nameof(LocalizationService.UpdatedHoursAgoMany),
+                    Math.Max(1, (int)delta.TotalHours)
+                );
 
         if (delta.TotalDays < 7)
-        {
             return delta.TotalDays < 2
-                ? Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.UpdatedYesterday))
-                : Github_Trend.Localization.Localization.Instance.GetString(
-                    Math.Max(1, (int)delta.TotalDays) == 1 ? nameof(LocalizationService.UpdatedDaysAgoOne) : nameof(LocalizationService.UpdatedDaysAgoMany),
-                    Math.Max(1, (int)delta.TotalDays));
-        }
+                ? Localization.Localization.Instance.GetString(
+                    nameof(LocalizationService.UpdatedYesterday)
+                )
+                : Localization.Localization.Instance.GetString(
+                    Math.Max(1, (int)delta.TotalDays) == 1
+                        ? nameof(LocalizationService.UpdatedDaysAgoOne)
+                        : nameof(LocalizationService.UpdatedDaysAgoMany),
+                    Math.Max(1, (int)delta.TotalDays)
+                );
 
         if (delta.TotalDays < 30)
-        {
-            return Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.UpdatedWeeksAgo), Math.Max(1, (int)Math.Round(delta.TotalDays / 7d)));
-        }
+            return Localization.Localization.Instance.GetString(
+                nameof(LocalizationService.UpdatedWeeksAgo),
+                Math.Max(1, (int)Math.Round(delta.TotalDays / 7d))
+            );
 
         if (delta.TotalDays < 365)
-        {
-            return Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.UpdatedMonthsAgo), Math.Max(1, (int)Math.Round(delta.TotalDays / 30d)));
-        }
+            return Localization.Localization.Instance.GetString(
+                nameof(LocalizationService.UpdatedMonthsAgo),
+                Math.Max(1, (int)Math.Round(delta.TotalDays / 30d))
+            );
 
-        return Github_Trend.Localization.Localization.Instance.GetString(nameof(LocalizationService.UpdatedYearsAgo), Math.Max(1, (int)Math.Round(delta.TotalDays / 365d)));
+        return Localization.Localization.Instance.GetString(
+            nameof(LocalizationService.UpdatedYearsAgo),
+            Math.Max(1, (int)Math.Round(delta.TotalDays / 365d))
+        );
     }
-
 }
-

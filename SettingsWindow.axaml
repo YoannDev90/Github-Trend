@@ -12,14 +12,14 @@
         Width="600" Height="850"
         WindowStartupLocation="CenterOwner"
         Title="Settings">
-    
+
     <ScrollViewer Margin="20">
         <StackPanel Spacing="20">
             <!-- Title -->
             <TextBlock Text="Settings"
                        Foreground="#FFC9D1D9"
                        FontSize="24"
-                       FontWeight="Bold"/>
+                       FontWeight="Bold" />
 
             <!-- App Info / Theme placeholder -->
             <Border Background="#FF161B22"
@@ -31,10 +31,10 @@
                     <TextBlock Text="Application Settings"
                                Foreground="#FFC9D1D9"
                                FontWeight="SemiBold"
-                               FontSize="16"/>
+                               FontSize="16" />
                     <TextBlock Text="Version 1.0.0"
                                Foreground="#FF8B949E"
-                               FontSize="12"/>
+                               FontSize="12" />
                     <!-- Additional settings could go here -->
                 </StackPanel>
             </Border>
@@ -46,19 +46,20 @@
                     CornerRadius="14"
                     Padding="16">
                 <StackPanel Spacing="16">
-                    <TextBlock Text="{Binding Source={x:Static loc:Localization.Instance}, Path=GitHubAccountSectionTitle}"
-                               Foreground="#FFC9D1D9"
-                               FontWeight="SemiBold"
-                               FontSize="16"/>
+                    <TextBlock
+                        Text="{Binding Source={x:Static loc:Localization.Instance}, Path=GitHubAccountSectionTitle}"
+                        Foreground="#FFC9D1D9"
+                        FontWeight="SemiBold"
+                        FontSize="16" />
 
                     <TextBlock Text="{Binding GitHubAuthStatus}"
                                Foreground="#FFC9D1D9"
-                               TextWrapping="Wrap"/>
+                               TextWrapping="Wrap" />
 
                     <TextBlock Text="{Binding GitHubAccountSummary}"
                                Foreground="#FF8B949E"
                                FontSize="11"
-                               TextWrapping="Wrap"/>
+                               TextWrapping="Wrap" />
 
                     <Border Background="#FF0D1117"
                             BorderBrush="#FF30363D"
@@ -71,7 +72,7 @@
                                        Foreground="#FF2EA043"
                                        FontWeight="Bold"
                                        FontSize="18"
-                                       TextWrapping="Wrap"/>
+                                       TextWrapping="Wrap" />
                             <Button Command="{Binding CopyGitHubCodeCommand}"
                                     Padding="10,6"
                                     Background="#FF21262D"
@@ -80,8 +81,11 @@
                                     BorderThickness="1"
                                     CornerRadius="8">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/save.svg" Width="16" Height="16"/>
-                                    <TextBlock Text="{Binding Source={x:Static loc:Localization.Instance}, Path=CopyCodeButtonText}" VerticalAlignment="Center"/>
+                                    <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/save.svg"
+                                                       Width="16" Height="16" />
+                                    <TextBlock
+                                        Text="{Binding Source={x:Static loc:Localization.Instance}, Path=CopyCodeButtonText}"
+                                        VerticalAlignment="Center" />
                                 </StackPanel>
                             </Button>
                         </StackPanel>
@@ -96,8 +100,11 @@
                                 BorderThickness="1"
                                 CornerRadius="8">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/github.svg" Width="16" Height="16"/>
-                                <TextBlock Text="{Binding Source={x:Static loc:Localization.Instance}, Path=GitHubSignInButtonText}" VerticalAlignment="Center"/>
+                                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/github.svg" Width="16"
+                                                   Height="16" />
+                                <TextBlock
+                                    Text="{Binding Source={x:Static loc:Localization.Instance}, Path=GitHubSignInButtonText}"
+                                    VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
 
@@ -109,7 +116,8 @@
                                 BorderThickness="1"
                                 CornerRadius="8"
                                 IsVisible="{Binding IsGitHubConnected}">
-                            <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/refresh.svg" Width="16" Height="16"/>
+                            <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/refresh.svg" Width="16"
+                                               Height="16" />
                         </Button>
 
                         <Button Command="{Binding GitHubSignOutCommand}"
@@ -120,7 +128,8 @@
                                 BorderThickness="1"
                                 CornerRadius="8"
                                 IsVisible="{Binding IsGitHubConnected}">
-                            <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/delete.svg" Width="16" Height="16"/>
+                            <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/delete.svg" Width="16"
+                                               Height="16" />
                         </Button>
                     </StackPanel>
                 </StackPanel>
@@ -136,8 +145,8 @@
                     <TextBlock Text="Debug Information"
                                Foreground="#FFC9D1D9"
                                FontWeight="SemiBold"
-                               FontSize="16"/>
-                    
+                               FontSize="16" />
+
                     <Border Background="#FF0D1117"
                             BorderBrush="#FF30363D"
                             BorderThickness="1"
@@ -147,15 +156,15 @@
                                    Foreground="#FF8B949E"
                                    FontSize="10"
                                    FontFamily="Courier New"
-                                   TextWrapping="Wrap"/>
+                                   TextWrapping="Wrap" />
                     </Border>
-                    
+
                     <TextBlock Text="Application Logs"
                                Foreground="#FFC9D1D9"
                                FontWeight="SemiBold"
                                FontSize="14"
-                               Margin="0,12,0,0"/>
-                    
+                               Margin="0,12,0,0" />
+
                     <Border Background="#FF0D1117"
                             BorderBrush="#FF30363D"
                             BorderThickness="1"
@@ -167,10 +176,10 @@
                                        Foreground="#FF8B949E"
                                        FontSize="10"
                                        FontFamily="Courier New"
-                                       TextWrapping="Wrap"/>
+                                       TextWrapping="Wrap" />
                         </ScrollViewer>
                     </Border>
-                    
+
                     <Button Click="OnCopyLogsClick"
                             HorizontalAlignment="Left"
                             Padding="16,10"
@@ -180,8 +189,9 @@
                             BorderThickness="1"
                             CornerRadius="8">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/save.svg" Width="16" Height="16"/>
-                            <TextBlock Text="Copy Debug Info &amp; Logs" VerticalAlignment="Center"/>
+                            <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/save.svg" Width="16"
+                                               Height="16" />
+                            <TextBlock Text="Copy Debug Info &amp; Logs" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
                 </StackPanel>
@@ -196,7 +206,7 @@
                     BorderBrush="#FF30363D"
                     BorderThickness="1"
                     CornerRadius="8"
-                    Click="OnCloseClick"/>
+                    Click="OnCloseClick" />
         </StackPanel>
     </ScrollViewer>
 </Window>

@@ -18,4 +18,3 @@ public sealed record GitHubAuthSession(
 
     public string Summary => $"{DisplayName} (@{Login})";
 }
-
