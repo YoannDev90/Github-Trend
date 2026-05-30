@@ -1,0 +1,88 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+     
+    <Color x:Key="BackgroundPrimaryColor">#FF0D1117</Color>
+    <Color x:Key="BackgroundSecondaryColor">#FF161B22</Color>
+    <Color x:Key="BackgroundTertiaryColor">#FF21262D</Color>
+    <Color x:Key="BackgroundElevatedColor">#FF111827</Color>
+    
+    <SolidColorBrush x:Key="BackgroundPrimaryBrush" Color="{StaticResource BackgroundPrimaryColor}" />
+    <SolidColorBrush x:Key="BackgroundSecondaryBrush" Color="{StaticResource BackgroundSecondaryColor}" />
+    <SolidColorBrush x:Key="BackgroundTertiaryBrush" Color="{StaticResource BackgroundTertiaryColor}" />
+    <SolidColorBrush x:Key="BackgroundElevatedBrush" Color="{StaticResource BackgroundElevatedColor}" />
+
+    <Color x:Key="BorderPrimaryColor">#FF30363D</Color>
+    <Color x:Key="BorderSecondaryColor">#FF334155</Color>
+    <Color x:Key="BorderHoverColor">#FF8B949E</Color>
+    
+    <SolidColorBrush x:Key="BorderPrimaryBrush" Color="{StaticResource BorderPrimaryColor}" />
+    <SolidColorBrush x:Key="BorderSecondaryBrush" Color="{StaticResource BorderSecondaryColor}" />
+    <SolidColorBrush x:Key="BorderHoverBrush" Color="{StaticResource BorderHoverColor}" />
+    
+    <Color x:Key="TextPrimaryColor">#FFC9D1D9</Color>
+    <Color x:Key="TextSecondaryColor">#FF8B949E</Color>
+    <Color x:Key="TextTertiaryColor">#FFE5E7EB</Color>
+    <Color x:Key="TextOnAccentColor">#FFFFFFFF</Color>
+    
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimaryColor}" />
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondaryColor}" />
+    <SolidColorBrush x:Key="TextTertiaryBrush" Color="{StaticResource TextTertiaryColor}" />
+    <SolidColorBrush x:Key="TextOnAccentBrush" Color="{StaticResource TextOnAccentColor}" />
+    
+    <Color x:Key="AccentPrimaryColor">#FF238636</Color>
+    <Color x:Key="AccentSecondaryColor">#FF2EA043</Color>
+    <Color x:Key="AccentHoverColor">#FF2EA043</Color>
+    
+    <SolidColorBrush x:Key="AccentPrimaryBrush" Color="{StaticResource AccentPrimaryColor}" />
+    <SolidColorBrush x:Key="AccentSecondaryBrush" Color="{StaticResource AccentSecondaryColor}" />
+    <SolidColorBrush x:Key="AccentHoverBrush" Color="{StaticResource AccentHoverColor}" />
+    
+    <Color x:Key="ErrorColor">#FFF85149</Color>
+    <Color x:Key="WarningColor">#FFD29922</Color>
+    <Color x:Key="SuccessColor">#FF238636</Color>
+    <Color x:Key="InfoColor">#FF2F81F7</Color>
+    
+    <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource ErrorColor}" />
+    <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}" />
+    <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}" />
+    <SolidColorBrush x:Key="InfoBrush" Color="{StaticResource InfoColor}" />
+    
+    <Color x:Key="HoverBackgroundColor">#FF30363D</Color>
+    <Color x:Key="PressedBackgroundColor">#FF161B22</Color>
+    <Color x:Key="SelectedBackgroundColor">#FF238636</Color>
+    
+    <SolidColorBrush x:Key="HoverBackgroundBrush" Color="{StaticResource HoverBackgroundColor}" />
+    <SolidColorBrush x:Key="PressedBackgroundBrush" Color="{StaticResource PressedBackgroundColor}" />
+    <SolidColorBrush x:Key="SelectedBackgroundBrush" Color="{StaticResource SelectedBackgroundColor}" />
+    
+    <x:Double x:Key="CornerRadiusSmall">8</x:Double>
+    <x:Double x:Key="CornerRadiusMedium">12</x:Double>
+    <x:Double x:Key="CornerRadiusLarge">14</x:Double>
+    <x:Double x:Key="CornerRadiusXLarge">18</x:Double>
+    <x:Double x:Key="CornerRadiusPill">999</x:Double>
+    
+    <CornerRadius x:Key="CornerSmall">8</CornerRadius>
+    <CornerRadius x:Key="CornerMedium">12</CornerRadius>
+    <CornerRadius x:Key="CornerLarge">14</CornerRadius>
+    <CornerRadius x:Key="CornerXLarge">18</CornerRadius>
+    <CornerRadius x:Key="CornerPill">999</CornerRadius>
+    
+    <x:Double x:Key="SpacingXSmall">4</x:Double>
+    <x:Double x:Key="SpacingSmall">8</x:Double>
+    <x:Double x:Key="SpacingMedium">12</x:Double>
+    <x:Double x:Key="SpacingLarge">16</x:Double>
+    <x:Double x:Key="SpacingXLarge">20</x:Double>
+    <x:Double x:Key="SpacingXxLarge">24</x:Double>
+    
+    <Thickness x:Key="PaddingSmall">8</Thickness>
+    <Thickness x:Key="PaddingMedium">12</Thickness>
+    <Thickness x:Key="PaddingLarge">14</Thickness>
+    <Thickness x:Key="PaddingXLarge">22</Thickness>
+    
+    <x:Double x:Key="FontSizeXSmall">11</x:Double>
+    <x:Double x:Key="FontSizeSmall">12</x:Double>
+    <x:Double x:Key="FontSizeMedium">14</x:Double>
+    <x:Double x:Key="FontSizeLarge">18</x:Double>
+    <x:Double x:Key="FontSizeXLarge">28</x:Double>
+    
+</ResourceDictionary>

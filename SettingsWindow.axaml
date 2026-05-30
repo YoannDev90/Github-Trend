@@ -8,7 +8,7 @@
         mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="800"
         x:Class="Github_Trend.SettingsWindow"
         x:DataType="vm:MainWindowViewModel"
-        Background="#FF0D1117"
+        Background="{DynamicResource BackgroundPrimaryBrush}"
         Width="600" Height="850"
         WindowStartupLocation="CenterOwner"
         Title="Settings">
@@ -17,68 +17,68 @@
         <StackPanel Spacing="20">
             <!-- Title -->
             <TextBlock Text="Settings"
-                       Foreground="#FFC9D1D9"
+                       Foreground="{DynamicResource TextPrimaryBrush}"
                        FontSize="24"
                        FontWeight="Bold" />
 
             <!-- App Info -->
-            <Border Background="#FF161B22"
-                    BorderBrush="#FF30363D"
+            <Border Background="{DynamicResource BackgroundSecondaryBrush}"
+                    BorderBrush="{DynamicResource BorderPrimaryBrush}"
                     BorderThickness="1"
-                    CornerRadius="14"
+                    CornerRadius="{DynamicResource CornerLarge}"
                     Padding="16">
                 <StackPanel Spacing="12">
                     <TextBlock Text="Application Settings"
-                               Foreground="#FFC9D1D9"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
                                FontWeight="SemiBold"
                                FontSize="16" />
                     <TextBlock Text="Version 1.0.0"
-                               Foreground="#FF8B949E"
-                               FontSize="12" />
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               FontSize="{DynamicResource FontSizeSmall}" />
                 </StackPanel>
             </Border>
 
             <!-- GitHub Account Settings -->
-            <Border Background="#FF161B22"
-                    BorderBrush="#FF30363D"
+            <Border Background="{DynamicResource BackgroundSecondaryBrush}"
+                    BorderBrush="{DynamicResource BorderPrimaryBrush}"
                     BorderThickness="1"
-                    CornerRadius="14"
+                    CornerRadius="{DynamicResource CornerLarge}"
                     Padding="16">
                 <StackPanel Spacing="16">
                     <TextBlock
                         Text="{Binding Source={x:Static loc:Localization.Instance}, Path=GitHubAccountSectionTitle}"
-                        Foreground="#FFC9D1D9"
+                        Foreground="{DynamicResource TextPrimaryBrush}"
                         FontWeight="SemiBold"
                         FontSize="16" />
 
                     <TextBlock Text="{Binding Auth.AuthStatus}"
-                               Foreground="#FFC9D1D9"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
                                TextWrapping="Wrap" />
 
                     <TextBlock Text="{Binding Auth.AccountSummary}"
-                               Foreground="#FF8B949E"
-                               FontSize="11"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               FontSize="{DynamicResource FontSizeXSmall}"
                                TextWrapping="Wrap" />
 
-                    <Border Background="#FF0D1117"
-                            BorderBrush="#FF30363D"
+                    <Border Background="{DynamicResource BackgroundPrimaryBrush}"
+                            BorderBrush="{DynamicResource BorderPrimaryBrush}"
                             BorderThickness="1"
                             CornerRadius="10"
                             Padding="10"
                             IsVisible="{Binding Auth.HasDeviceCode}">
                         <StackPanel Spacing="8">
                             <TextBlock Text="{Binding Auth.DeviceCode}"
-                                       Foreground="#FF2EA043"
+                                       Foreground="{DynamicResource AccentSecondaryBrush}"
                                        FontWeight="Bold"
-                                       FontSize="18"
+                                       FontSize="{DynamicResource FontSizeLarge}"
                                        TextWrapping="Wrap" />
                             <Button Command="{Binding Auth.CopyDeviceCodeCommand}"
                                     Padding="10,6"
-                                    Background="#FF21262D"
-                                    Foreground="#FFC9D1D9"
-                                    BorderBrush="#FF30363D"
+                                    Background="{DynamicResource BackgroundTertiaryBrush}"
+                                    Foreground="{DynamicResource TextPrimaryBrush}"
+                                    BorderBrush="{DynamicResource BorderPrimaryBrush}"
                                     BorderThickness="1"
-                                    CornerRadius="8">
+                                    CornerRadius="{DynamicResource CornerSmall}">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/save.svg"
                                                        Width="16" Height="16" />
@@ -93,11 +93,11 @@
                     <StackPanel Orientation="Horizontal" Spacing="12">
                         <Button Command="{Binding Auth.SignInCommand}"
                                 Padding="12,8"
-                                Background="#FF238636"
-                                Foreground="White"
-                                BorderBrush="#FF2EA043"
+                                Background="{DynamicResource AccentPrimaryBrush}"
+                                Foreground="{DynamicResource TextOnAccentBrush}"
+                                BorderBrush="{DynamicResource AccentSecondaryBrush}"
                                 BorderThickness="1"
-                                CornerRadius="8">
+                                CornerRadius="{DynamicResource CornerSmall}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/github.svg" Width="16"
                                                    Height="16" />
@@ -109,11 +109,11 @@
 
                         <Button Command="{Binding Auth.RefreshSessionCommand}"
                                 Padding="12,8"
-                                Background="#FF21262D"
-                                Foreground="#FFC9D1D9"
-                                BorderBrush="#FF30363D"
+                                Background="{DynamicResource BackgroundTertiaryBrush}"
+                                Foreground="{DynamicResource TextPrimaryBrush}"
+                                BorderBrush="{DynamicResource BorderPrimaryBrush}"
                                 BorderThickness="1"
-                                CornerRadius="8"
+                                CornerRadius="{DynamicResource CornerSmall}"
                                 IsVisible="{Binding Auth.IsConnected}">
                             <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/refresh.svg" Width="16"
                                                Height="16" />
@@ -121,11 +121,11 @@
 
                         <Button Command="{Binding Auth.SignOutCommand}"
                                 Padding="12,8"
-                                Background="#FF21262D"
-                                Foreground="#FFF85149"
-                                BorderBrush="#FF8B949E"
+                                Background="{DynamicResource BackgroundTertiaryBrush}"
+                                Foreground="{DynamicResource ErrorBrush}"
+                                BorderBrush="{DynamicResource BorderHoverBrush}"
                                 BorderThickness="1"
-                                CornerRadius="8"
+                                CornerRadius="{DynamicResource CornerSmall}"
                                 IsVisible="{Binding Auth.IsConnected}">
                             <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/delete.svg" Width="16"
                                                Height="16" />
@@ -135,44 +135,44 @@
             </Border>
 
             <!-- Debug Information & Logs Section -->
-            <Border Background="#FF161B22"
-                    BorderBrush="#FF30363D"
+            <Border Background="{DynamicResource BackgroundSecondaryBrush}"
+                    BorderBrush="{DynamicResource BorderPrimaryBrush}"
                     BorderThickness="1"
-                    CornerRadius="14"
+                    CornerRadius="{DynamicResource CornerLarge}"
                     Padding="16">
                 <StackPanel Spacing="12">
                     <TextBlock Text="Debug Information"
-                               Foreground="#FFC9D1D9"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
                                FontWeight="SemiBold"
                                FontSize="16" />
 
-                    <Border Background="#FF0D1117"
-                            BorderBrush="#FF30363D"
+                    <Border Background="{DynamicResource BackgroundPrimaryBrush}"
+                            BorderBrush="{DynamicResource BorderPrimaryBrush}"
                             BorderThickness="1"
                             CornerRadius="10"
                             Padding="12">
                         <TextBlock Text="{Binding Debug.DebugInfo}"
-                                   Foreground="#FF8B949E"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
                                    FontSize="10"
                                    FontFamily="Courier New"
                                    TextWrapping="Wrap" />
                     </Border>
 
                     <TextBlock Text="Application Logs"
-                               Foreground="#FFC9D1D9"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
                                FontWeight="SemiBold"
                                FontSize="14"
                                Margin="0,12,0,0" />
 
-                    <Border Background="#FF0D1117"
-                            BorderBrush="#FF30363D"
+                    <Border Background="{DynamicResource BackgroundPrimaryBrush}"
+                            BorderBrush="{DynamicResource BorderPrimaryBrush}"
                             BorderThickness="1"
                             CornerRadius="10"
                             Padding="12"
                             Height="200">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <TextBlock Text="{Binding Debug.AppLogs}"
-                                       Foreground="#FF8B949E"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
                                        FontSize="10"
                                        FontFamily="Courier New"
                                        TextWrapping="Wrap" />
@@ -182,11 +182,11 @@
                     <Button Command="{Binding Debug.CopyLogsCommand}"
                             HorizontalAlignment="Left"
                             Padding="16,10"
-                            Background="#FF21262D"
-                            Foreground="#FFC9D1D9"
-                            BorderBrush="#FF30363D"
+                            Background="{DynamicResource BackgroundTertiaryBrush}"
+                            Foreground="{DynamicResource TextPrimaryBrush}"
+                            BorderBrush="{DynamicResource BorderPrimaryBrush}"
                             BorderThickness="1"
-                            CornerRadius="8">
+                            CornerRadius="{DynamicResource CornerSmall}">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/save.svg" Width="16"
                                                Height="16" />
@@ -200,11 +200,11 @@
             <Button Content="Close"
                     HorizontalAlignment="Right"
                     Padding="20,10"
-                    Background="#FF21262D"
-                    Foreground="#FFC9D1D9"
-                    BorderBrush="#FF30363D"
+                    Background="{DynamicResource BackgroundTertiaryBrush}"
+                    Foreground="{DynamicResource TextPrimaryBrush}"
+                    BorderBrush="{DynamicResource BorderPrimaryBrush}"
                     BorderThickness="1"
-                    CornerRadius="8"
+                    CornerRadius="{DynamicResource CornerSmall}"
                     Click="OnCloseClick" />
         </StackPanel>
     </ScrollViewer>

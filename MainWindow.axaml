@@ -9,7 +9,7 @@
         mc:Ignorable="d"
         x:DataType="vm:MainWindowViewModel"
         x:Class="Github_Trend.MainWindow"
-        Background="#FF0D1117"
+        Background="{DynamicResource BackgroundPrimaryBrush}"
         UseLayoutRounding="True"
         WindowState="Maximized"
         Icon="avares://Github-Trend/Assets/icon.ico"
@@ -19,22 +19,22 @@
             <Setter Property="ClipToBounds" Value="True" />
         </Style>
         <Style Selector="Button.repo-action-button">
-            <Setter Property="Background" Value="#FF21262D" />
-            <Setter Property="BorderBrush" Value="#FF30363D" />
-            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Background" Value="{DynamicResource BackgroundTertiaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderPrimaryBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="10" />
             <Setter Property="Height" Value="44" />
             <Setter Property="Padding" Value="12,8" />
         </Style>
         <Style Selector="Button.repo-action-button:pointerover">
-            <Setter Property="Background" Value="#FF30363D" />
-            <Setter Property="BorderBrush" Value="#FF8B949E" />
+            <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderHoverBrush}" />
         </Style>
     </Window.Styles>
     <Grid ColumnDefinitions="360,*">
-        <Border Background="#FF161B22"
-                BorderBrush="#FF30363D"
+        <Border Background="{DynamicResource BackgroundSecondaryBrush}"
+                BorderBrush="{DynamicResource BorderPrimaryBrush}"
                 BorderThickness="0,0,1,0">
             <ScrollViewer VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled"
@@ -42,25 +42,25 @@
                 <StackPanel Margin="16" Spacing="14">
 
                     <!-- Settings Button & Profile Header -->
-                    <Border Background="#FF0D1117"
-                            BorderBrush="#FF30363D"
+                    <Border Background="{DynamicResource BackgroundPrimaryBrush}"
+                            BorderBrush="{DynamicResource BorderPrimaryBrush}"
                             BorderThickness="1"
-                            CornerRadius="14"
-                            Padding="14">
+                            CornerRadius="{DynamicResource CornerLarge}"
+                            Padding="{DynamicResource PaddingLarge}">
                         <Grid ColumnDefinitions="*,Auto,Auto">
                             <TextBlock Text="GitHub Trend"
-                                       Foreground="#FFC9D1D9"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
                                        FontWeight="Bold"
-                                       FontSize="18"
+                                       FontSize="{DynamicResource FontSizeLarge}"
                                        VerticalAlignment="Center" />
                             <Button Grid.Column="1"
                                     Command="{Binding Auth.SignInCommand}"
                                     Padding="8"
-                                    Background="#FF238636"
-                                    Foreground="White"
-                                    BorderBrush="#FF2EA043"
+                                    Background="{DynamicResource AccentPrimaryBrush}"
+                                    Foreground="{DynamicResource TextOnAccentBrush}"
+                                    BorderBrush="{DynamicResource AccentSecondaryBrush}"
                                     BorderThickness="1"
-                                    CornerRadius="8">
+                                    CornerRadius="{DynamicResource CornerSmall}">
                                 <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/github.svg"
                                                    Width="18"
                                                    Height="18" />
@@ -69,11 +69,11 @@
                                     Click="OnSettingsButtonClick"
                                     Margin="8,0,0,0"
                                     Padding="8"
-                                    Background="#FF21262D"
-                                    Foreground="#FFC9D1D9"
-                                    BorderBrush="#FF30363D"
+                                    Background="{DynamicResource BackgroundTertiaryBrush}"
+                                    Foreground="{DynamicResource TextPrimaryBrush}"
+                                    BorderBrush="{DynamicResource BorderPrimaryBrush}"
                                     BorderThickness="1"
-                                    CornerRadius="8">
+                                    CornerRadius="{DynamicResource CornerSmall}">
                                 <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/settings.svg"
                                                    Width="18"
                                                    Height="18" />
@@ -81,47 +81,47 @@
                         </Grid>
                     </Border>
 
-                    <Border Background="#FF0D1117"
-                            BorderBrush="#FF30363D"
+                    <Border Background="{DynamicResource BackgroundPrimaryBrush}"
+                            BorderBrush="{DynamicResource BorderPrimaryBrush}"
                             BorderThickness="1"
-                            CornerRadius="14"
-                            Padding="14">
+                            CornerRadius="{DynamicResource CornerLarge}"
+                            Padding="{DynamicResource PaddingLarge}">
                         <StackPanel Spacing="10">
                             <TextBlock Text="{Binding Source={x:Static loc:Localization.Instance}, Path=SearchTitle}"
-                                       Foreground="#FFC9D1D9"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
                                        FontWeight="SemiBold" />
                             <TextBox Text="{Binding Filter.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                     Background="#FF0D1117"
-                                     Foreground="#FFC9D1D9"
-                                     BorderBrush="#FF30363D"
-                                     CaretBrush="#FF2EA043"
-                                     CornerRadius="8" />
+                                     Background="{DynamicResource BackgroundPrimaryBrush}"
+                                     Foreground="{DynamicResource TextPrimaryBrush}"
+                                     BorderBrush="{DynamicResource BorderPrimaryBrush}"
+                                     CaretBrush="{DynamicResource AccentSecondaryBrush}"
+                                     CornerRadius="{DynamicResource CornerSmall}" />
                         </StackPanel>
                     </Border>
 
-                    <Border Background="#FF0D1117"
-                            BorderBrush="#FF30363D"
+                    <Border Background="{DynamicResource BackgroundPrimaryBrush}"
+                            BorderBrush="{DynamicResource BorderPrimaryBrush}"
                             BorderThickness="1"
-                            CornerRadius="14"
-                            Padding="14">
+                            CornerRadius="{DynamicResource CornerLarge}"
+                            Padding="{DynamicResource PaddingLarge}">
                         <StackPanel Spacing="12">
                             <Grid ColumnDefinitions="*,Auto">
                                 <StackPanel Grid.Row="0" Spacing="2">
                                     <TextBlock
                                         Text="{Binding Source={x:Static loc:Localization.Instance}, Path=TrendingPeriodTitle}"
-                                        Foreground="#FFC9D1D9"
+                                        Foreground="{DynamicResource TextPrimaryBrush}"
                                         FontWeight="SemiBold" />
                                     <TextBlock
                                         Text="{Binding Source={x:Static loc:Localization.Instance}, Path=TrendingPeriodSubtitle}"
-                                        Foreground="#FF8B949E"
-                                        FontSize="11" />
+                                        Foreground="{DynamicResource TextSecondaryBrush}"
+                                        FontSize="{DynamicResource FontSizeXSmall}" />
                                 </StackPanel>
                             </Grid>
 
-                            <Border Background="#FF0D1117"
-                                    BorderBrush="#FF30363D"
+                            <Border Background="{DynamicResource BackgroundPrimaryBrush}"
+                                    BorderBrush="{DynamicResource BorderPrimaryBrush}"
                                     BorderThickness="1"
-                                    CornerRadius="12"
+                                    CornerRadius="{DynamicResource CornerMedium}"
                                     Padding="8">
                                 <Grid ColumnDefinitions="*,*"
                                       RowDefinitions="Auto,Auto"
@@ -180,19 +180,19 @@
                                             Classes.selected="{Binding IsAllSelected}" />
                                     <Grid.Styles>
                                         <Style Selector="Button.time-range-pill">
-                                            <Setter Property="Background" Value="#FF21262D" />
-                                            <Setter Property="BorderBrush" Value="#FF30363D" />
-                                            <Setter Property="Foreground" Value="#FFC9D1D9" />
+                                            <Setter Property="Background" Value="{DynamicResource BackgroundTertiaryBrush}" />
+                                            <Setter Property="BorderBrush" Value="{DynamicResource BorderPrimaryBrush}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
                                         </Style>
                                         <Style Selector="Button.time-range-pill.selected">
-                                            <Setter Property="Background" Value="#FF238636" />
-                                            <Setter Property="BorderBrush" Value="#FF2EA043" />
-                                            <Setter Property="Foreground" Value="White" />
+                                            <Setter Property="Background" Value="{DynamicResource AccentPrimaryBrush}" />
+                                            <Setter Property="BorderBrush" Value="{DynamicResource AccentSecondaryBrush}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}" />
                                         </Style>
                                         <Style Selector="Button.time-range-pill:pointerover">
-                                            <Setter Property="Background" Value="#FF30363D" />
-                                            <Setter Property="BorderBrush" Value="#FF8B949E" />
-                                            <Setter Property="Foreground" Value="#FFC9D1D9" />
+                                            <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}" />
+                                            <Setter Property="BorderBrush" Value="{DynamicResource BorderHoverBrush}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
                                         </Style>
                                     </Grid.Styles>
                                 </Grid>
@@ -200,24 +200,24 @@
                         </StackPanel>
                     </Border>
 
-                    <Border Background="#FF0D1117"
-                            BorderBrush="#FF30363D"
+                    <Border Background="{DynamicResource BackgroundPrimaryBrush}"
+                            BorderBrush="{DynamicResource BorderPrimaryBrush}"
                             BorderThickness="1"
-                            CornerRadius="14"
-                            Padding="14">
+                            CornerRadius="{DynamicResource CornerLarge}"
+                            Padding="{DynamicResource PaddingLarge}">
                         <StackPanel Spacing="10">
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock
                                     Text="{Binding Source={x:Static loc:Localization.Instance}, Path=SelectedLanguagesTitle}"
-                                    Foreground="#FFC9D1D9"
+                                    Foreground="{DynamicResource TextPrimaryBrush}"
                                     FontWeight="SemiBold"
                                     VerticalAlignment="Center" />
                                 <Border Grid.Column="1"
-                                        Background="#FF238636"
-                                        CornerRadius="999"
+                                        Background="{DynamicResource AccentPrimaryBrush}"
+                                        CornerRadius="{DynamicResource CornerPill}"
                                         Padding="10,4">
                                     <TextBlock Text="{Binding Filter.SelectedCount}"
-                                               Foreground="White"
+                                               Foreground="{DynamicResource TextOnAccentBrush}"
                                                FontWeight="SemiBold" />
                                 </Border>
                             </Grid>
@@ -232,11 +232,11 @@
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:LanguageOptionViewModel">
                                         <Border Background="{Binding AccentBrush}"
-                                                CornerRadius="999"
+                                                CornerRadius="{DynamicResource CornerPill}"
                                                 Padding="10,6"
                                                 Margin="0,0,6,6">
                                             <TextBlock Text="{Binding Language}"
-                                                       Foreground="White"
+                                                       Foreground="{DynamicResource TextOnAccentBrush}"
                                                        FontWeight="SemiBold" />
                                         </Border>
                                     </DataTemplate>
@@ -246,43 +246,43 @@
                         </StackPanel>
                     </Border>
 
-                    <Border Background="#FF0D1117"
-                            BorderBrush="#FF30363D"
+                    <Border Background="{DynamicResource BackgroundPrimaryBrush}"
+                            BorderBrush="{DynamicResource BorderPrimaryBrush}"
                             BorderThickness="1"
-                            CornerRadius="14"
-                            Padding="14">
+                            CornerRadius="{DynamicResource CornerLarge}"
+                            Padding="{DynamicResource PaddingLarge}">
                         <StackPanel Spacing="10">
                             <Grid ColumnDefinitions="*,Auto,Auto">
                                 <TextBlock
                                     Text="{Binding Source={x:Static loc:Localization.Instance}, Path=SuggestionsTitle}"
-                                    Foreground="#FFC9D1D9"
+                                    Foreground="{DynamicResource TextPrimaryBrush}"
                                     FontWeight="SemiBold"
                                     VerticalAlignment="Center" />
                                 <Border Grid.Column="1"
-                                        Background="#FF21262D"
-                                        CornerRadius="999"
+                                        Background="{DynamicResource BackgroundTertiaryBrush}"
+                                        CornerRadius="{DynamicResource CornerPill}"
                                         Padding="10,4">
                                     <TextBlock Text="{Binding Filter.VisibleCount}"
-                                               Foreground="White"
+                                               Foreground="{DynamicResource TextOnAccentBrush}"
                                                FontWeight="SemiBold" />
                                 </Border>
                                 <Button Grid.Column="2"
                                         Command="{Binding RefreshCommand}"
                                         Margin="8,0,0,0"
                                         Padding="8,4"
-                                        Background="#FF21262D"
-                                        Foreground="#FFC9D1D9"
-                                        BorderBrush="#FF30363D"
+                                        Background="{DynamicResource BackgroundTertiaryBrush}"
+                                        Foreground="{DynamicResource TextPrimaryBrush}"
+                                        BorderBrush="{DynamicResource BorderPrimaryBrush}"
                                         BorderThickness="1"
-                                        CornerRadius="8"
+                                        CornerRadius="{DynamicResource CornerSmall}"
                                         Classes="refresh-button">
                                     <Button.Styles>
                                         <Style Selector="Button.refresh-button:pointerover">
-                                            <Setter Property="Background" Value="#FF30363D" />
-                                            <Setter Property="BorderBrush" Value="#FF8B949E" />
+                                            <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}" />
+                                            <Setter Property="BorderBrush" Value="{DynamicResource BorderHoverBrush}" />
                                         </Style>
                                         <Style Selector="Button.refresh-button:pressed">
-                                            <Setter Property="Background" Value="#FF161B22" />
+                                            <Setter Property="Background" Value="{DynamicResource PressedBackgroundBrush}" />
                                         </Style>
                                     </Button.Styles>
                                     <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/refresh.svg"
@@ -292,12 +292,12 @@
                             </Grid>
 
                             <TextBlock Text="{Binding Filter.MatchingLanguagesLabel}"
-                                       Foreground="#FF8B949E"
-                                       FontSize="12" />
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       FontSize="{DynamicResource FontSizeSmall}" />
 
-                            <Border Background="#FF0D1117"
+                            <Border Background="{DynamicResource BackgroundPrimaryBrush}"
                                     CornerRadius="16"
-                                    BorderBrush="#FF30363D"
+                                    BorderBrush="{DynamicResource BorderPrimaryBrush}"
                                     BorderThickness="1"
                                     Padding="10">
                                 <ScrollViewer Height="320"
@@ -305,30 +305,30 @@
                                     <ItemsControl ItemsSource="{Binding Filter.FilteredLanguages}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="vm:LanguageOptionViewModel">
-                                                <Border Background="#FF161B22"
-                                                        BorderBrush="#FF30363D"
+                                                <Border Background="{DynamicResource BackgroundSecondaryBrush}"
+                                                        BorderBrush="{DynamicResource BorderPrimaryBrush}"
                                                         BorderThickness="1"
-                                                        CornerRadius="14"
+                                                        CornerRadius="{DynamicResource CornerLarge}"
                                                         Padding="12"
                                                         Margin="0,0,0,8">
                                                     <Grid ColumnDefinitions="6,*,Auto"
                                                           ColumnSpacing="12">
                                                         <Border Background="{Binding AccentBrush}"
-                                                                CornerRadius="999"
+                                                                CornerRadius="{DynamicResource CornerPill}"
                                                                 Width="6" />
 
                                                         <StackPanel Grid.Column="1"
                                                                     Spacing="4"
                                                                     VerticalAlignment="Center">
                                                             <TextBlock Text="{Binding Language}"
-                                                                       Foreground="#FFC9D1D9"
+                                                                       Foreground="{DynamicResource TextPrimaryBrush}"
                                                                        FontWeight="SemiBold"
                                                                        VerticalAlignment="Center" />
                                                         </StackPanel>
 
                                                         <CheckBox Grid.Column="2"
                                                                   IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                                                  Foreground="#FFC9D1D9"
+                                                                  Foreground="{DynamicResource TextPrimaryBrush}"
                                                                   VerticalAlignment="Center" />
                                                     </Grid>
                                                 </Border>
@@ -345,7 +345,7 @@
 
         <ScrollViewer x:Name="TrendingScrollViewer"
                       Grid.Column="1"
-                      Background="#FF0D1117"
+                      Background="{DynamicResource BackgroundPrimaryBrush}"
                       Padding="20"
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled"
@@ -353,20 +353,20 @@
                       PointerWheelChanged="OnTrendingScrollWheelChanged">
             <StackPanel Spacing="16"
                         Width="{Binding Viewport.Width, ElementName=TrendingScrollViewer}">
-                <Border Background="#FF161B22"
-                        BorderBrush="#FF30363D"
+                <Border Background="{DynamicResource BackgroundSecondaryBrush}"
+                        BorderBrush="{DynamicResource BorderPrimaryBrush}"
                         BorderThickness="1"
-                        CornerRadius="18"
+                        CornerRadius="{DynamicResource CornerXLarge}"
                         Margin="8,0,8,0"
                         HorizontalAlignment="Stretch"
                         ClipToBounds="True"
-                        Padding="22">
+                        Padding="{DynamicResource PaddingXLarge}">
                     <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="8" ColumnSpacing="12">
                         <StackPanel Grid.Row="0" Spacing="6">
                             <TextBlock
                                 Text="{Binding Source={x:Static loc:Localization.Instance}, Path=TrendingRepositoriesTitle}"
-                                Foreground="#FFC9D1D9"
-                                FontSize="28"
+                                Foreground="{DynamicResource TextPrimaryBrush}"
+                                FontSize="{DynamicResource FontSizeXLarge}"
                                 FontWeight="SemiBold"
                                 TextWrapping="Wrap" />
                         </StackPanel>
@@ -376,25 +376,25 @@
                                     Orientation="Horizontal"
                                     Spacing="8"
                                     VerticalAlignment="Top">
-                            <Border Background="#FF111827"
-                                    BorderBrush="#FF30363D"
+                            <Border Background="{DynamicResource BackgroundElevatedBrush}"
+                                    BorderBrush="{DynamicResource BorderPrimaryBrush}"
                                     BorderThickness="1"
-                                    CornerRadius="999"
+                                    CornerRadius="{DynamicResource CornerPill}"
                                     Padding="10,5">
                                 <TextBlock Text="{Binding Filter.SelectedCount}"
-                                           Foreground="#FFE5E7EB"
-                                           FontSize="11"
+                                           Foreground="{DynamicResource TextTertiaryBrush}"
+                                           FontSize="{DynamicResource FontSizeXSmall}"
                                            FontWeight="SemiBold" />
                             </Border>
 
-                            <Border Background="#FF111827"
-                                    BorderBrush="#FF30363D"
+                            <Border Background="{DynamicResource BackgroundElevatedBrush}"
+                                    BorderBrush="{DynamicResource BorderPrimaryBrush}"
                                     BorderThickness="1"
-                                    CornerRadius="999"
+                                    CornerRadius="{DynamicResource CornerPill}"
                                     Padding="10,5">
                                 <TextBlock Text="{Binding Filter.VisibleCount}"
-                                           Foreground="#FFE5E7EB"
-                                           FontSize="11"
+                                           Foreground="{DynamicResource TextTertiaryBrush}"
+                                           FontSize="{DynamicResource FontSizeXSmall}"
                                            FontWeight="SemiBold" />
                             </Border>
                         </StackPanel>
@@ -402,27 +402,27 @@
                         <TextBlock Grid.Row="1"
                                    Grid.Column="0"
                                    Text="{Binding TrendingLabel}"
-                                   Foreground="#FF8B949E"
-                                   FontSize="12" />
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   FontSize="{DynamicResource FontSizeSmall}" />
                     </Grid>
                 </Border>
 
-                <Border Background="#FF161B22"
-                        BorderBrush="#FF30363D"
+                <Border Background="{DynamicResource BackgroundSecondaryBrush}"
+                        BorderBrush="{DynamicResource BorderPrimaryBrush}"
                         BorderThickness="1"
-                        CornerRadius="18"
+                        CornerRadius="{DynamicResource CornerXLarge}"
                         Margin="8,0,8,0"
-                        Padding="22">
+                        Padding="{DynamicResource PaddingXLarge}">
                     <StackPanel Spacing="12">
                         <ItemsControl x:Name="TrendingItemsControl"
                                       HorizontalAlignment="Stretch"
                                       ItemsSource="{Binding TrendingRepositories}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:GithubTrendingRepository">
-                                    <Border Background="#FF0D1117"
-                                            BorderBrush="#FF30363D"
+                                    <Border Background="{DynamicResource BackgroundPrimaryBrush}"
+                                            BorderBrush="{DynamicResource BorderPrimaryBrush}"
                                             BorderThickness="1"
-                                            CornerRadius="12"
+                                            CornerRadius="{DynamicResource CornerMedium}"
                                             Padding="0"
                                             Margin="0,0,0,12"
                                             Classes="repo-card"
@@ -430,7 +430,7 @@
                                             MinHeight="240">
                                         <Grid ColumnDefinitions="1.25*,1.75*,160"
                                               MinHeight="240">
-                                            <Border Background="#FF161B22"
+                                            <Border Background="{DynamicResource BackgroundSecondaryBrush}"
                                                     CornerRadius="14,0,0,14"
                                                     MinHeight="240"
                                                     HorizontalAlignment="Stretch"
@@ -451,13 +451,13 @@
                                                         HorizontalAlignment="Stretch">
                                                 <StackPanel Spacing="4">
                                                     <TextBlock Text="{Binding DisplayTitle}"
-                                                               Foreground="#FFC9D1D9"
+                                                               Foreground="{DynamicResource TextPrimaryBrush}"
                                                                FontWeight="SemiBold"
-                                                               FontSize="18"
+                                                               FontSize="{DynamicResource FontSizeLarge}"
                                                                TextWrapping="Wrap" />
                                                     <TextBlock Text="{Binding Description}"
-                                                               Foreground="#FF8B949E"
-                                                               FontSize="12"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               FontSize="{DynamicResource FontSizeSmall}"
                                                                TextWrapping="Wrap" />
                                                 </StackPanel>
 
@@ -465,8 +465,8 @@
                                                             IsVisible="{Binding HasContributors}">
                                                     <TextBlock
                                                         Text="{Binding Source={x:Static loc:Localization.Instance}, Path=ContributorsTitle}"
-                                                        Foreground="#FFC9D1D9"
-                                                        FontSize="11"
+                                                        Foreground="{DynamicResource TextPrimaryBrush}"
+                                                        FontSize="{DynamicResource FontSizeXSmall}"
                                                         FontWeight="SemiBold"
                                                         Opacity="0.9" />
 
@@ -482,10 +482,10 @@
                                                                 <DataTemplate x:DataType="vm:GithubContributorPreview">
                                                                     <Border Width="32"
                                                                             Height="32"
-                                                                            CornerRadius="999"
+                                                                            CornerRadius="{DynamicResource CornerPill}"
                                                                             ClipToBounds="True"
                                                                             Margin="0,0,6,0"
-                                                                            BorderBrush="#FF334155"
+                                                                            BorderBrush="{DynamicResource BorderSecondaryBrush}"
                                                                             BorderThickness="1">
                                                                         <Image Source="{Binding AvatarImage}"
                                                                                Stretch="UniformToFill" />
@@ -499,32 +499,32 @@
 
                                                 <WrapPanel>
                                                     <Border Background="{Binding LanguageBrush}"
-                                                            CornerRadius="999"
+                                                            CornerRadius="{DynamicResource CornerPill}"
                                                             Padding="10,5"
                                                             Margin="0,0,8,8">
                                                         <TextBlock Text="{Binding LanguageBadgeText}"
-                                                                   Foreground="White"
-                                                                   FontSize="11"
+                                                                   Foreground="{DynamicResource TextOnAccentBrush}"
+                                                                   FontSize="{DynamicResource FontSizeXSmall}"
                                                                    FontWeight="SemiBold" />
                                                     </Border>
 
-                                                    <Border Background="#FF21262D"
-                                                            CornerRadius="999"
+                                                    <Border Background="{DynamicResource BackgroundTertiaryBrush}"
+                                                            CornerRadius="{DynamicResource CornerPill}"
                                                             Padding="10,5"
                                                             Margin="0,0,8,8">
                                                         <TextBlock Text="{Binding LicenseBadgeText}"
-                                                                   Foreground="#FFC9D1D9"
-                                                                   FontSize="11"
+                                                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                                                   FontSize="{DynamicResource FontSizeXSmall}"
                                                                    FontWeight="SemiBold" />
                                                     </Border>
 
-                                                    <Border Background="#FF21262D"
-                                                            CornerRadius="999"
+                                                    <Border Background="{DynamicResource BackgroundTertiaryBrush}"
+                                                            CornerRadius="{DynamicResource CornerPill}"
                                                             Padding="10,5"
                                                             Margin="0,0,8,8">
                                                         <TextBlock Text="{Binding LastUpdatedBadgeText}"
-                                                                   Foreground="#FFC9D1D9"
-                                                                   FontSize="11"
+                                                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                                                   FontSize="{DynamicResource FontSizeXSmall}"
                                                                    FontWeight="SemiBold" />
                                                     </Border>
 
@@ -540,15 +540,15 @@
 
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
-                                                            <Border Background="#FF21262D"
-                                                                    BorderBrush="#FF30363D"
+                                                            <Border Background="{DynamicResource BackgroundTertiaryBrush}"
+                                                                    BorderBrush="{DynamicResource BorderPrimaryBrush}"
                                                                     BorderThickness="1"
-                                                                    CornerRadius="999"
+                                                                    CornerRadius="{DynamicResource CornerPill}"
                                                                     Padding="10,5"
                                                                     Margin="0,0,8,8">
                                                                 <TextBlock Text="{Binding}"
-                                                                           Foreground="#FFC9D1D9"
-                                                                           FontSize="11"
+                                                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                                                           FontSize="{DynamicResource FontSizeXSmall}"
                                                                            FontWeight="SemiBold" />
                                                             </Border>
                                                         </DataTemplate>
@@ -558,10 +558,10 @@
                                             </StackPanel>
 
                                             <Border Grid.Column="2"
-                                                    Background="#FF0D1117"
-                                                    BorderBrush="#FF30363D"
+                                                    Background="{DynamicResource BackgroundPrimaryBrush}"
+                                                    BorderBrush="{DynamicResource BorderPrimaryBrush}"
                                                     BorderThickness="1,0,0,0"
-                                                    Padding="14"
+                                                    Padding="{DynamicResource PaddingLarge}"
                                                     ClipToBounds="True">
                                                 <StackPanel Spacing="8"
                                                             VerticalAlignment="Top">
