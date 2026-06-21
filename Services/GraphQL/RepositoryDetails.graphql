@@ -1,0 +1,28 @@
+# Repository details: topics, license, description, homepageUrl, collaborators
+query RepositoryDetails($owner: String!, $name: String!) {
+  repository(owner: $owner, name: $name) {
+    nameWithOwner
+    url
+    homepageUrl
+    description
+    licenseInfo {
+      spdxId
+      name
+    }
+    repositoryTopics(first: 10) {
+      nodes {
+        topic {
+          name
+        }
+      }
+    }
+    updatedAt
+    defaultBranchRef {
+      target {
+        ... on Commit {
+          committedDate
+        }
+      }
+    }
+  }
+}
