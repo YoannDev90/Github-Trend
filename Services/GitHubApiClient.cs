@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Serilog;
 
@@ -17,10 +19,8 @@ public sealed class GitHubApiClient
     };
 
     private readonly GitHubAuthenticationService _authService;
-
     private readonly HttpClient _httpClient;
     private readonly GitHubAuthOptions _options;
-    private readonly Random _random = new();
 
     public GitHubApiClient(
         GitHubAuthenticationService authService,
@@ -30,35 +30,14 @@ public sealed class GitHubApiClient
     {
         _authService = authService;
         _options = options ?? new GitHubAuthOptions();
-        _httpClient = httpClient ?? new HttpClient();
-    }
-
-    public async Task<GitHubUserProfile?> GetAuthenticatedUserAsync()
-    {
-        return await SendJsonAsync<GitHubUserProfile>(() =>
-            new HttpRequestMessage(HttpMethod.Get, $"{Constants.GitHub.ApiBaseUrl}/user")
-        );
-    }
-
-    public async Task<T?> SendJsonAsync<T>(Func<HttpRequestMessage> requestFactory)
-    {
-        using var response = await SendAsync(requestFactory);
-        if (!response.IsSuccessStatusCode)
-            return default;
-
-        var payload = await response.Content.ReadAsStringAsync();
-        return JsonSerializer.Deserialize<T>(payload, JsonOptions);
+        _httpClient = httpClient ?? CreateHttpClient();
     }
 
     public async Task<HttpResponseMessage> SendAsync(Func<HttpRequestMessage> requestFactory)
     {
-        var personalAccessToken = _options.PersonalAccessToken;
-        var usePat = !string.IsNullOrWhiteSpace(personalAccessToken);
-
         for (var attempt = 0; attempt <= Constants.RateLimit.MaxRetries; attempt++)
         {
-            var token = usePat ? personalAccessToken : await _authService.GetAccessTokenAsync(true);
-
+            var token = await _authService.GetAccessTokenAsync(true);
             if (string.IsNullOrWhiteSpace(token))
                 throw new InvalidOperationException("User is not authenticated with GitHub.");
 
@@ -67,10 +46,11 @@ public sealed class GitHubApiClient
             request.Headers.Accept.Add(
                 new MediaTypeWithQualityHeaderValue(Constants.GitHub.ApiAccept)
             );
-            request.Headers.UserAgent.ParseAdd(_options.UserAgent);
-            request.Headers.TryAddWithoutValidation("X-GitHub-Api-Version", _options.ApiVersion);
+            request.Headers.UserAgent.ParseAdd(Constants.GitHub.UserAgent);
+            request.Headers.TryAddWithoutValidation("X-GitHub-Api-Version", Constants.GitHub.ApiVersion);
 
             var response = await _httpClient.SendAsync(request);
+
             if (response.StatusCode == HttpStatusCode.Unauthorized && attempt == 0)
             {
                 response.Dispose();
@@ -78,17 +58,16 @@ public sealed class GitHubApiClient
                 continue;
             }
 
-            if (IsRateLimited(response))
+            if (response.StatusCode == HttpStatusCode.TooManyRequests
+                || (response.StatusCode == HttpStatusCode.Forbidden
+                    && response.Headers.TryGetValues("X-RateLimit-Remaining", out var remaining)
+                    && string.Equals(remaining.FirstOrDefault(), "0", StringComparison.OrdinalIgnoreCase)))
             {
                 if (attempt >= Constants.RateLimit.MaxRetries)
                     return response;
 
-                var delay = GetRetryDelay(response, attempt);
-                Log.Warning(
-                    "GitHub rate-limit hit. Retry attempt {Attempt} in {DelayMs}ms",
-                    attempt + 1,
-                    (int)delay.TotalMilliseconds
-                );
+                var delay = ComputeRetryDelay(response, attempt);
+                Log.Warning("GitHub rate-limit. Retry {Attempt} in {Delay}ms", attempt + 1, (int)delay.TotalMilliseconds);
                 response.Dispose();
                 await Task.Delay(delay);
                 continue;
@@ -97,56 +76,76 @@ public sealed class GitHubApiClient
             return response;
         }
 
-        throw new InvalidOperationException("GitHub request failed after retry.");
+        throw new InvalidOperationException("GitHub request failed after retries.");
     }
 
-    private TimeSpan GetRetryDelay(HttpResponseMessage response, int attempt)
+    public async Task<System.Collections.Generic.HashSet<string>> GetWatchedRepositorySlugsAsync()
     {
-        if (response.Headers.RetryAfter?.Delta is not null)
-            return response.Headers.RetryAfter!.Delta!.Value
-                + TimeSpan.FromMilliseconds(
-                    _random.Next(
-                        Constants.RateLimit.RetryJitterMinMilliseconds,
-                        Constants.RateLimit.RetryJitterMaxMilliseconds
-                    )
+        return await FetchSlugsAsync($"{Constants.GitHub.ApiBaseUrl}/user/subscriptions");
+    }
+
+    private async Task<System.Collections.Generic.HashSet<string>> FetchSlugsAsync(string baseUrl)
+    {
+        var slugs = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var page = 1;
+
+        while (page <= 10)
+        {
+            HttpResponseMessage? response = null;
+            try
+            {
+                response = await SendAsync(() =>
+                    new HttpRequestMessage(HttpMethod.Get, $"{baseUrl}?per_page=100&page={page}")
                 );
 
-        if (
-            response.Headers.TryGetValues("X-RateLimit-Reset", out var resetValues)
-            && long.TryParse(resetValues.FirstOrDefault(), out var unixSeconds)
-        )
-        {
-            var resetTime = DateTimeOffset.FromUnixTimeSeconds(unixSeconds);
-            var delay =
-                resetTime
-                - DateTimeOffset.UtcNow
-                + TimeSpan.FromSeconds(Constants.RateLimit.ResetSafetySeconds);
-            if (delay > TimeSpan.Zero)
-                return delay
-                    + TimeSpan.FromMilliseconds(
-                        _random.Next(
-                            Constants.RateLimit.RetryJitterMinMilliseconds,
-                            Constants.RateLimit.RetryJitterMaxMilliseconds
-                        )
-                    );
+                if (!response.IsSuccessStatusCode) break;
+
+                var json = await response.Content.ReadAsStringAsync();
+                var repos = JsonSerializer.Deserialize<List<GitHubRepoBriefResponse>>(json, JsonOptions);
+
+                if (repos is null || repos.Count == 0) break;
+
+                foreach (var repo in repos)
+                {
+                    if (!string.IsNullOrWhiteSpace(repo.FullName))
+                        slugs.Add(repo.FullName);
+                }
+
+                if (repos.Count < 100) break;
+                page++;
+            }
+            finally
+            {
+                response?.Dispose();
+            }
         }
+
+        return slugs;
+    }
+
+    private TimeSpan ComputeRetryDelay(HttpResponseMessage response, int attempt)
+    {
+        if (response.Headers.RetryAfter?.Delta is not null)
+            return response.Headers.RetryAfter!.Delta!.Value;
 
         var exponential = Constants.RateLimit.BaseBackoffMilliseconds * Math.Pow(2, attempt);
         var bounded = Math.Min(exponential, Constants.RateLimit.MaxBackoffMilliseconds);
-        return TimeSpan.FromMilliseconds(bounded + _random.Next(0, 250));
+        return TimeSpan.FromMilliseconds(bounded + Random.Shared.Next(0, 250));
     }
 
-    private static bool IsRateLimited(HttpResponseMessage response)
+    private static HttpClient CreateHttpClient()
     {
-        return response.StatusCode == HttpStatusCode.TooManyRequests
-            || (
-                response.StatusCode == HttpStatusCode.Forbidden
-                && response.Headers.TryGetValues("X-RateLimit-Remaining", out var remaining)
-                && string.Equals(
-                    remaining.FirstOrDefault(),
-                    "0",
-                    StringComparison.OrdinalIgnoreCase
-                )
-            );
+        var handler = new SocketsHttpHandler
+        {
+            PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+            ConnectTimeout = TimeSpan.FromSeconds(15),
+        };
+        return new HttpClient(handler);
     }
+}
+
+internal sealed record GitHubRepoBriefResponse
+{
+    [JsonPropertyName("full_name")]
+    public string? FullName { get; init; }
 }
