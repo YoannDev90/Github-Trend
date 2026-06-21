@@ -30,7 +30,6 @@ public sealed class GitHubTokenRefreshService
         var body = new Dictionary<string, string>
         {
             ["client_id"] = _options.ClientId,
-            ["client_secret"] = _options.ClientSecret,
             ["code"] = code,
             ["state"] = state,
             ["redirect_uri"] = _options.CallbackUrl
@@ -60,7 +59,6 @@ public sealed class GitHubTokenRefreshService
         var body = new Dictionary<string, string>
         {
             ["client_id"] = _options.ClientId,
-            ["client_secret"] = _options.ClientSecret,
             ["grant_type"] = "refresh_token",
             ["refresh_token"] = refreshToken,
             ["redirect_uri"] = _options.CallbackUrl
