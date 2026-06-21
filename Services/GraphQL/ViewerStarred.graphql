@@ -1,0 +1,43 @@
+# Check if current user has starred a repository
+query IsStarred($owner: String!, $name: String!) {
+  repository(owner: $owner, name: $name) {
+    viewerHasStarred
+  }
+}
+
+# Get all starred repositories for current user (paginated)
+query ViewerStarredRepositories($first: Int!, $after: String) {
+  viewer {
+    starredRepositories(first: $first, after: $after) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      nodes {
+        nameWithOwner
+      }
+    }
+  }
+}
+
+# Watch a repository (subscribe to notifications)
+mutation WatchRepository($subscribableId: ID!) {
+  updateSubscription(input: { subscribableId: $subscribableId, state: SUBSCRIBED }) {
+    subscribable {
+      ... on Repository {
+        nameWithOwner
+      }
+    }
+  }
+}
+
+# Unwatch a repository (unsubscribe from notifications)
+mutation UnwatchRepository($subscribableId: ID!) {
+  updateSubscription(input: { subscribableId: $subscribableId, state: UNSUBSCRIBED }) {
+    subscribable {
+      ... on Repository {
+        nameWithOwner
+      }
+    }
+  }
+}
