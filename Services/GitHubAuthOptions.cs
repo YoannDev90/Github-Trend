@@ -6,10 +6,6 @@ public sealed class GitHubAuthOptions
 {
     public string ClientId { get; init; } = Constants.GitHubApp.ClientId;
 
-    public string ClientSecret { get; init; } = Constants.GitHubApp.ClientSecret;
-
-    public string PersonalAccessToken { get; init; } = Constants.GitHubApp.PersonalAccessToken;
-
     public string CallbackUrl { get; init; } = Constants.GitHubApp.CallbackUrl;
 
     public string LocalBaseUrl { get; init; } = Constants.GitHubApp.LocalBaseUrl;
