@@ -1,0 +1,46 @@
+# Get all star lists for the current user
+query ViewerStarLists {
+  viewer {
+    lists(first: 100) {
+      nodes {
+        id
+        name
+        description
+        isPrivate
+        items {
+          totalCount
+        }
+      }
+    }
+  }
+}
+
+# Get current list memberships for a repository item
+query ItemListMemberships($itemId: ID!) {
+  node(id: $itemId) {
+    ... on Repository {
+      listIds
+    }
+  }
+}
+
+# Create a new star list
+mutation CreateStarList($name: String!, $description: String, $isPrivate: Boolean!) {
+  createUserList(input: { name: $name, description: $description, isPrivate: $isPrivate }) {
+    list {
+      id
+      name
+    }
+  }
+}
+
+# Update list memberships for a repository (full replacement)
+mutation UpdateRepoStarLists($itemId: ID!, $listIds: [ID!]!) {
+  updateUserListsForItem(input: { itemId: $itemId, listIds: $listIds }) {
+    item {
+      ... on Repository {
+        nameWithOwner
+      }
+    }
+  }
+}
