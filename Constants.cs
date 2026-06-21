@@ -19,8 +19,6 @@ public static class Constants
     public static class GitHubApp
     {
         public const string ClientId = "Ov23liF9LELIduw9N0kH";
-        public const string ClientSecret = "";
-        public const string PersonalAccessToken = "";
         public const string CallbackUrl = "http://localhost:25885/callback";
         public const string LocalBaseUrl = "http://localhost:25885";
         public const bool PrivateRepoAccessEnabled = false;
@@ -28,7 +26,8 @@ public static class Constants
 
     public static class Trending
     {
-        public const int MaxParallelEnrichmentRequests = 3;
+        public const int MaxParallelEnrichmentRequests = 2;
+        public const int InterEnrichmentDelayMilliseconds = 300;
         public const int MaxContributorPreviewCount = 15;
         public const int AnonymousContributorPreviewCount = 5;
         public static readonly TimeSpan TrendingCacheTtl = TimeSpan.FromHours(24);
@@ -44,7 +43,9 @@ public static class Constants
         public const int RetryJitterMinMilliseconds = 120;
         public const int RetryJitterMaxMilliseconds = 850;
         public const int ResetSafetySeconds = 2;
-        public const int CooldownFallbackSeconds = 60;
+        public const int CooldownFallbackSeconds = 15;
+        public const int WarningThreshold = 20;
+        public const int CriticalThreshold = 5;
     }
 
     public static class Logging
