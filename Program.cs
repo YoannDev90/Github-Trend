@@ -37,7 +37,7 @@ internal class Program
             .WithInterFont()
             .LogToTrace();
 
-    private static void ConfigureLogging()
+    public static void ConfigureLogging()
     {
         var logDirectory = Path.Combine(
             AppContext.BaseDirectory,
