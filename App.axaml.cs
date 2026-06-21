@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Github_Trend.Services;
 using Serilog;
 using AppLocalization = Github_Trend.Localization.Localization;
 
@@ -20,6 +21,7 @@ public class App : Application
     public override void OnFrameworkInitializationCompleted()
     {
         Log.Debug("Framework initialization completed");
+        ThemeService.Initialize();
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.MainWindow = new MainWindow();
