@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using System.Windows.Input;
 using Github_Trend.Localization;
 using Serilog;
 
@@ -12,12 +13,17 @@ namespace Github_Trend;
 
 public sealed class LanguageFilterViewModel : INotifyPropertyChanged
 {
+    private System.Collections.Generic.HashSet<string> _popularLanguages = new(
+        StringComparer.OrdinalIgnoreCase
+    );
+
     private readonly List<LanguageOptionViewModel> _allLanguages = new();
     private readonly SelectedLanguagesStore _store;
     private readonly Action<string, object?[]> _setStatusMessage;
     private readonly Action _onSelectionChanged;
 
     private bool _isInitializing;
+    private bool _isBatchUpdating;
     private string _searchText = string.Empty;
 
     public LanguageFilterViewModel(
@@ -29,7 +35,13 @@ public sealed class LanguageFilterViewModel : INotifyPropertyChanged
         _store = store;
         _setStatusMessage = setStatusMessage;
         _onSelectionChanged = onSelectionChanged;
+
+        SelectAllCommand = new RelayCommand(_ => SelectAllFiltered());
+        DeselectAllCommand = new RelayCommand(_ => DeselectAllFiltered());
     }
+
+    public ICommand SelectAllCommand { get; }
+    public ICommand DeselectAllCommand { get; }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -105,6 +117,7 @@ public sealed class LanguageFilterViewModel : INotifyPropertyChanged
         try
         {
             Colors = catalog;
+            _popularLanguages = await PopularLanguagesService.GetPopularLanguagesAsync();
             var savedSelections = await _store.LoadAsync();
             RebuildLanguages(catalog, savedSelections);
             RefreshSelectedLanguages();
@@ -120,9 +133,10 @@ public sealed class LanguageFilterViewModel : INotifyPropertyChanged
         }
     }
 
-    public void RefreshColors(GithubColorsCatalog catalog)
+    public async void RefreshColors(GithubColorsCatalog catalog)
     {
         Colors = catalog;
+        _popularLanguages = await PopularLanguagesService.GetPopularLanguagesAsync();
         var currentSelected = _allLanguages
             .Where(l => l.IsSelected)
             .Select(l => l.Language)
@@ -139,11 +153,13 @@ public sealed class LanguageFilterViewModel : INotifyPropertyChanged
     {
         _allLanguages.Clear();
         var selectedSet = new HashSet<string>(selected, StringComparer.OrdinalIgnoreCase);
+        var popular = _popularLanguages;
 
         foreach (var language in catalog.Colors.Keys
             .Where(l => !string.IsNullOrWhiteSpace(l))
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(l => l, StringComparer.OrdinalIgnoreCase))
+            .OrderBy(l => !popular.Contains(l))
+            .ThenBy(l => l, StringComparer.OrdinalIgnoreCase))
         {
             _allLanguages.Add(new LanguageOptionViewModel(
                 language,
@@ -156,7 +172,29 @@ public sealed class LanguageFilterViewModel : INotifyPropertyChanged
 
     private void OnLanguageToggled()
     {
-        if (_isInitializing) return;
+        if (_isInitializing || _isBatchUpdating) return;
+        RefreshSelectedLanguages();
+        _ = PersistAsync();
+    }
+
+    private void SelectAllFiltered()
+    {
+        Log.Debug("LanguageFilter: SelectAll ({Count} languages)", FilteredLanguages.Count);
+        _isBatchUpdating = true;
+        foreach (var lang in FilteredLanguages)
+            lang.IsSelected = true;
+        _isBatchUpdating = false;
+        RefreshSelectedLanguages();
+        _ = PersistAsync();
+    }
+
+    private void DeselectAllFiltered()
+    {
+        Log.Debug("LanguageFilter: DeselectAll ({Count} languages)", FilteredLanguages.Count);
+        _isBatchUpdating = true;
+        foreach (var lang in FilteredLanguages)
+            lang.IsSelected = false;
+        _isBatchUpdating = false;
         RefreshSelectedLanguages();
         _ = PersistAsync();
     }
@@ -212,6 +250,7 @@ public sealed class LanguageFilterViewModel : INotifyPropertyChanged
         FilteredLanguages.Clear();
         foreach (var lang in filtered
             .OrderByDescending(l => l.IsSelected)
+            .ThenBy(l => !_popularLanguages.Contains(l.Language))
             .ThenBy(l => l.Language, StringComparer.OrdinalIgnoreCase))
             FilteredLanguages.Add(lang);
 
