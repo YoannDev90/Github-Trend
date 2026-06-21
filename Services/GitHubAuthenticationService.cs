@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Github_Trend.Database;
 using Github_Trend.Localization;
 using Serilog;
 
@@ -17,19 +18,19 @@ public sealed class GitHubAuthenticationService
     private readonly GitHubTokenProtector _protector;
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
     private readonly GitHubTokenRefreshService _tokenService;
-    private readonly GitHubAuthTokenStore _tokenStore;
+    private readonly AppDatabase _db;
 
     private GitHubAuthTokenRecord? _currentRecord;
 
     public GitHubAuthenticationService()
-        : this(new GitHubAuthOptions()) { }
+        : this(new GitHubAuthOptions(), null) { }
 
-    public GitHubAuthenticationService(GitHubAuthOptions options)
+    public GitHubAuthenticationService(GitHubAuthOptions options, AppDatabase? db = null)
     {
         _options = options;
         _protector = new GitHubTokenProtector();
         _tokenService = new GitHubTokenRefreshService(_options);
-        _tokenStore = new GitHubAuthTokenStore();
+        _db = db ?? new AppDatabase();
         _deviceFlowService = new GitHubDeviceFlowAuthService(_options.ClientId, _options);
     }
 
@@ -54,6 +55,7 @@ public sealed class GitHubAuthenticationService
 
     public async Task InitializeAsync()
     {
+        await _db.InitializeAsync();
         await LoadCurrentSessionAsync();
     }
 
@@ -137,7 +139,7 @@ public sealed class GitHubAuthenticationService
                 AvatarUrl = profile.AvatarUrl,
             };
 
-            await _tokenStore.UpsertAsync(record);
+            await SaveRecordAsync(record);
             _currentRecord = record;
             CurrentSession = ToSession(record);
             RaiseSessionChanged();
@@ -152,7 +154,7 @@ public sealed class GitHubAuthenticationService
 
     public async Task<GitHubAuthSession?> LoadCurrentSessionAsync()
     {
-        var record = await _tokenStore.GetCurrentAsync();
+        var record = await LoadCurrentRecordAsync();
         if (record is null || record.RevokedAt is not null)
         {
             _currentRecord = null;
@@ -171,7 +173,10 @@ public sealed class GitHubAuthenticationService
                 await RefreshCurrentAsync();
                 record = _currentRecord!;
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to refresh token during session load");
+            }
 
         CurrentSession = ToSession(record);
         RaiseSessionChanged();
@@ -183,7 +188,7 @@ public sealed class GitHubAuthenticationService
         await _refreshLock.WaitAsync();
         try
         {
-            var record = await _tokenStore.GetCurrentAsync();
+            var record = await LoadCurrentRecordAsync();
             if (record is null || record.RevokedAt is not null)
             {
                 CurrentSession = null;
@@ -214,14 +219,15 @@ public sealed class GitHubAuthenticationService
                 record.RefreshTokenExpiresAt = refreshed.RefreshTokenExpiresAt;
                 record.ScopeList = refreshed.ScopeList.ToList();
                 record.UpdatedAt = DateTimeOffset.UtcNow;
-                await _tokenStore.UpsertAsync(record);
+                await SaveRecordAsync(record);
                 _currentRecord = record;
                 CurrentSession = ToSession(record);
                 RaiseSessionChanged();
                 return CurrentSession;
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Warning(ex, "Token refresh failed");
                 await MarkDisconnectedAsync(record);
                 return null;
             }
@@ -234,13 +240,12 @@ public sealed class GitHubAuthenticationService
 
     public async Task SignOutAsync()
     {
-        var record = await _tokenStore.GetCurrentAsync();
-        if (record is null)
-            return;
+        var record = await LoadCurrentRecordAsync();
+        if (record is null) return;
 
         record.RevokedAt = DateTimeOffset.UtcNow;
         record.UpdatedAt = DateTimeOffset.UtcNow;
-        await _tokenStore.UpsertAsync(record);
+        await SaveRecordAsync(record);
         _currentRecord = null;
         CurrentSession = null;
         RaiseSessionChanged();
@@ -248,7 +253,7 @@ public sealed class GitHubAuthenticationService
 
     public async Task<string?> GetAccessTokenAsync(bool refreshIfNeeded = true)
     {
-        var record = await _tokenStore.GetCurrentAsync();
+        var record = await LoadCurrentRecordAsync();
         if (record is null || record.RevokedAt is not null)
             return null;
 
@@ -283,7 +288,7 @@ public sealed class GitHubAuthenticationService
     {
         record.RevokedAt = DateTimeOffset.UtcNow;
         record.UpdatedAt = DateTimeOffset.UtcNow;
-        await _tokenStore.UpsertAsync(record);
+        await SaveRecordAsync(record);
         _currentRecord = null;
         CurrentSession = null;
         RaiseSessionChanged();
@@ -331,9 +336,88 @@ public sealed class GitHubAuthenticationService
             Process.Start(new ProcessStartInfo(uri.ToString()) { UseShellExecute = true });
             return true;
         }
-        catch
+        catch (Exception ex)
         {
+            Log.Debug(ex, "Failed to open browser for {Url}", uri);
             return false;
+        }
+    }
+
+    // --- Database helpers ---
+
+    private async Task<GitHubAuthTokenRecord?> LoadCurrentRecordAsync()
+    {
+        try
+        {
+            var json = await _db.GetCurrentAuthTokenAsync();
+            if (json is null) return null;
+
+            var element = json.Value;
+            return new GitHubAuthTokenRecord
+            {
+                UserId = element.GetProperty("user_id").GetString() ?? "",
+                GitHubAccountId = element.GetProperty("github_account_id").GetInt64(),
+                AccessTokenEncrypted = element.GetProperty("access_token_encrypted").GetString() ?? "",
+                RefreshTokenEncrypted = element.TryGetProperty("refresh_token_expires_at", out var rt) && rt.ValueKind != System.Text.Json.JsonValueKind.Null
+                    ? element.GetProperty("refresh_token_encrypted").GetString()
+                    : null,
+                ExpiresAt = DateTimeOffset.Parse(element.GetProperty("expires_at").GetString()!),
+                RefreshTokenExpiresAt = element.TryGetProperty("refresh_token_expires_at", out var rte) && rte.ValueKind != System.Text.Json.JsonValueKind.Null
+                    ? DateTimeOffset.Parse(rte.GetString()!)
+                    : null,
+                ScopeList = System.Text.Json.JsonSerializer.Deserialize<List<string>>(
+                    element.GetProperty("scope_list_json").GetString()!
+                ) ?? new List<string>(),
+                CreatedAt = DateTimeOffset.Parse(element.GetProperty("created_at").GetString()!),
+                UpdatedAt = DateTimeOffset.Parse(element.GetProperty("updated_at").GetString()!),
+                RevokedAt = element.TryGetProperty("revoked_at", out var rev) && rev.ValueKind != System.Text.Json.JsonValueKind.Null
+                    ? DateTimeOffset.Parse(rev.GetString()!)
+                    : null,
+                Login = element.TryGetProperty("login", out var login) && login.ValueKind != System.Text.Json.JsonValueKind.Null
+                    ? login.GetString()
+                    : null,
+                Name = element.TryGetProperty("name", out var name) && name.ValueKind != System.Text.Json.JsonValueKind.Null
+                    ? name.GetString()
+                    : null,
+                Email = element.TryGetProperty("email", out var email) && email.ValueKind != System.Text.Json.JsonValueKind.Null
+                    ? email.GetString()
+                    : null,
+                AvatarUrl = element.TryGetProperty("avatar_url", out var avatar) && avatar.ValueKind != System.Text.Json.JsonValueKind.Null
+                    ? avatar.GetString()
+                    : null,
+            };
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to load auth token from database");
+            return null;
+        }
+    }
+
+    private async Task SaveRecordAsync(GitHubAuthTokenRecord record)
+    {
+        try
+        {
+            await _db.UpsertAuthTokenAsync(
+                record.UserId,
+                record.GitHubAccountId,
+                record.AccessTokenEncrypted,
+                record.RefreshTokenEncrypted,
+                record.ExpiresAt,
+                record.RefreshTokenExpiresAt,
+                record.ScopeList,
+                record.CreatedAt,
+                record.UpdatedAt,
+                record.RevokedAt,
+                record.Login,
+                record.Name,
+                record.Email,
+                record.AvatarUrl
+            );
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to save auth token to database");
         }
     }
 }
