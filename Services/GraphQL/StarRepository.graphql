@@ -1,0 +1,19 @@
+# Star a repository
+mutation StarRepository($repositoryId: ID!) {
+  addStar(input: { starrableId: $repositoryId }) {
+    starrable {
+      stargazerCount
+      viewerHasStarred
+    }
+  }
+}
+
+# Unstar a repository
+mutation UnstarRepository($repositoryId: ID!) {
+  removeStar(input: { starrableId: $repositoryId }) {
+    starrable {
+      stargazerCount
+      viewerHasStarred
+    }
+  }
+}
