@@ -4,12 +4,13 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using Serilog;
 
 namespace Github_Trend;
 
 public sealed class GitHubDeviceFlowAuthService
 {
-    private static readonly HttpClient Client = new();
+    private readonly HttpClient _httpClient;
     private readonly string _clientId;
     private readonly GitHubAuthOptions _options;
 
@@ -17,6 +18,7 @@ public sealed class GitHubDeviceFlowAuthService
     {
         _clientId = clientId;
         _options = options;
+        _httpClient = CreateHttpClient();
     }
 
     public async Task<DeviceCodeResponse> RequestDeviceCodeAsync()
@@ -33,7 +35,7 @@ public sealed class GitHubDeviceFlowAuthService
         request.Headers.Add("Accept", "application/json");
         request.Headers.Add("User-Agent", _options.UserAgent);
 
-        var response = await Client.SendAsync(request);
+        var response = await _httpClient.SendAsync(request);
         response.EnsureSuccessStatusCode();
 
         var content = await response.Content.ReadAsStringAsync();
@@ -41,13 +43,17 @@ public sealed class GitHubDeviceFlowAuthService
         return deviceCode ?? throw new InvalidOperationException("Failed to parse device code response");
     }
 
-    public async Task<(bool Success, AccessTokenResponse? Token, string? Error)> PollForTokenAsync(string deviceCode,
-        int intervalSeconds, int timeoutSeconds)
+    public async Task<(bool Success, AccessTokenResponse? Token, string? Error)> PollForTokenAsync(
+        string deviceCode,
+        int intervalSeconds,
+        int timeoutSeconds
+    )
     {
         var startTime = DateTime.UtcNow;
         var timeout = TimeSpan.FromSeconds(timeoutSeconds);
 
         while (DateTime.UtcNow - startTime < timeout)
+        {
             try
             {
                 var request = new HttpRequestMessage(HttpMethod.Post, "https://github.com/login/oauth/access_token")
@@ -63,7 +69,7 @@ public sealed class GitHubDeviceFlowAuthService
                 request.Headers.Add("Accept", "application/json");
                 request.Headers.Add("User-Agent", _options.UserAgent);
 
-                var response = await Client.SendAsync(request);
+                var response = await _httpClient.SendAsync(request);
                 var content = await response.Content.ReadAsStringAsync();
 
                 var tokenResponse = JsonSerializer.Deserialize<AccessTokenResponse>(content);
@@ -81,7 +87,8 @@ public sealed class GitHubDeviceFlowAuthService
                     continue;
                 }
 
-                if (tokenResponse?.Error != null) return (false, null, tokenResponse.Error);
+                if (tokenResponse?.Error != null)
+                    return (false, null, tokenResponse.Error);
 
                 if (string.IsNullOrWhiteSpace(tokenResponse?.AccessToken))
                     return (false, null, "No access token in response");
@@ -90,41 +97,41 @@ public sealed class GitHubDeviceFlowAuthService
             }
             catch (Exception ex)
             {
+                Log.Warning(ex, "Device flow poll failed");
                 return (false, null, ex.Message);
             }
+        }
 
         return (false, null, "Device code verification timed out");
+    }
+
+    private static HttpClient CreateHttpClient()
+    {
+        var handler = new SocketsHttpHandler
+        {
+            PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+            ConnectTimeout = TimeSpan.FromSeconds(15),
+        };
+        return new HttpClient(handler);
     }
 
     public sealed class DeviceCodeResponse
     {
         [JsonPropertyName("device_code")] public string? DeviceCode { get; set; }
-
         [JsonPropertyName("user_code")] public string? UserCode { get; set; }
-
         [JsonPropertyName("verification_uri")] public string? VerificationUri { get; set; }
-
-        [JsonPropertyName("verification_uri_complete")]
-        public string? VerificationUriComplete { get; set; }
-
+        [JsonPropertyName("verification_uri_complete")] public string? VerificationUriComplete { get; set; }
         [JsonPropertyName("expires_in")] public int ExpiresIn { get; set; }
-
         [JsonPropertyName("interval")] public int Interval { get; set; }
     }
 
     public sealed class AccessTokenResponse
     {
         [JsonPropertyName("access_token")] public string? AccessToken { get; set; }
-
         [JsonPropertyName("token_type")] public string? TokenType { get; set; }
-
         [JsonPropertyName("scope")] public string? Scope { get; set; }
-
         [JsonPropertyName("error")] public string? Error { get; set; }
-
-        [JsonPropertyName("error_description")]
-        public string? ErrorDescription { get; set; }
-
+        [JsonPropertyName("error_description")] public string? ErrorDescription { get; set; }
         [JsonPropertyName("error_uri")] public string? ErrorUri { get; set; }
     }
 }
