@@ -5,207 +5,481 @@
         xmlns:vm="using:Github_Trend"
         xmlns:controls="using:Github_Trend.Controls"
         xmlns:loc="using:Github_Trend.Localization"
-        mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="800"
+        xmlns:localConverters="using:Github_Trend"
+        mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
         x:Class="Github_Trend.SettingsWindow"
         x:DataType="vm:MainWindowViewModel"
         Background="{DynamicResource BackgroundPrimaryBrush}"
-        Width="600" Height="850"
+        Width="1200"
+        Height="800"
+        MinWidth="800"
+        MinHeight="500"
         WindowStartupLocation="CenterOwner"
+        WindowState="Maximized"
         Title="Settings">
 
-    <ScrollViewer Margin="20">
-        <StackPanel Spacing="20">
-            <!-- Title -->
-            <TextBlock Text="Settings"
-                       Foreground="{DynamicResource TextPrimaryBrush}"
-                       FontSize="24"
-                       FontWeight="Bold" />
+    <Window.Resources>
+        <localConverters:LogLevelToBrushConverter x:Key="LogLevelConverter" />
+    </Window.Resources>
 
-            <!-- App Info -->
-            <Border Background="{DynamicResource BackgroundSecondaryBrush}"
-                    BorderBrush="{DynamicResource BorderPrimaryBrush}"
-                    BorderThickness="1"
-                    CornerRadius="{DynamicResource CornerLarge}"
-                    Padding="16">
-                <StackPanel Spacing="12">
-                    <TextBlock Text="Application Settings"
-                               Foreground="{DynamicResource TextPrimaryBrush}"
-                               FontWeight="SemiBold"
-                               FontSize="16" />
-                    <TextBlock Text="Version 1.0.0"
-                               Foreground="{DynamicResource TextSecondaryBrush}"
-                               FontSize="{DynamicResource FontSizeSmall}" />
-                </StackPanel>
-            </Border>
+    <Window.Styles>
+        <Style Selector="Button.settings-action">
+            <Setter Property="Background" Value="{DynamicResource BackgroundTertiaryBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            CornerRadius="{TemplateBinding CornerRadius}"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          HorizontalContentAlignment="Center"
+                                          VerticalContentAlignment="Center" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="Button.settings-action:pointerover">
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}" />
+        </Style>
+        <Style Selector="Button.settings-danger">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            CornerRadius="{TemplateBinding CornerRadius}"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          HorizontalContentAlignment="Center"
+                                          VerticalContentAlignment="Center" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="Button.settings-danger:pointerover">
+            <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}" />
+        </Style>
+        <Style Selector="Button.log-filter">
+            <Setter Property="Background" Value="{DynamicResource BackgroundSecondaryBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderPrimaryBrush}" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Height" Value="28" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="11" />
+        </Style>
+        <Style Selector="Button.log-filter:pointerover">
+            <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderHoverBrush}" />
+        </Style>
+        <Style Selector="Button.log-filter.active">
+            <Setter Property="Background" Value="{DynamicResource AccentPrimaryBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+        </Style>
+        <Style Selector="Button.log-filter.active:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AccentHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentHoverBrush}" />
+        </Style>
+        <Style Selector="TextBlock.section-title">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="15" />
+        </Style>
+        <Style Selector="TextBlock.section-subtitle">
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+            <Setter Property="FontSize" Value="13" />
+        </Style>
+    </Window.Styles>
 
-            <!-- GitHub Account Settings -->
-            <Border Background="{DynamicResource BackgroundSecondaryBrush}"
-                    BorderBrush="{DynamicResource BorderPrimaryBrush}"
-                    BorderThickness="1"
-                    CornerRadius="{DynamicResource CornerLarge}"
-                    Padding="16">
-                <StackPanel Spacing="16">
-                    <TextBlock
-                        Text="{Binding Source={x:Static loc:Localization.Instance}, Path=GitHubAccountSectionTitle}"
-                        Foreground="{DynamicResource TextPrimaryBrush}"
-                        FontWeight="SemiBold"
-                        FontSize="16" />
+    <Grid RowDefinitions="Auto,*"
+          Margin="32,28,32,24">
 
-                    <TextBlock Text="{Binding Auth.AuthStatus}"
-                               Foreground="{DynamicResource TextPrimaryBrush}"
-                               TextWrapping="Wrap" />
+        <!-- Header -->
+        <TextBlock Grid.Row="0"
+                   Text="Settings"
+                   Foreground="{DynamicResource TextPrimaryBrush}"
+                   FontSize="26"
+                   FontWeight="Bold"
+                   Margin="0,0,0,24" />
 
-                    <TextBlock Text="{Binding Auth.AccountSummary}"
-                               Foreground="{DynamicResource TextSecondaryBrush}"
-                               FontSize="{DynamicResource FontSizeXSmall}"
-                               TextWrapping="Wrap" />
+        <!-- Content: 2 columns -->
+        <Grid Grid.Row="1"
+              ColumnDefinitions="320,24,*">
 
-                    <Border Background="{DynamicResource BackgroundPrimaryBrush}"
-                            BorderBrush="{DynamicResource BorderPrimaryBrush}"
-                            BorderThickness="1"
-                            CornerRadius="10"
-                            Padding="10"
-                            IsVisible="{Binding Auth.HasDeviceCode}">
-                        <StackPanel Spacing="8">
-                            <TextBlock Text="{Binding Auth.DeviceCode}"
-                                       Foreground="{DynamicResource AccentSecondaryBrush}"
-                                       FontWeight="Bold"
-                                       FontSize="{DynamicResource FontSizeLarge}"
-                                       TextWrapping="Wrap" />
-                            <Button Command="{Binding Auth.CopyDeviceCodeCommand}"
-                                    Padding="10,6"
-                                    Background="{DynamicResource BackgroundTertiaryBrush}"
-                                    Foreground="{DynamicResource TextPrimaryBrush}"
-                                    BorderBrush="{DynamicResource BorderPrimaryBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="{DynamicResource CornerSmall}">
+            <!-- LEFT COLUMN: Theme + Account + Debug info -->
+            <ScrollViewer Grid.Column="0"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Spacing="28">
+
+                    <!-- Theme -->
+                    <StackPanel Spacing="10">
+                        <TextBlock Classes="section-title" Text="Theme" />
+                        <Border Background="{DynamicResource BackgroundTertiaryBrush}"
+                                CornerRadius="10"
+                                Padding="4">
+                            <Border.Styles>
+                                <Style Selector="Button.theme-seg">
+                                    <Setter Property="Background" Value="Transparent" />
+                                    <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+                                    <Setter Property="BorderThickness" Value="0" />
+                                    <Setter Property="Cursor" Value="Hand" />
+                                    <Setter Property="Height" Value="36" />
+                                    <Setter Property="Padding" Value="0,6" />
+                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                    <Setter Property="FontSize" Value="13" />
+                                    <Setter Property="HorizontalAlignment" Value="Stretch" />
+                                    <Setter Property="Template">
+                                        <ControlTemplate>
+                                            <Border Background="{TemplateBinding Background}"
+                                                    CornerRadius="{TemplateBinding CornerRadius}"
+                                                    Padding="{TemplateBinding Padding}">
+                                                <TextBlock Text="{TemplateBinding Content}"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center" />
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter>
+                                </Style>
+                                <Style Selector="Button.theme-seg:pointerover">
+                                    <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}" />
+                                </Style>
+                                <Style Selector="Button.theme-seg.selected">
+                                    <Setter Property="Background" Value="{DynamicResource BackgroundPrimaryBrush}" />
+                                    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+                                </Style>
+                                <Style Selector="Button.theme-seg.selected:pointerover">
+                                    <Setter Property="Background" Value="{DynamicResource BackgroundPrimaryBrush}" />
+                                </Style>
+                            </Border.Styles>
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="0">
+                                <Button x:Name="DarkThemeButton"
+                                        Classes="theme-seg"
+                                        Content="Dark"
+                                        CornerRadius="8,0,0,8"
+                                        Click="OnDarkThemeClick" />
+                                <Button x:Name="LightThemeButton"
+                                        Classes="theme-seg"
+                                        Grid.Column="1"
+                                        Content="Light"
+                                        CornerRadius="0,8,8,0"
+                                        Click="OnLightThemeClick" />
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Account -->
+                    <StackPanel Spacing="10">
+                        <TextBlock Classes="section-title"
+                                   Text="{Binding Source={x:Static loc:Localization.Instance}, Path=GitHubAccountSectionTitle}" />
+
+                        <TextBlock Classes="section-subtitle"
+                                   Text="{Binding Auth.AuthStatus}"
+                                   TextWrapping="Wrap" />
+
+                        <TextBlock Classes="section-subtitle"
+                                   Text="{Binding Auth.AccountSummary}"
+                                   TextWrapping="Wrap" />
+
+                        <!-- Device code -->
+                        <Border Background="{DynamicResource BackgroundTertiaryBrush}"
+                                CornerRadius="10"
+                                Padding="14"
+                                IsVisible="{Binding Auth.HasDeviceCode}">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="{Binding Auth.DeviceCode}"
+                                           Foreground="{DynamicResource AccentSecondaryBrush}"
+                                           FontWeight="Bold"
+                                           FontSize="{DynamicResource FontSizeLarge}"
+                                           TextWrapping="Wrap" />
+                                <Button Command="{Binding Auth.CopyDeviceCodeCommand}"
+                                        Classes="settings-action">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/save.svg"
+                                                           Width="14" Height="14" />
+                                        <TextBlock Text="{Binding Source={x:Static loc:Localization.Instance}, Path=CopyCodeButtonText}"
+                                                   VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Action buttons -->
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Command="{Binding Auth.SignInCommand}"
+                                    Classes="settings-action"
+                                    Background="{DynamicResource AccentPrimaryBrush}"
+                                    Foreground="{DynamicResource TextOnAccentBrush}">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/save.svg"
-                                                       Width="16" Height="16" />
-                                    <TextBlock
-                                        Text="{Binding Source={x:Static loc:Localization.Instance}, Path=CopyCodeButtonText}"
-                                        VerticalAlignment="Center" />
+                                    <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/github.svg"
+                                                       Width="14" Height="14" />
+                                    <TextBlock Text="{Binding Source={x:Static loc:Localization.Instance}, Path=GitHubSignInButtonText}"
+                                               VerticalAlignment="Center" />
                                 </StackPanel>
                             </Button>
+                            <Button Command="{Binding Auth.RefreshSessionCommand}"
+                                    Classes="settings-action"
+                                    IsVisible="{Binding Auth.IsConnected}">
+                                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/refresh.svg"
+                                                   Width="14" Height="14" />
+                            </Button>
+                            <Button Command="{Binding Auth.SignOutCommand}"
+                                    Classes="settings-danger"
+                                    IsVisible="{Binding Auth.IsConnected}">
+                                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/delete.svg"
+                                                   Width="14" Height="14" />
+                            </Button>
                         </StackPanel>
-                    </Border>
+                    </StackPanel>
 
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Button Command="{Binding Auth.SignInCommand}"
-                                Padding="12,8"
-                                Background="{DynamicResource AccentPrimaryBrush}"
-                                Foreground="{DynamicResource TextOnAccentBrush}"
-                                BorderBrush="{DynamicResource AccentSecondaryBrush}"
-                                BorderThickness="1"
-                                CornerRadius="{DynamicResource CornerSmall}">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/github.svg" Width="16"
-                                                   Height="16" />
-                                <TextBlock
-                                    Text="{Binding Source={x:Static loc:Localization.Instance}, Path=GitHubSignInButtonText}"
-                                    VerticalAlignment="Center" />
+                    <!-- Debug info -->
+                    <StackPanel Spacing="10">
+                        <TextBlock Classes="section-title" Text="System" />
+                        <Border Background="{DynamicResource BackgroundTertiaryBrush}"
+                                CornerRadius="10"
+                                Padding="14">
+                            <ItemsControl ItemsSource="{Binding Debug.InfoItems}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:DebugInfoItem">
+                                        <Grid ColumnDefinitions="110,*"
+                                              Margin="0,4">
+                                            <TextBlock Text="{Binding Label}"
+                                                       Foreground="{DynamicResource TextTertiaryBrush}"
+                                                       FontSize="12"
+                                                       VerticalAlignment="Center" />
+                                            <Border Grid.Column="1"
+                                                    Background="{DynamicResource BackgroundSecondaryBrush}"
+                                                    CornerRadius="5"
+                                                    Padding="10,3"
+                                                    HorizontalAlignment="Left">
+                                                <TextBlock Text="{Binding Value}"
+                                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                                           FontSize="12"
+                                                           FontWeight="SemiBold"
+                                                           VerticalAlignment="Center" />
+                                            </Border>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Border>
+                    </StackPanel>
+
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Separator -->
+            <Border Grid.Column="1"
+                    Background="{DynamicResource BorderPrimaryBrush}"
+                    Width="1"
+                    Margin="0,0" />
+
+            <!-- RIGHT COLUMN: Logs -->
+            <Grid Grid.Column="2"
+                  RowDefinitions="Auto,Auto,*,Auto,Auto"
+                  Margin="28,0,0,0">
+
+                <!-- Logs header -->
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto"
+                      Margin="0,0,0,12">
+                    <TextBlock Classes="section-title"
+                               Text="Logs"
+                               FontSize="18" />
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding Debug.FilterSummary}"
+                               Foreground="{DynamicResource TextTertiaryBrush}"
+                               FontSize="13"
+                               VerticalAlignment="Center" />
+                </Grid>
+
+                <!-- Filter pills -->
+                <StackPanel Grid.Row="1"
+                            Orientation="Horizontal"
+                            Spacing="6"
+                            Margin="0,0,0,12">
+                    <Button Classes="log-filter"
+                            x:Name="TrcButton"
+                            Content="TRC"
+                            Command="{Binding Debug.ToggleLevelCommand}"
+                            CommandParameter="TRC" />
+                    <Button Classes="log-filter"
+                            x:Name="DbgButton"
+                            Content="DBG"
+                            Command="{Binding Debug.ToggleLevelCommand}"
+                            CommandParameter="DBG" />
+                    <Button Classes="log-filter"
+                            x:Name="InfButton"
+                            Content="INF"
+                            Command="{Binding Debug.ToggleLevelCommand}"
+                            CommandParameter="INF" />
+                    <Button Classes="log-filter"
+                            x:Name="WrnButton"
+                            Content="WRN"
+                            Command="{Binding Debug.ToggleLevelCommand}"
+                            CommandParameter="WRN" />
+                    <Button Classes="log-filter"
+                            x:Name="ErrButton"
+                            Content="ERR"
+                            Command="{Binding Debug.ToggleLevelCommand}"
+                            CommandParameter="ERR" />
+                    <Button Classes="log-filter"
+                            x:Name="FtlButton"
+                            Content="FTL"
+                            Command="{Binding Debug.ToggleLevelCommand}"
+                            CommandParameter="FTL" />
+                </StackPanel>
+
+                <!-- Log viewer -->
+                <Border Grid.Row="2"
+                        Background="{DynamicResource BackgroundTertiaryBrush}"
+                        CornerRadius="10"
+                        Padding="0">
+                    <ListBox x:Name="LogListBox"
+                             ItemsSource="{Binding Debug.FilteredLogEntries}"
+                             SelectedItem="{Binding Debug.SelectedLogEntry}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             Padding="4"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.Styles>
+                            <Style Selector="ListBoxItem">
+                                <Setter Property="Padding" Value="12,6" />
+                                <Setter Property="Margin" Value="2,1" />
+                                <Setter Property="BorderThickness" Value="0" />
+                                <Setter Property="Background" Value="Transparent" />
+                                <Setter Property="CornerRadius" Value="6" />
+                                <Setter Property="Cursor" Value="Hand" />
+                            </Style>
+                            <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+                                <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}" />
+                            </Style>
+                            <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+                                <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}" />
+                            </Style>
+                        </ListBox.Styles>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:LogEntry">
+                                <StackPanel Orientation="Horizontal"
+                                            Spacing="10">
+                                    <TextBlock Text="{Binding Timestamp}"
+                                               Foreground="{DynamicResource TextTertiaryBrush}"
+                                               FontSize="11"
+                                               FontFamily="Consolas"
+                                               VerticalAlignment="Center"
+                                               Opacity="0.5" />
+                                    <Border Background="{Binding Level, Converter={StaticResource LogLevelConverter}}"
+                                            CornerRadius="4"
+                                            Padding="6,2"
+                                            MinWidth="34"
+                                            VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Level}"
+                                                   Foreground="{DynamicResource TextOnAccentBrush}"
+                                                   FontSize="10"
+                                                   FontWeight="Bold"
+                                                   FontFamily="Consolas"
+                                                   HorizontalAlignment="Center" />
+                                    </Border>
+                                    <TextBlock Text="{Binding Message}"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"
+                                               FontSize="12"
+                                               FontFamily="Consolas"
+                                               TextWrapping="Wrap"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Border>
+
+                <!-- Action bar -->
+                <Grid Grid.Row="3"
+                      ColumnDefinitions="Auto,*,Auto"
+                      Margin="0,10,0,6">
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="6">
+                        <Button Classes="settings-action"
+                                Command="{Binding Debug.CopySelectedLogCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/save.svg"
+                                                   Width="13" Height="13" />
+                                <TextBlock Text="Copy"
+                                           FontSize="12"
+                                           VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
-
-                        <Button Command="{Binding Auth.RefreshSessionCommand}"
-                                Padding="12,8"
-                                Background="{DynamicResource BackgroundTertiaryBrush}"
-                                Foreground="{DynamicResource TextPrimaryBrush}"
-                                BorderBrush="{DynamicResource BorderPrimaryBrush}"
-                                BorderThickness="1"
-                                CornerRadius="{DynamicResource CornerSmall}"
-                                IsVisible="{Binding Auth.IsConnected}">
-                            <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/refresh.svg" Width="16"
-                                               Height="16" />
+                        <Button Classes="settings-action"
+                                Command="{Binding Debug.CopyAllFilteredCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/save.svg"
+                                                   Width="13" Height="13" />
+                                <TextBlock Text="Copy all"
+                                           FontSize="12"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
                         </Button>
-
-                        <Button Command="{Binding Auth.SignOutCommand}"
-                                Padding="12,8"
-                                Background="{DynamicResource BackgroundTertiaryBrush}"
-                                Foreground="{DynamicResource ErrorBrush}"
-                                BorderBrush="{DynamicResource BorderHoverBrush}"
-                                BorderThickness="1"
-                                CornerRadius="{DynamicResource CornerSmall}"
-                                IsVisible="{Binding Auth.IsConnected}">
-                            <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/delete.svg" Width="16"
-                                               Height="16" />
+                        <Button Classes="settings-action"
+                                Command="{Binding Debug.ReloadLogsCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/refresh.svg"
+                                                   Width="13" Height="13" />
+                                <TextBlock Text="Reload"
+                                           FontSize="12"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
                         </Button>
                     </StackPanel>
-                </StackPanel>
-            </Border>
 
-            <!-- Debug Information & Logs Section -->
-            <Border Background="{DynamicResource BackgroundSecondaryBrush}"
-                    BorderBrush="{DynamicResource BorderPrimaryBrush}"
-                    BorderThickness="1"
-                    CornerRadius="{DynamicResource CornerLarge}"
-                    Padding="16">
-                <StackPanel Spacing="12">
-                    <TextBlock Text="Debug Information"
-                               Foreground="{DynamicResource TextPrimaryBrush}"
-                               FontWeight="SemiBold"
-                               FontSize="16" />
+                    <StackPanel Grid.Column="2"
+                                Orientation="Horizontal"
+                                Spacing="6">
+                        <Button Classes="settings-danger"
+                                Command="{Binding Debug.DeleteCurrentLogCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/delete.svg"
+                                                   Width="13" Height="13" />
+                                <TextBlock Text="Delete file"
+                                           FontSize="12"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="settings-danger"
+                                Command="{Binding Debug.DeleteAllLogsCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/delete.svg"
+                                                   Width="13" Height="13" />
+                                <TextBlock Text="Delete all"
+                                           FontSize="12"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
 
-                    <Border Background="{DynamicResource BackgroundPrimaryBrush}"
-                            BorderBrush="{DynamicResource BorderPrimaryBrush}"
-                            BorderThickness="1"
-                            CornerRadius="10"
-                            Padding="12">
-                        <TextBlock Text="{Binding Debug.DebugInfo}"
-                                   Foreground="{DynamicResource TextSecondaryBrush}"
-                                   FontSize="10"
-                                   FontFamily="Courier New"
-                                   TextWrapping="Wrap" />
-                    </Border>
+                <!-- Log file name -->
+                <TextBlock Grid.Row="4"
+                           Text="{Binding Debug.CurrentLogFileName}"
+                           Foreground="{DynamicResource TextTertiaryBrush}"
+                           FontSize="11"
+                           FontFamily="Consolas"
+                           Opacity="0.4"
+                           Margin="2,0" />
 
-                    <TextBlock Text="Application Logs"
-                               Foreground="{DynamicResource TextPrimaryBrush}"
-                               FontWeight="SemiBold"
-                               FontSize="14"
-                               Margin="0,12,0,0" />
+            </Grid>
 
-                    <Border Background="{DynamicResource BackgroundPrimaryBrush}"
-                            BorderBrush="{DynamicResource BorderPrimaryBrush}"
-                            BorderThickness="1"
-                            CornerRadius="10"
-                            Padding="12"
-                            Height="200">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <TextBlock Text="{Binding Debug.AppLogs}"
-                                       Foreground="{DynamicResource TextSecondaryBrush}"
-                                       FontSize="10"
-                                       FontFamily="Courier New"
-                                       TextWrapping="Wrap" />
-                        </ScrollViewer>
-                    </Border>
-
-                    <Button Command="{Binding Debug.CopyLogsCommand}"
-                            HorizontalAlignment="Left"
-                            Padding="16,10"
-                            Background="{DynamicResource BackgroundTertiaryBrush}"
-                            Foreground="{DynamicResource TextPrimaryBrush}"
-                            BorderBrush="{DynamicResource BorderPrimaryBrush}"
-                            BorderThickness="1"
-                            CornerRadius="{DynamicResource CornerSmall}">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/save.svg" Width="16"
-                                               Height="16" />
-                            <TextBlock Text="Copy Debug Info &amp; Logs" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-                </StackPanel>
-            </Border>
-
-            <!-- Close Button -->
-            <Button Content="Close"
-                    HorizontalAlignment="Right"
-                    Padding="20,10"
-                    Background="{DynamicResource BackgroundTertiaryBrush}"
-                    Foreground="{DynamicResource TextPrimaryBrush}"
-                    BorderBrush="{DynamicResource BorderPrimaryBrush}"
-                    BorderThickness="1"
-                    CornerRadius="{DynamicResource CornerSmall}"
-                    Click="OnCloseClick" />
-        </StackPanel>
-    </ScrollViewer>
+        </Grid>
+    </Grid>
 </Window>
