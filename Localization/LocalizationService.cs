@@ -119,6 +119,21 @@ public sealed class LocalizationService
     public string GitHubClientIdNotConfigured => GetString(nameof(GitHubClientIdNotConfigured));
     public string ActionStar => GetString(nameof(ActionStar));
     public string ActionWatch => GetString(nameof(ActionWatch));
+    public string ActionUnstar => GetString(nameof(ActionUnstar));
+    public string ActionUnwatch => GetString(nameof(ActionUnwatch));
+    public string UnstarRepositorySuccess => GetString(nameof(UnstarRepositorySuccess));
+    public string UnstarRepositoryFailure => GetString(nameof(UnstarRepositoryFailure));
+    public string UnwatchRepositorySuccess => GetString(nameof(UnwatchRepositorySuccess));
+    public string UnwatchRepositoryFailure => GetString(nameof(UnwatchRepositoryFailure));
+    public string ConfirmUnstar => GetString(nameof(ConfirmUnstar));
+    public string ConfirmUnwatch => GetString(nameof(ConfirmUnwatch));
+    public string SaveRepositorySuccess => GetString(nameof(SaveRepositorySuccess));
+    public string SaveRepositoryFailure => GetString(nameof(SaveRepositoryFailure));
+    public string DismissRepositorySuccess => GetString(nameof(DismissRepositorySuccess));
+    public string DismissRepositoryFailure => GetString(nameof(DismissRepositoryFailure));
+    public string NoDismissedRepositories => GetString(nameof(NoDismissedRepositories));
+    public string DismissedCount => GetString(nameof(DismissedCount));
+    public string AllDismissedCleared => GetString(nameof(AllDismissedCleared));
 
     public void Initialize(CultureInfo? culture = null)
     {

@@ -101,5 +101,20 @@
     <data name="GitHubClientIdNotConfigured" xml:space="preserve"><value>GitHub App client id is not configured. Set GITHUB_APP_CLIENT_ID environment variable.</value></data>
     <data name="ActionStar" xml:space="preserve"><value>star</value></data>
     <data name="ActionWatch" xml:space="preserve"><value>watch</value></data>
+    <data name="ActionUnstar" xml:space="preserve"><value>unstar</value></data>
+    <data name="ActionUnwatch" xml:space="preserve"><value>unwatch</value></data>
+    <data name="UnstarRepositorySuccess" xml:space="preserve"><value>Unstarred repository on GitHub: {0}</value></data>
+    <data name="UnstarRepositoryFailure" xml:space="preserve"><value>Unable to unstar the repository</value></data>
+    <data name="UnwatchRepositorySuccess" xml:space="preserve"><value>Unwatched repository on GitHub: {0}</value></data>
+    <data name="UnwatchRepositoryFailure" xml:space="preserve"><value>Unable to unwatch the repository</value></data>
+    <data name="ConfirmUnstar" xml:space="preserve"><value>Are you sure you want to unstar this repository?</value></data>
+    <data name="ConfirmUnwatch" xml:space="preserve"><value>Are you sure you want to unwatch this repository?</value></data>
+    <data name="SaveRepositorySuccess" xml:space="preserve"><value>Repository saved: {0}</value></data>
+    <data name="SaveRepositoryFailure" xml:space="preserve"><value>Failed to save repository</value></data>
+    <data name="DismissRepositorySuccess" xml:space="preserve"><value>Repository dismissed: {0}</value></data>
+    <data name="DismissRepositoryFailure" xml:space="preserve"><value>Failed to dismiss repository</value></data>
+    <data name="NoDismissedRepositories" xml:space="preserve"><value>No dismissed repositories</value></data>
+    <data name="DismissedCount" xml:space="preserve"><value>{0} dismissed repositories</value></data>
+    <data name="AllDismissedCleared" xml:space="preserve"><value>Cleared {0} dismissed repositories</value></data>
 </root>
 

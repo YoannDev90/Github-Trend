@@ -101,5 +101,20 @@
     <data name="GitHubClientIdNotConfigured" xml:space="preserve"><value>L’identifiant client de l’application GitHub n’est pas configuré. Définis la variable d’environnement GITHUB_APP_CLIENT_ID.</value></data>
     <data name="ActionStar" xml:space="preserve"><value>étoiler</value></data>
     <data name="ActionWatch" xml:space="preserve"><value>surveiller</value></data>
+    <data name="ActionUnstar" xml:space="preserve"><value>retirer l'étoile</value></data>
+    <data name="ActionUnwatch" xml:space="preserve"><value>ne plus surveiller</value></data>
+    <data name="UnstarRepositorySuccess" xml:space="preserve"><value>Étoile retirée sur GitHub : {0}</value></data>
+    <data name="UnstarRepositoryFailure" xml:space="preserve"><value>Impossible de retirer l'étoile du dépôt</value></data>
+    <data name="UnwatchRepositorySuccess" xml:space="preserve"><value>Surveillance arrêtée sur GitHub : {0}</value></data>
+    <data name="UnwatchRepositoryFailure" xml:space="preserve"><value>Impossible d'arrêter la surveillance du dépôt</value></data>
+    <data name="ConfirmUnstar" xml:space="preserve"><value>Veux-tu vraiment retirer l'étoile de ce dépôt ?</value></data>
+    <data name="ConfirmUnwatch" xml:space="preserve"><value>Veux-tu vraiment arrêter de surveiller ce dépôt ?</value></data>
+    <data name="SaveRepositorySuccess" xml:space="preserve"><value>Dépôt enregistré : {0}</value></data>
+    <data name="SaveRepositoryFailure" xml:space="preserve"><value>Impossible d'enregistrer le dépôt</value></data>
+    <data name="DismissRepositorySuccess" xml:space="preserve"><value>Dépôt ignoré : {0}</value></data>
+    <data name="DismissRepositoryFailure" xml:space="preserve"><value>Impossible d'ignorer le dépôt</value></data>
+    <data name="NoDismissedRepositories" xml:space="preserve"><value>Aucun dépôt ignoré</value></data>
+    <data name="DismissedCount" xml:space="preserve"><value>{0} dépôts ignorés</value></data>
+    <data name="AllDismissedCleared" xml:space="preserve"><value>{0} dépôts ignorés restaurés</value></data>
 </root>
 
