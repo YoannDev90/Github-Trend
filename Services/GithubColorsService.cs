@@ -1,69 +1,89 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Github_Trend.Database;
+using Serilog;
 
 namespace Github_Trend;
 
 public static class GithubColorsService
 {
-    private static readonly HttpClient Http = new();
+    private static readonly HttpClient Http = CreateHttpClient();
     private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(24);
-    private static readonly string CacheFilePath;
+    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
-    static GithubColorsService()
+    private static AppDatabase? _db;
+
+    public static void SetDatabase(AppDatabase db)
     {
-        var folder = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Github_Trend"
-        );
-
-        Directory.CreateDirectory(folder);
-        CacheFilePath = Path.Combine(folder, "colors-cache.json");
+        _db = db;
     }
 
     public static async Task<GithubColorsCatalog> FetchAsync(bool force = false)
     {
-        if (!force && File.Exists(CacheFilePath))
+        if (!force && _db is not null)
+        {
             try
             {
-                var lastWrite = File.GetLastWriteTimeUtc(CacheFilePath);
-                if (DateTime.UtcNow - lastWrite < CacheTtl)
+                var cachedJson = await _db.GetColorsCacheAsync();
+                if (cachedJson is not null)
                 {
-                    var cachedJson = await File.ReadAllTextAsync(CacheFilePath);
                     var cached = DeserializeColors(cachedJson);
-                    if (cached != null)
+                    if (cached is not null)
                         return new GithubColorsCatalog(cached);
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "Failed to read colors cache from database");
+            }
+        }
 
         try
         {
             var json = await Http.GetStringAsync(Constants.GitHubColorsUrl);
             var colors = DeserializeColors(json) ?? new Dictionary<string, GithubColorEntry>();
 
-            try
+            if (_db is not null)
             {
-                await File.WriteAllTextAsync(CacheFilePath, json);
+                try
+                {
+                    await _db.SetColorsCacheAsync(json, CacheTtl);
+                }
+                catch (Exception ex)
+                {
+                    Log.Debug(ex, "Failed to write colors cache to database");
+                }
             }
-            catch { }
 
             return new GithubColorsCatalog(colors);
         }
-        catch
+        catch (Exception ex)
         {
-            if (File.Exists(CacheFilePath))
+            Log.Warning(ex, "Colors network fetch failed");
+
+            if (_db is not null)
+            {
                 try
                 {
-                    var cachedJson = await File.ReadAllTextAsync(CacheFilePath);
-                    var cached = DeserializeColors(cachedJson);
-                    if (cached != null)
-                        return new GithubColorsCatalog(cached);
+                    var staleJson = await _db.GetColorsCacheAsync();
+                    if (staleJson is not null)
+                    {
+                        var cached = DeserializeColors(staleJson);
+                        if (cached is not null)
+                        {
+                            Log.Warning("Colors stale-cache fallback ({Count})", cached.Count);
+                            return new GithubColorsCatalog(cached);
+                        }
+                    }
                 }
-                catch { }
+                catch (Exception cacheEx)
+                {
+                    Log.Debug(cacheEx, "Failed to read stale colors cache");
+                }
+            }
 
             throw;
         }
@@ -73,14 +93,22 @@ public static class GithubColorsService
     {
         try
         {
-            return JsonSerializer.Deserialize<Dictionary<string, GithubColorEntry>>(
-                json,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
-            );
+            return JsonSerializer.Deserialize<Dictionary<string, GithubColorEntry>>(json, JsonOptions);
         }
-        catch
+        catch (Exception ex)
         {
+            Log.Debug(ex, "Failed to deserialize colors JSON");
             return null;
         }
+    }
+
+    private static HttpClient CreateHttpClient()
+    {
+        var handler = new SocketsHttpHandler
+        {
+            PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+            ConnectTimeout = TimeSpan.FromSeconds(15),
+        };
+        return new HttpClient(handler);
     }
 }
