@@ -3,16 +3,14 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Media.Imaging;
+using Github_Trend.Database;
+using Github_Trend.Services;
+using Github_Trend.Utils;
 using Serilog;
 
 namespace Github_Trend;
@@ -20,29 +18,43 @@ namespace Github_Trend;
 public static class GithubRepositoryDetailsService
 {
     private static readonly HttpClient Http = CreateHttpClient();
+    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
+    private static GitHubGraphQlService? _graphQlService;
+    private static GitHubAuthenticationService? _authService;
+    private static GitHubRateLimitService? _rateLimitService;
+    private static AppDatabase? _db;
 
-    private static readonly ConcurrentDictionary<string, Lazy<Task<RepositoryDetails>>> Cache = new(
-        StringComparer.OrdinalIgnoreCase
-    );
+    // In-memory bitmap cache
+    private static readonly ConcurrentDictionary<string, WeakReference<Bitmap>> ImageCache = new();
 
-    private static readonly GitHubAuthenticationService AuthService = new();
-    private static readonly SemaphoreSlim AnonymousContributorLimiter = new(1, 1);
-    private static readonly SemaphoreSlim DiskCacheLock = new(1, 1);
-    private static readonly object RateLimitStateSync = new();
-    private static DateTimeOffset? _rateLimitCooldownUntilUtc;
-    private static readonly string RepositoryDetailsCacheDirectory = CreateCacheDirectory(
-        "repo-details"
-    );
-    private static readonly string ImageCacheDirectory = CreateCacheDirectory("images");
-
-    public static async Task<GithubTrendingRepository> EnrichAsync(
-        GithubTrendingRepository repository
+    public static void Initialize(
+        GitHubGraphQlService graphQlService,
+        GitHubAuthenticationService authService,
+        GitHubRateLimitService rateLimitService,
+        AppDatabase db
     )
     {
-        if (!TryGetRepositorySlug(repository, out var owner, out var name))
-            return repository.CloneWith(htmlUrl: repository.RepositoryLink);
+        _graphQlService = graphQlService;
+        _authService = authService;
+        _rateLimitService = rateLimitService;
+        _db = db;
+    }
 
-        var details = await GetDetailsAsync(owner, name);
+    public static async Task<GithubTrendingRepository> EnrichAsync(
+        GithubTrendingRepository repository,
+        CancellationToken ct = default
+    )
+    {
+        if (!RepositoryUrlParser.TryParse(
+            !string.IsNullOrWhiteSpace(repository.Name) ? repository.Name : repository.Repository,
+            out var owner,
+            out var name
+        ))
+        {
+            return repository.CloneWith(htmlUrl: repository.RepositoryLink);
+        }
+
+        var details = await GetDetailsAsync(owner, name, ct);
         return repository.CloneWith(
             htmlUrl: details.HtmlUrl,
             bannerUrl: details.BannerUrl,
@@ -55,494 +67,259 @@ public static class GithubRepositoryDetailsService
         );
     }
 
-    private static async Task<RepositoryDetails> GetDetailsAsync(string owner, string name)
+    private static async Task<RepositoryDetails> GetDetailsAsync(
+        string owner,
+        string name,
+        CancellationToken ct = default
+    )
     {
-        var cacheKey = $"{owner}/{name}";
-        var lazy = Cache.GetOrAdd(
-            cacheKey,
-            _ => new Lazy<Task<RepositoryDetails>>(() => FetchDetailsAsync(owner, name))
-        );
-        return await lazy.Value;
+        // 1. Try memory/disk cache via SQLite
+        if (_db is not null)
+        {
+            try
+            {
+                var cached = await _db.GetRepositoryDetailsCacheAsync(owner, name);
+                if (cached is not null)
+                {
+                    var record = JsonSerializer.Deserialize<RepositoryDetailsCacheRecord>(
+                        cached.Value.dataJson!, JsonOptions
+                    );
+                    if (record is not null)
+                    {
+                        Log.Debug("Repo details cache hit for {Owner}/{Name}", owner, name);
+                        return await BuildDetailsFromRecordAsync(record, owner, name);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "Failed to read repo details cache for {Owner}/{Name}", owner, name);
+            }
+        }
+
+        // 2. Fetch from GitHub GraphQL API
+        return await FetchDetailsAsync(owner, name, ct);
     }
 
-    private static async Task<RepositoryDetails> FetchDetailsAsync(string owner, string name)
+    private static async Task<RepositoryDetails> FetchDetailsAsync(
+        string owner,
+        string name,
+        CancellationToken ct = default
+    )
     {
         var htmlUrl = $"https://github.com/{owner}/{name}";
         var bannerUrl = $"https://opengraph.githubassets.com/1/{owner}/{name}";
-
-        var freshCache = await TryLoadRepositoryDetailsFromDiskAsync(
-            owner,
-            name,
-            false,
-            htmlUrl,
-            bannerUrl
-        );
-        if (freshCache is not null)
-            return freshCache;
 
         var details = new RepositoryDetails
         {
             HtmlUrl = htmlUrl,
             BannerUrl = bannerUrl,
-            BannerImage = await TryLoadBitmapAsync(bannerUrl),
         };
 
-        if (TryGetRateLimitCooldownRemaining(out var remaining))
+        if (_rateLimitService?.IsInCooldown == true)
         {
-            Log.Information(
-                "Skipping GitHub API enrichment for {Owner}/{Name} during cooldown ({Seconds}s remaining)",
-                owner,
-                name,
-                Math.Max(1, (int)remaining.TotalSeconds)
-            );
-            var staleCache = await TryLoadRepositoryDetailsFromDiskAsync(
-                owner,
-                name,
-                true,
-                htmlUrl,
-                bannerUrl
-            );
-            if (staleCache is not null)
-                return staleCache;
+            Log.Information("Skipping GraphQL enrichment for {Owner}/{Name} during cooldown", owner, name);
+            return details;
+        }
 
+        if (_graphQlService is null)
+        {
+            Log.Warning("GraphQL service not initialized for {Owner}/{Name}", owner, name);
             return details;
         }
 
         try
         {
-            var apiUrl = $"{Constants.GitHub.ApiBaseUrl}/repos/{owner}/{name}";
-            using var response = await SendGitHubResponseAsync(apiUrl);
-            response.EnsureSuccessStatusCode();
+            // Fetch repo details (topics, license, etc.)
+            var enrichmentData = await _graphQlService.GetRepositoryDetailsAsync(owner, name, ct);
+            if (enrichmentData is not null)
+            {
+                details.HtmlUrl = enrichmentData.HtmlUrl;
+                details.License = enrichmentData.License;
+                details.Topics = enrichmentData.Topics;
+                details.UpdatedAt = enrichmentData.UpdatedAt;
+            }
 
-            var payload = await response.Content.ReadAsStringAsync();
-            var repo = JsonSerializer.Deserialize<GitHubRepositoryResponse>(
-                payload,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+            // Fetch contributors
+            var isAuthenticated = _authService?.IsConnected == true;
+            var contributorCount = isAuthenticated
+                ? Constants.Trending.MaxContributorPreviewCount
+                : Constants.Trending.AnonymousContributorPreviewCount;
+
+            var contributorData = await _graphQlService.GetContributorsAsync(
+                owner, name, contributorCount, ct
             );
 
-            if (repo is null)
-                return details;
-
-            details.HtmlUrl = repo.HtmlUrl ?? htmlUrl;
-            details.License = NormalizeLicense(repo.License);
-            details.Topics =
-                repo.Topics?.Where(topic => !string.IsNullOrWhiteSpace(topic)).Take(6).ToList()
-                ?? new List<string>();
-            details.UpdatedAt = repo.UpdatedAt;
-
-            var isAuthenticated = await HasAuthenticatedGitHubAccessAsync();
-            var contributorResult = await FetchContributorsAsync(
-                repo.ContributorsUrl,
-                isAuthenticated
-            );
-            details.Contributors = contributorResult.Contributors.ToList();
-            details.ContributorsTotalCount = contributorResult.TotalCount;
-
-            await TrySaveRepositoryDetailsToDiskAsync(owner, name, details);
+            var contributors = new List<GithubContributorPreview>();
+            foreach (var c in contributorData.Contributors)
+            {
+            contributors.Add(new GithubContributorPreview(
+                c.Login,
+                c.AvatarUrl,
+                null
+            ));
         }
-        catch (RateLimitCooldownException)
-        {
-            var staleCache = await TryLoadRepositoryDetailsFromDiskAsync(
-                owner,
-                name,
-                true,
-                htmlUrl,
-                bannerUrl
-            );
-            if (staleCache is not null)
-                return staleCache;
 
-            return details;
+        details.Contributors = contributors;
+        details.ContributorsTotalCount = contributorData.TotalCount;
+
+        // Load banner image
+        details.BannerImage = await TryLoadBitmapAsync(details.BannerUrl);
+
+        // Load avatar images
+        foreach (var c in details.Contributors)
+        {
+            c.AvatarImage = await TryLoadBitmapAsync(c.AvatarUrl);
+        }
+
+        // Save to cache
+            if (_db is not null)
+            {
+                try
+                {
+                    var record = new RepositoryDetailsCacheRecord
+                    {
+                        HtmlUrl = details.HtmlUrl,
+                        BannerUrl = details.BannerUrl,
+                        License = details.License,
+                        Contributors = details.Contributors.ConvertAll(c => new ContributorCacheRecord
+                        {
+                            Login = c.Login,
+                            AvatarUrl = c.AvatarUrl,
+                        }),
+                        ContributorsTotalCount = details.ContributorsTotalCount,
+                        Topics = details.Topics,
+                        UpdatedAt = details.UpdatedAt,
+                        CachedAtUtc = DateTimeOffset.UtcNow,
+                    };
+                    var json = JsonSerializer.Serialize(record, JsonOptions);
+                    await _db.SetRepositoryDetailsCacheAsync(
+                        owner, name, json, null, Constants.Trending.RepositoryDetailsCacheTtl
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Log.Debug(ex, "Failed to save repo details cache for {Owner}/{Name}", owner, name);
+                }
+            }
         }
         catch (Exception ex)
         {
-            Log.Warning(ex, "GitHub repo details fetch failed for {Owner}/{Name}", owner, name);
-
-            var staleCache = await TryLoadRepositoryDetailsFromDiskAsync(
-                owner,
-                name,
-                true,
-                htmlUrl,
-                bannerUrl
-            );
-            if (staleCache is not null)
-                return staleCache;
+            Log.Warning(ex, "GraphQL repo details fetch failed for {Owner}/{Name}", owner, name);
         }
 
         return details;
     }
 
-    private static bool TryGetRepositorySlug(
-        GithubTrendingRepository repository,
-        out string owner,
-        out string name
+    private static async Task<RepositoryDetails> BuildDetailsFromRecordAsync(
+        RepositoryDetailsCacheRecord cached,
+        string owner,
+        string name
     )
     {
-        owner = string.Empty;
-        name = string.Empty;
+        var fallbackBannerUrl = $"https://opengraph.githubassets.com/1/{owner}/{name}";
+        var bannerUrl = string.IsNullOrWhiteSpace(cached.BannerUrl) ? fallbackBannerUrl : cached.BannerUrl;
+        var contributors = new List<GithubContributorPreview>();
 
-        var candidate = !string.IsNullOrWhiteSpace(repository.Name)
-            ? repository.Name
-            : repository.Repository;
-
-        if (!string.IsNullOrWhiteSpace(candidate))
+        foreach (var c in cached.Contributors)
         {
-            candidate = candidate.Trim();
-            if (candidate.Contains('/'))
-            {
-                var parts = candidate.Split(
-                    '/',
-                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
-                );
-                if (parts.Length >= 2)
-                {
-                    owner = parts[^2];
-                    name = parts[^1];
-                    return true;
-                }
-            }
+            if (string.IsNullOrWhiteSpace(c.Login)) continue;
+            contributors.Add(new GithubContributorPreview(
+                c.Login,
+                c.AvatarUrl,
+                null
+            ));
         }
 
-        if (Uri.TryCreate(repository.Repository, UriKind.Absolute, out var uri))
+        var result = new RepositoryDetails
         {
-            var parts = uri.AbsolutePath.Split(
-                '/',
-                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
-            );
-            if (parts.Length >= 2)
-            {
-                owner = parts[0];
-                name = parts[1];
-                return true;
-            }
+            HtmlUrl = string.IsNullOrWhiteSpace(cached.HtmlUrl) ? $"https://github.com/{owner}/{name}" : cached.HtmlUrl,
+            BannerUrl = bannerUrl,
+            License = cached.License,
+            Contributors = contributors,
+            ContributorsTotalCount = cached.ContributorsTotalCount,
+            Topics = cached.Topics.Where(t => !string.IsNullOrWhiteSpace(t)).ToList(),
+            UpdatedAt = cached.UpdatedAt,
+        };
+
+        // Load banner image
+        result.BannerImage = await TryLoadBitmapAsync(result.BannerUrl);
+
+        // Load avatar images
+        foreach (var c in result.Contributors)
+        {
+            c.AvatarImage = await TryLoadBitmapAsync(c.AvatarUrl);
         }
 
-        return false;
+        return result;
     }
 
-    private static string? NormalizeLicense(GitHubLicenseInfo? license)
-    {
-        var value = license?.SpdxId;
-        if (
-            !string.IsNullOrWhiteSpace(value)
-            && !string.Equals(value, "NOASSERTION", StringComparison.OrdinalIgnoreCase)
-        )
-            return value;
-
-        value = license?.Name;
-        if (!string.IsNullOrWhiteSpace(value))
-            return value;
-
-        return null;
-    }
-
-    private static async Task<ContributorFetchResult> FetchContributorsAsync(
-        string? contributorsUrl,
-        bool isAuthenticated
-    )
-    {
-        var url = NormalizeApiUrl(contributorsUrl);
-        if (string.IsNullOrWhiteSpace(url))
-            return new ContributorFetchResult(Array.Empty<GithubContributorPreview>(), 0);
-
-        try
-        {
-            return await FetchContributorSnapshotAsync(url, isAuthenticated);
-        }
-        catch (RateLimitCooldownException)
-        {
-            return new ContributorFetchResult(Array.Empty<GithubContributorPreview>(), 0);
-        }
-        catch (Exception ex)
-        {
-            Log.Warning(ex, "GitHub contributors fetch failed for {Url}", url);
-            return new ContributorFetchResult(Array.Empty<GithubContributorPreview>(), 0);
-        }
-    }
-
-    private static async Task<ContributorFetchResult> FetchContributorSnapshotAsync(
-        string url,
-        bool isAuthenticated
-    )
-    {
-        var previewCount = isAuthenticated
-            ? Constants.Trending.MaxContributorPreviewCount
-            : Constants.Trending.AnonymousContributorPreviewCount;
-
-        using var response = await SendGitHubResponseAsync(
-            url + $"?per_page={previewCount}&page=1"
-        );
-        response.EnsureSuccessStatusCode();
-        var json = await response.Content.ReadAsStringAsync();
-        var contributors =
-            JsonSerializer.Deserialize<List<GitHubContributorResponse>>(
-                json,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
-            ) ?? new List<GitHubContributorResponse>();
-
-        var previewTasks = contributors
-            .Where(contributor => !string.IsNullOrWhiteSpace(contributor.Login))
-            .Take(previewCount)
-            .Select(async contributor => new GithubContributorPreview(
-                contributor.Login!,
-                contributor.AvatarUrl,
-                await TryLoadBitmapAsync(contributor.AvatarUrl)
-            ))
-            .ToArray();
-
-        var previews = await Task.WhenAll(previewTasks);
-
-        return new ContributorFetchResult(previews, previews.Length);
-    }
-
-    private static int? ParseLastPageNumber(string linkHeader)
-    {
-        foreach (
-            var part in linkHeader.Split(
-                ',',
-                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
-            )
-        )
-        {
-            if (!part.Contains("rel=\"last\"", StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            var pageIndex = part.IndexOf("page=", StringComparison.OrdinalIgnoreCase);
-            if (pageIndex < 0)
-                continue;
-
-            pageIndex += 5;
-            var endIndex = part.IndexOf('&', pageIndex);
-            var pageToken = endIndex >= 0 ? part[pageIndex..endIndex] : part[pageIndex..];
-            if (int.TryParse(pageToken, out var pageNumber))
-                return pageNumber;
-        }
-
-        return null;
-    }
-
-    private static async Task<string> SendGitHubJsonAsync(string url)
-    {
-        using var response = await SendGitHubResponseAsync(url);
-        response.EnsureSuccessStatusCode();
-        return await response.Content.ReadAsStringAsync();
-    }
-
-    private static async Task<HttpResponseMessage> SendGitHubResponseAsync(string url)
-    {
-        if (TryGetRateLimitCooldownRemaining(out var cooldownRemaining))
-            throw new RateLimitCooldownException(cooldownRemaining);
-
-        for (var attempt = 0; attempt <= Constants.RateLimit.MaxRetries; attempt++)
-        {
-            using var request = await CreateGitHubRequestAsync(url);
-            var response = await Http.SendAsync(request);
-            if (!IsRetriableRateLimit(response))
-                return response;
-
-            RegisterRateLimitCooldown(response);
-
-            if (attempt >= Constants.RateLimit.MaxRetries)
-                return response;
-
-            var delay = ComputeRetryDelay(response, attempt);
-            Log.Warning(
-                "GitHub rate-limit reached on {Url}. Retry {Attempt}/{Max} in {DelayMs}ms",
-                url,
-                attempt + 1,
-                Constants.RateLimit.MaxRetries,
-                (int)delay.TotalMilliseconds
-            );
-            response.Dispose();
-            await Task.Delay(delay);
-        }
-
-        throw new InvalidOperationException("Unreachable retry state for GitHub API call.");
-    }
-
-    private static async Task<HttpRequestMessage> CreateGitHubRequestAsync(string url)
-    {
-        var request = new HttpRequestMessage(HttpMethod.Get, url);
-        request.Headers.UserAgent.ParseAdd(Constants.GitHub.UserAgent);
-        request.Headers.Accept.ParseAdd(Constants.GitHub.ApiAccept);
-        request.Headers.TryAddWithoutValidation(
-            "X-GitHub-Api-Version",
-            Constants.GitHub.ApiVersion
-        );
-
-        var token = await AuthService.GetAccessTokenAsync(true);
-        if (!string.IsNullOrWhiteSpace(token))
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        return request;
-    }
-
-    private static bool IsRetriableRateLimit(HttpResponseMessage response)
-    {
-        if (response.StatusCode == HttpStatusCode.TooManyRequests)
-            return true;
-
-        return response.StatusCode == HttpStatusCode.Forbidden
-            && (HasRateLimitRemainingZero(response) || response.Headers.RetryAfter is not null);
-    }
-
-    private static bool HasRateLimitRemainingZero(HttpResponseMessage response)
-    {
-        return response.Headers.TryGetValues("X-RateLimit-Remaining", out var remaining)
-            && string.Equals(remaining.FirstOrDefault(), "0", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static TimeSpan ComputeRetryDelay(HttpResponseMessage response, int attempt)
-    {
-        if (response.Headers.RetryAfter?.Delta is not null)
-            return response.Headers.RetryAfter!.Delta!.Value
-                + TimeSpan.FromMilliseconds(
-                    Random.Shared.Next(
-                        Constants.RateLimit.RetryJitterMinMilliseconds,
-                        Constants.RateLimit.RetryJitterMaxMilliseconds
-                    )
-                );
-
-        if (
-            response.Headers.TryGetValues("X-RateLimit-Reset", out var resetValues)
-            && long.TryParse(resetValues.FirstOrDefault(), out var unixSeconds)
-        )
-        {
-            var resetTime = DateTimeOffset.FromUnixTimeSeconds(unixSeconds);
-            var delay =
-                resetTime
-                - DateTimeOffset.UtcNow
-                + TimeSpan.FromSeconds(Constants.RateLimit.ResetSafetySeconds);
-            if (delay > TimeSpan.Zero)
-                return delay
-                    + TimeSpan.FromMilliseconds(
-                        Random.Shared.Next(
-                            Constants.RateLimit.RetryJitterMinMilliseconds,
-                            Constants.RateLimit.RetryJitterMaxMilliseconds
-                        )
-                    );
-        }
-
-        var exponential = Constants.RateLimit.BaseBackoffMilliseconds * Math.Pow(2, attempt);
-        var bounded = Math.Min(exponential, Constants.RateLimit.MaxBackoffMilliseconds);
-        return TimeSpan.FromMilliseconds(bounded + Random.Shared.Next(50, 200));
-    }
-
-    private static void RegisterRateLimitCooldown(HttpResponseMessage response)
-    {
-        var now = DateTimeOffset.UtcNow;
-        var cooldown = ComputeRateLimitCooldown(response);
-        if (cooldown <= TimeSpan.Zero)
-            cooldown = TimeSpan.FromSeconds(Constants.RateLimit.CooldownFallbackSeconds);
-
-        lock (RateLimitStateSync)
-        {
-            var candidate = now + cooldown;
-            if (_rateLimitCooldownUntilUtc is null || candidate > _rateLimitCooldownUntilUtc.Value)
-                _rateLimitCooldownUntilUtc = candidate;
-        }
-    }
-
-    private static TimeSpan ComputeRateLimitCooldown(HttpResponseMessage response)
-    {
-        if (response.Headers.RetryAfter?.Delta is not null)
-            return response.Headers.RetryAfter!.Delta!.Value;
-
-        if (
-            response.Headers.TryGetValues("X-RateLimit-Reset", out var resetValues)
-            && long.TryParse(resetValues.FirstOrDefault(), out var unixSeconds)
-        )
-        {
-            var resetTime = DateTimeOffset.FromUnixTimeSeconds(unixSeconds);
-            return resetTime
-                - DateTimeOffset.UtcNow
-                + TimeSpan.FromSeconds(Constants.RateLimit.ResetSafetySeconds);
-        }
-
-        return TimeSpan.Zero;
-    }
-
-    private static bool TryGetRateLimitCooldownRemaining(out TimeSpan remaining)
-    {
-        lock (RateLimitStateSync)
-        {
-            if (_rateLimitCooldownUntilUtc is null)
-            {
-                remaining = TimeSpan.Zero;
-                return false;
-            }
-
-            remaining = _rateLimitCooldownUntilUtc.Value - DateTimeOffset.UtcNow;
-            if (remaining <= TimeSpan.Zero)
-            {
-                _rateLimitCooldownUntilUtc = null;
-                remaining = TimeSpan.Zero;
-                return false;
-            }
-
-            return true;
-        }
-    }
-
-    private static async Task<bool> HasAuthenticatedGitHubAccessAsync()
-    {
-        await AnonymousContributorLimiter.WaitAsync();
-        try
-        {
-            var token = await AuthService.GetAccessTokenAsync(true);
-            return !string.IsNullOrWhiteSpace(token);
-        }
-        catch
-        {
-            return false;
-        }
-        finally
-        {
-            AnonymousContributorLimiter.Release();
-        }
-    }
-
-    private static string? NormalizeApiUrl(string? url)
+    public static async Task<Bitmap?> TryLoadBitmapAsync(string? url)
     {
         if (string.IsNullOrWhiteSpace(url))
             return null;
 
-        var sanitized = url.Split(
-            '{',
-            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
-        )[0];
-        return sanitized.TrimEnd('/');
-    }
+        // Check in-memory cache
+        if (ImageCache.TryGetValue(url!, out var weakRef) && weakRef.TryGetTarget(out var cached))
+            return cached;
 
-    private static async Task<Bitmap?> TryLoadBitmapAsync(string? url)
-    {
         try
         {
-            if (string.IsNullOrWhiteSpace(url))
-                return null;
+            byte[]? imageBytes = null;
 
-            var imageBytes = await TryLoadImageBytesFromDiskAsync(url, false);
-            if (imageBytes is not null)
-                return CreateBitmapFromBytes(imageBytes);
+            // Try SQLite image cache first
+            if (_db is not null)
+            {
+                try
+                {
+                    imageBytes = await _db.GetImageCacheAsync(url);
+                }
+                catch (Exception ex)
+                {
+                    Log.Debug(ex, "Failed to read image cache for {Url}", url);
+                }
+            }
 
-            imageBytes = await Http.GetByteArrayAsync(url);
-            await TrySaveImageBytesToDiskAsync(url, imageBytes);
-            return CreateBitmapFromBytes(imageBytes);
+            // Download if not cached
+            if (imageBytes is null)
+            {
+                imageBytes = await Http.GetByteArrayAsync(url);
+
+                if (_db is not null)
+                {
+                    try
+                    {
+                        await _db.SetImageCacheAsync(url, imageBytes, Constants.Trending.ImageCacheTtl);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Debug(ex, "Failed to write image cache for {Url}", url);
+                    }
+                }
+            }
+
+            var bitmap = CreateBitmapFromBytes(imageBytes);
+
+            // Store in memory cache with WeakReference
+            ImageCache[url!] = new WeakReference<Bitmap>(bitmap);
+
+            return bitmap;
         }
         catch (Exception ex)
         {
-            try
+            // Try stale image cache
+            if (_db is not null)
             {
-                if (!string.IsNullOrWhiteSpace(url))
+                try
                 {
-                    var staleBytes = await TryLoadImageBytesFromDiskAsync(url, true);
+                    var staleBytes = await _db.GetImageCacheAsync(url, allowExpired: true);
                     if (staleBytes is not null)
                         return CreateBitmapFromBytes(staleBytes);
                 }
+                catch { }
             }
-            catch { }
 
-            Log.Debug(ex, "Banner load failed for {Url}", url);
+            Log.Debug(ex, "Image load failed for {Url}", url);
             return null;
         }
     }
@@ -555,206 +332,15 @@ public static class GithubRepositoryDetailsService
 
     private static HttpClient CreateHttpClient()
     {
-        var client = new HttpClient();
-        client.DefaultRequestHeaders.UserAgent.ParseAdd(Constants.GitHub.UserAgent);
-        return client;
-    }
-
-    private static async Task<RepositoryDetails?> TryLoadRepositoryDetailsFromDiskAsync(
-        string owner,
-        string name,
-        bool allowExpired,
-        string fallbackHtmlUrl,
-        string fallbackBannerUrl
-    )
-    {
-        var path = GetRepositoryDetailsCachePath(owner, name);
-        if (!File.Exists(path))
-            return null;
-
-        string json;
-        await DiskCacheLock.WaitAsync();
-        try
+        var handler = new SocketsHttpHandler
         {
-            json = await File.ReadAllTextAsync(path);
-        }
-        catch (Exception ex)
-        {
-            Log.Debug(
-                ex,
-                "Unable to read repository-details cache for {Owner}/{Name}",
-                owner,
-                name
-            );
-            return null;
-        }
-        finally
-        {
-            DiskCacheLock.Release();
-        }
-
-        var cached = JsonSerializer.Deserialize<RepositoryDetailsCacheRecord>(
-            json,
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
-        );
-
-        if (cached is null)
-            return null;
-
-        var age = DateTimeOffset.UtcNow - cached.CachedAtUtc;
-        if (!allowExpired && age > Constants.Trending.RepositoryDetailsCacheTtl)
-            return null;
-
-        var bannerUrl = string.IsNullOrWhiteSpace(cached.BannerUrl)
-            ? fallbackBannerUrl
-            : cached.BannerUrl;
-        var contributors = new List<GithubContributorPreview>();
-        foreach (var contributor in cached.Contributors)
-        {
-            if (string.IsNullOrWhiteSpace(contributor.Login))
-                continue;
-
-            contributors.Add(
-                new GithubContributorPreview(
-                    contributor.Login,
-                    contributor.AvatarUrl,
-                    await TryLoadBitmapAsync(contributor.AvatarUrl)
-                )
-            );
-        }
-
-        return new RepositoryDetails
-        {
-            HtmlUrl = string.IsNullOrWhiteSpace(cached.HtmlUrl) ? fallbackHtmlUrl : cached.HtmlUrl,
-            BannerUrl = bannerUrl,
-            BannerImage = await TryLoadBitmapAsync(bannerUrl),
-            License = cached.License,
-            Contributors = contributors,
-            ContributorsTotalCount = cached.ContributorsTotalCount,
-            Topics = cached.Topics.Where(topic => !string.IsNullOrWhiteSpace(topic)).ToList(),
-            UpdatedAt = cached.UpdatedAt,
+            PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+            ConnectTimeout = TimeSpan.FromSeconds(15),
         };
+        return new HttpClient(handler);
     }
 
-    private static async Task TrySaveRepositoryDetailsToDiskAsync(
-        string owner,
-        string name,
-        RepositoryDetails details
-    )
-    {
-        var path = GetRepositoryDetailsCachePath(owner, name);
-        var payload = new RepositoryDetailsCacheRecord
-        {
-            HtmlUrl = details.HtmlUrl,
-            BannerUrl = details.BannerUrl,
-            License = details.License,
-            ContributorsTotalCount = details.ContributorsTotalCount,
-            Topics = details.Topics.ToList(),
-            UpdatedAt = details.UpdatedAt,
-            CachedAtUtc = DateTimeOffset.UtcNow,
-            Contributors = details
-                .Contributors.Where(contributor => !string.IsNullOrWhiteSpace(contributor.Login))
-                .Select(contributor => new ContributorCacheRecord
-                {
-                    Login = contributor.Login,
-                    AvatarUrl = contributor.AvatarUrl,
-                })
-                .ToList(),
-        };
-
-        await DiskCacheLock.WaitAsync();
-        try
-        {
-            var json = JsonSerializer.Serialize(payload);
-            await File.WriteAllTextAsync(path, json);
-        }
-        catch (Exception ex)
-        {
-            Log.Debug(
-                ex,
-                "Unable to write repository-details cache for {Owner}/{Name}",
-                owner,
-                name
-            );
-        }
-        finally
-        {
-            DiskCacheLock.Release();
-        }
-    }
-
-    private static async Task<byte[]?> TryLoadImageBytesFromDiskAsync(string url, bool allowExpired)
-    {
-        var path = GetImageCachePath(url);
-        if (!File.Exists(path))
-            return null;
-
-        var age = DateTimeOffset.UtcNow - File.GetLastWriteTimeUtc(path);
-        if (!allowExpired && age > Constants.Trending.ImageCacheTtl)
-            return null;
-
-        await DiskCacheLock.WaitAsync();
-        try
-        {
-            return await File.ReadAllBytesAsync(path);
-        }
-        catch (Exception ex)
-        {
-            Log.Debug(ex, "Unable to read image cache {Path}", path);
-            return null;
-        }
-        finally
-        {
-            DiskCacheLock.Release();
-        }
-    }
-
-    private static async Task TrySaveImageBytesToDiskAsync(string url, byte[] bytes)
-    {
-        var path = GetImageCachePath(url);
-        await DiskCacheLock.WaitAsync();
-        try
-        {
-            await File.WriteAllBytesAsync(path, bytes);
-        }
-        catch (Exception ex)
-        {
-            Log.Debug(ex, "Unable to write image cache {Path}", path);
-        }
-        finally
-        {
-            DiskCacheLock.Release();
-        }
-    }
-
-    private static string CreateCacheDirectory(string suffix)
-    {
-        var folder = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Github_Trend",
-            suffix
-        );
-        Directory.CreateDirectory(folder);
-        return folder;
-    }
-
-    private static string GetRepositoryDetailsCachePath(string owner, string name)
-    {
-        var key = $"{owner}/{name}".ToLowerInvariant();
-        return Path.Combine(RepositoryDetailsCacheDirectory, HashToFileName(key, "json"));
-    }
-
-    private static string GetImageCachePath(string url)
-    {
-        return Path.Combine(ImageCacheDirectory, HashToFileName(url, "bin"));
-    }
-
-    private static string HashToFileName(string value, string extension)
-    {
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(value));
-        var hash = Convert.ToHexString(bytes).ToLowerInvariant();
-        return $"{hash}.{extension}";
-    }
+    // --- Internal models ---
 
     private sealed class RepositoryDetails
     {
@@ -784,60 +370,5 @@ public static class GithubRepositoryDetailsService
     {
         public string? Login { get; set; }
         public string? AvatarUrl { get; set; }
-    }
-
-    private sealed record GitHubRepositoryResponse
-    {
-        [JsonPropertyName("full_name")]
-        public string? FullName { get; init; }
-
-        [JsonPropertyName("html_url")]
-        public string? HtmlUrl { get; init; }
-
-        [JsonPropertyName("description")]
-        public string? Description { get; init; }
-
-        [JsonPropertyName("contributors_url")]
-        public string? ContributorsUrl { get; init; }
-
-        [JsonPropertyName("topics")]
-        public List<string>? Topics { get; init; }
-
-        [JsonPropertyName("updated_at")]
-        public string? UpdatedAt { get; init; }
-
-        [JsonPropertyName("license")]
-        public GitHubLicenseInfo? License { get; init; }
-    }
-
-    private sealed class GitHubLicenseInfo
-    {
-        [JsonPropertyName("spdx_id")]
-        public string? SpdxId { get; set; }
-
-        [JsonPropertyName("name")]
-        public string? Name { get; set; }
-    }
-
-    private sealed record GitHubContributorResponse
-    {
-        [JsonPropertyName("login")]
-        public string? Login { get; init; }
-
-        [JsonPropertyName("avatar_url")]
-        public string? AvatarUrl { get; init; }
-    }
-
-    private sealed record ContributorFetchResult(
-        IReadOnlyList<GithubContributorPreview> Contributors,
-        int TotalCount
-    );
-
-    private sealed class RateLimitCooldownException : Exception
-    {
-        public RateLimitCooldownException(TimeSpan remaining)
-            : base(
-                $"GitHub rate-limit cooldown active for {Math.Max(1, (int)remaining.TotalSeconds)}s"
-            ) { }
     }
 }
