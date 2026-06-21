@@ -14,7 +14,6 @@ riderModule.iml
 *.bak
 *.backup
 *.log
-*.sql
 *.cache
 *.pdb
 *.ilk
