@@ -1,22 +1,20 @@
 using System;
-using System.Linq;
 using System.Threading.Tasks;
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
 using Avalonia.Markup.Xaml;
-using Avalonia.VisualTree;
+using Avalonia.Media;
 using Serilog;
 
 namespace Github_Trend;
 
 public partial class MainWindow : Window
 {
-    private readonly ItemsControl? _trendingItemsControl;
-    private double _cachedRepoBlockHeight = 260d;
     private bool _initialized;
+    private SettingsWindow? _settingsWindow;
 
     public MainWindow()
     {
@@ -24,7 +22,17 @@ public partial class MainWindow : Window
         DataContext = ViewModel;
         ViewModel.DeviceCodeCopyRequested += async (_, _) =>
             await CopyGitHubDeviceCodeToClipboardAsync();
-        _trendingItemsControl = this.FindControl<ItemsControl>("TrendingItemsControl");
+        var loc = Github_Trend.Localization.Localization.Instance;
+        ViewModel.ConfirmUnstarAsync = () => ConfirmRepoActionAsync(
+            loc.GetString("ConfirmUnstar"),
+            loc.GetString("ActionUnstar")
+        );
+        ViewModel.ConfirmUnwatchAsync = () => ConfirmRepoActionAsync(
+            loc.GetString("ConfirmUnwatch"),
+            loc.GetString("ActionUnwatch")
+        );
+        ViewModel.ShowSaveToStarListDialogAsync = (lists, createAsync) =>
+            SaveToStarListDialog.ShowAsync(this, lists, createAsync);
         Loaded += async (_, _) =>
         {
             if (_initialized)
@@ -32,8 +40,67 @@ public partial class MainWindow : Window
 
             _initialized = true;
             await ViewModel.InitializeAsync();
-            _ = GetRepositoryBlockHeight();
         };
+    }
+
+    private async Task<bool> ConfirmRepoActionAsync(string title, string action)
+    {
+        var confirm = new Window
+        {
+            Title = title,
+            Width = 360,
+            Height = 160,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = this.FindResource("BackgroundPrimaryBrush") as IBrush,
+        };
+
+        var panel = new StackPanel { Spacing = 16, Margin = new(20) };
+        panel.Children.Add(new TextBlock
+        {
+            Text = title,
+            FontSize = 16,
+            FontWeight = FontWeight.SemiBold,
+            TextWrapping = TextWrapping.Wrap,
+            Foreground = this.FindResource("TextPrimaryBrush") as IBrush,
+        });
+
+        var buttonRow = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Spacing = 8,
+        };
+
+        var cancelBtn = new Button
+        {
+            Content = "Cancel",
+            Padding = new(16, 8),
+            Background = this.FindResource("BackgroundTertiaryBrush") as IBrush,
+            Foreground = this.FindResource("TextPrimaryBrush") as IBrush,
+            BorderThickness = new(0),
+            CornerRadius = new(8),
+        };
+        var actionBtn = new Button
+        {
+            Content = action,
+            Padding = new(16, 8),
+            Background = this.FindResource("AccentPrimaryBrush") as IBrush,
+            Foreground = this.FindResource("TextOnAccentBrush") as IBrush,
+            BorderThickness = new(0),
+            CornerRadius = new(8),
+        };
+
+        var tcs = new TaskCompletionSource<bool>();
+        cancelBtn.Click += (_, _) => { Log.Debug("ConfirmDialog: cancelled"); tcs.TrySetResult(false); confirm.Close(); };
+        actionBtn.Click += (_, _) => { Log.Debug("ConfirmDialog: confirmed ({Action})", action); tcs.TrySetResult(true); confirm.Close(); };
+
+        buttonRow.Children.Add(cancelBtn);
+        buttonRow.Children.Add(actionBtn);
+        panel.Children.Add(buttonRow);
+        confirm.Content = panel;
+
+        await confirm.ShowDialog(this);
+        return await tcs.Task;
     }
 
     public MainWindowViewModel ViewModel { get; } = new();
@@ -55,60 +122,48 @@ public partial class MainWindow : Window
         catch { }
     }
 
-    private void OnTrendingScrollWheelChanged(object? sender, PointerWheelEventArgs e)
-    {
-        if (sender is not ScrollViewer scrollViewer)
-            return;
-
-        if (ViewModel.TrendingRepositories.Count == 0)
-            return;
-
-        var deltaY = e.Delta.Y;
-        if (Math.Abs(deltaY) < double.Epsilon)
-            return;
-
-        var step = GetRepositoryBlockHeight();
-        if (step <= 1)
-            return;
-
-        var currentOffset = scrollViewer.Offset.Y;
-        var targetOffset =
-            deltaY < 0
-                ? (Math.Floor(currentOffset / step) + 1) * step
-                : (Math.Ceiling(currentOffset / step) - 1) * step;
-
-        var maxOffset = Math.Max(0, scrollViewer.Extent.Height - scrollViewer.Viewport.Height);
-        targetOffset = Math.Clamp(targetOffset, 0, maxOffset);
-        scrollViewer.Offset = new Vector(scrollViewer.Offset.X, targetOffset);
-        e.Handled = true;
-    }
-
-    private double GetRepositoryBlockHeight()
-    {
-        var itemsControl = _trendingItemsControl;
-        if (itemsControl is null)
-            return _cachedRepoBlockHeight;
-
-        var firstCard = itemsControl
-            .GetVisualDescendants()
-            .OfType<Border>()
-            .FirstOrDefault(border =>
-                border.Classes.Contains("repo-card") && border.Bounds.Height > 1
-            );
-
-        if (firstCard is null)
-            return _cachedRepoBlockHeight;
-
-        var measured = firstCard.Bounds.Height + firstCard.Margin.Top + firstCard.Margin.Bottom;
-        if (measured > 1)
-            _cachedRepoBlockHeight = measured;
-
-        return _cachedRepoBlockHeight;
-    }
-
     private async void OnSettingsButtonClick(object? sender, RoutedEventArgs e)
     {
-        var settingsWindow = new SettingsWindow { DataContext = ViewModel };
-        await settingsWindow.ShowDialog(this);
+        Log.Debug("Settings button clicked");
+        if (_settingsWindow is null || !_settingsWindow.IsVisible)
+        {
+            _settingsWindow = new SettingsWindow { DataContext = ViewModel };
+            await _settingsWindow.ShowDialog(this);
+        }
+        else
+        {
+            _settingsWindow.Activate();
+        }
+    }
+
+    private void OnWindowKeyDown(object? sender, KeyEventArgs e)
+    {
+        Log.Debug("Key down: {Key} modifiers={Modifiers}", e.Key, e.KeyModifiers);
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        {
+            switch (e.Key)
+            {
+                case Key.F:
+                    Log.Debug("Ctrl+F: focusing search");
+                    e.Handled = true;
+                    var searchBox = this.FindControl<TextBox>("SearchTextBox");
+                    searchBox?.Focus();
+                    break;
+                case Key.R:
+                    Log.Debug("Ctrl+R: refreshing colors");
+                    if (ViewModel.RefreshCommand.CanExecute(null))
+                    {
+                        e.Handled = true;
+                        ViewModel.RefreshCommand.Execute(null);
+                    }
+                    break;
+            }
+        }
+        else if (e.Key == Key.Escape)
+        {
+            Log.Debug("Escape: clearing search");
+            e.Handled = true;
+            ViewModel.Filter.SearchText = string.Empty;
+        }
     }
 }
