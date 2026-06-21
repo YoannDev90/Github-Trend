@@ -1,37 +1,32 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text.Json;
 using System.Threading.Tasks;
+using Github_Trend.Database;
 
 namespace Github_Trend;
 
 public sealed class SelectedLanguagesStore
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    private readonly AppDatabase _db;
+
+    public SelectedLanguagesStore(AppDatabase db)
     {
-        WriteIndented = true
-    };
-
-    private readonly string _filePath;
-
-    public SelectedLanguagesStore()
-    {
-        var folder = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Github_Trend");
-
-        Directory.CreateDirectory(folder);
-        _filePath = Path.Combine(folder, "selected-languages.json");
+        _db = db;
     }
 
     public async Task<IReadOnlyList<string>> LoadAsync()
     {
-        if (!File.Exists(_filePath)) return Array.Empty<string>();
-
-        var json = await File.ReadAllTextAsync(_filePath);
-        return JsonSerializer.Deserialize<List<string>>(json) ?? new List<string>();
+        try
+        {
+            var languages = await _db.GetSelectedLanguagesAsync();
+            return languages;
+        }
+        catch (Exception ex)
+        {
+            Serilog.Log.Warning(ex, "Failed to load selected languages from database");
+            return Array.Empty<string>();
+        }
     }
 
     public async Task SaveAsync(IEnumerable<string> languages)
@@ -42,7 +37,6 @@ public sealed class SelectedLanguagesStore
             .OrderBy(language => language, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        var json = JsonSerializer.Serialize(distinctLanguages, JsonOptions);
-        await File.WriteAllTextAsync(_filePath, json);
+        await _db.SaveSelectedLanguagesAsync(distinctLanguages);
     }
 }
