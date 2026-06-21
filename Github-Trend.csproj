@@ -26,6 +26,7 @@
             <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
         </PackageReference>
         <PackageReference Include="Svg.Controls.Skia.Avalonia" Version="12.0.0.11"/>
+        <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.0"/>
     </ItemGroup>
 
     <ItemGroup>
@@ -42,11 +43,22 @@
         <Content Include="Assets\Icons\**\*.svg">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
+        <Content Include="Data\**\*.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
     </ItemGroup>
 
     <!-- Compile .resx files to embedded resources -->
     <ItemGroup>
         <EmbeddedResource Include="Localization\Resources.resx"/>
         <EmbeddedResource Include="Localization\Resources.fr.resx"/>
+        <EmbeddedResource Include="Database\schema.sql"/>
+    </ItemGroup>
+
+    <!-- GraphQL query files -->
+    <ItemGroup>
+        <Content Include="Services\GraphQL\*.graphql">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
     </ItemGroup>
 </Project>
