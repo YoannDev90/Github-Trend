@@ -46,7 +46,7 @@ public sealed class GitHubAuthViewModel : INotifyPropertyChanged
             _ => IsConnected && !_isAuthenticating
         );
         CopyDeviceCodeCommand = new RelayCommand(
-            _ => DeviceCodeCopyRequested?.Invoke(this, EventArgs.Empty),
+            _ => { Log.Debug("CopyDeviceCode: starting"); DeviceCodeCopyRequested?.Invoke(this, EventArgs.Empty); },
             _ => HasDeviceCode
         );
 
@@ -60,6 +60,8 @@ public sealed class GitHubAuthViewModel : INotifyPropertyChanged
 
     public event EventHandler? DeviceCodeCopyRequested;
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    public Func<Task<bool>>? ConfirmSignOutAsync { get; set; }
 
     public bool IsConnected => _authService.IsConnected;
 
@@ -145,6 +147,7 @@ public sealed class GitHubAuthViewModel : INotifyPropertyChanged
 
     private async Task SignInAsync()
     {
+        Log.Debug("SignIn: starting");
         if (_isInitializing || _isAuthenticating) return;
         try
         {
@@ -189,6 +192,17 @@ public sealed class GitHubAuthViewModel : INotifyPropertyChanged
 
     private async Task SignOutAsync()
     {
+        Log.Debug("SignOut: starting");
+        if (ConfirmSignOutAsync != null)
+        {
+            var confirmed = await ConfirmSignOutAsync();
+            if (!confirmed)
+            {
+                Log.Debug("SignOut: cancelled by user");
+                return;
+            }
+        }
+
         await _authService.SignOutAsync();
         UpdateAuthState();
         _setStatusMessage(nameof(LocalizationService.StatusGitHubSignedOut), Array.Empty<object?>());
@@ -196,6 +210,7 @@ public sealed class GitHubAuthViewModel : INotifyPropertyChanged
 
     private async Task RefreshSessionAsync()
     {
+        Log.Debug("RefreshSession: starting");
         try
         {
             IsAuthenticating = true;
