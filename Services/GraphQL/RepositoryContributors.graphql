@@ -1,0 +1,12 @@
+# Repository contributors with avatars
+query RepositoryContributors($owner: String!, $name: String!, $first: Int!) {
+  repository(owner: $owner, name: $name) {
+    collaborators(first: $first) {
+      totalCount
+      nodes {
+        login
+        avatarUrl(size: 48)
+      }
+    }
+  }
+}
