@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
@@ -8,11 +10,13 @@ using Github_Trend.Localization;
 
 namespace Github_Trend;
 
-public sealed class GithubTrendingRepository
+public sealed class GithubTrendingRepository : IDisposable, INotifyPropertyChanged
 {
     private static readonly IBrush DefaultLanguageBrush = new SolidColorBrush(
         Color.Parse("#FF3B82F6")
     );
+
+    private Bitmap? _bannerImage;
 
     [JsonConstructor]
     public GithubTrendingRepository(
@@ -44,7 +48,7 @@ public sealed class GithubTrendingRepository
         Increased = increased;
         HtmlUrl = htmlUrl;
         BannerUrl = bannerUrl;
-        BannerImage = bannerImage;
+        _bannerImage = bannerImage;
         License = license;
         Contributors = contributors;
         ContributorsTotalCount = contributorsTotalCount;
@@ -104,13 +108,29 @@ public sealed class GithubTrendingRepository
     public string? Increased { get; }
     public string? HtmlUrl { get; }
     public string? BannerUrl { get; }
-    public Bitmap? BannerImage { get; }
     public string? License { get; }
     public List<GithubContributorPreview>? Contributors { get; }
     public int ContributorsTotalCount { get; }
     public List<string>? Topics { get; }
     public string? UpdatedAt { get; }
     public IBrush LanguageBrush { get; }
+    public bool IsStarred { get; set; }
+    public bool IsWatched { get; set; }
+    public bool IsDismissed { get; set; }
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public Bitmap? BannerImage
+    {
+        get => _bannerImage;
+        set
+        {
+            if (ReferenceEquals(_bannerImage, value)) return;
+                    var old = _bannerImage;
+            _bannerImage = value;
+            OnPropertyChanged();
+            old?.Dispose();
+        }
+    }
 
     public string DisplayTitle =>
         !string.IsNullOrWhiteSpace(Name) ? Name!
@@ -221,6 +241,21 @@ public sealed class GithubTrendingRepository
     private static int ParseCount(string? value)
     {
         return int.TryParse(value?.Replace(",", string.Empty), out var parsed) ? parsed : 0;
+    }
+
+    private void OnPropertyChanged([CallerMemberName] string? name = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    }
+
+    public void Dispose()
+    {
+        BannerImage?.Dispose();
+        if (Contributors is not null)
+        {
+            foreach (var c in Contributors)
+                c.Dispose();
+        }
     }
 
     private static string FormatLastUpdatedBadge(string? updatedAt)
