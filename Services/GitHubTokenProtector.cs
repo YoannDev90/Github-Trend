@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using Serilog;
 
 namespace Github_Trend;
 
@@ -64,8 +65,9 @@ public sealed class GitHubTokenProtector
                 );
             }
         }
-        catch (CryptographicException)
+        catch (CryptographicException ex)
         {
+            Log.Warning(ex, "Failed to decrypt token — key may have changed");
             return null;
         }
 
@@ -83,9 +85,16 @@ public sealed class GitHubTokenProtector
         var keyPath = Path.Combine(folder, "github-token.key");
         if (File.Exists(keyPath))
         {
-            var existing = Convert.FromBase64String(File.ReadAllText(keyPath));
-            if (existing.Length == 32)
-                return existing;
+            try
+            {
+                var existing = Convert.FromBase64String(File.ReadAllText(keyPath));
+                if (existing.Length == 32)
+                    return existing;
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to read existing token key, generating new one");
+            }
         }
 
         var key = RandomNumberGenerator.GetBytes(32);
@@ -100,10 +109,30 @@ public sealed class GitHubTokenProtector
         try
         {
 #if NET6_0_OR_GREATER
-            if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+            if (OperatingSystem.IsWindows())
+            {
+                var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+                var fileInfo = new FileInfo(keyPath);
+                var acl = fileInfo.GetAccessControl();
+                acl.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+                var rule = new System.Security.AccessControl.FileSystemAccessRule(
+                    identity.Name,
+                    System.Security.AccessControl.FileSystemRights.Read
+                        | System.Security.AccessControl.FileSystemRights.Write,
+                    System.Security.AccessControl.AccessControlType.Allow
+                );
+                acl.AddAccessRule(rule);
+                fileInfo.SetAccessControl(acl);
+            }
+            else if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+            {
                 File.SetUnixFileMode(keyPath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            }
 #endif
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "Failed to restrict key file permissions");
+        }
     }
 }
