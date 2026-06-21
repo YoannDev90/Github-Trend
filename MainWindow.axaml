@@ -4,353 +4,276 @@
         xmlns:vm="using:Github_Trend"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:controls="using:Github_Trend.Controls"
-        xmlns:loc="using:Github_Trend.Localization"
+         xmlns:controls="using:Github_Trend.Controls"
+         xmlns:loc="using:Github_Trend.Localization"
+         xmlns:converters="using:Github_Trend"
         mc:Ignorable="d"
         x:DataType="vm:MainWindowViewModel"
         x:Class="Github_Trend.MainWindow"
-        Background="{DynamicResource BackgroundPrimaryBrush}"
-        UseLayoutRounding="True"
-        WindowState="Maximized"
-        Icon="avares://Github-Trend/Assets/icon.ico"
-        Title="GitHub Trend">
+         Background="{DynamicResource BackgroundPrimaryBrush}"
+         UseLayoutRounding="True"
+         WindowState="Maximized"
+         Icon="avares://Github-Trend/Assets/icon.ico"
+         Title="GitHub Trend"
+         KeyDown="OnWindowKeyDown">
+    <Window.Resources>
+        <converters:BoolToStarredBrushConverter x:Key="StarredBrushConverter" />
+        <converters:BoolToWatchedBrushConverter x:Key="WatchedBrushConverter" />
+    </Window.Resources>
     <Window.Styles>
         <Style Selector="Border.repo-card">
             <Setter Property="ClipToBounds" Value="True" />
         </Style>
         <Style Selector="Button.repo-action-button">
             <Setter Property="Background" Value="{DynamicResource BackgroundTertiaryBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderPrimaryBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="10" />
-            <Setter Property="Height" Value="44" />
-            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Height" Value="40" />
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="Margin" Value="0" />
         </Style>
         <Style Selector="Button.repo-action-button:pointerover">
             <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource BorderHoverBrush}" />
         </Style>
+        <Style Selector="Button.repo-action-button:pressed">
+            <Setter Property="Background" Value="{DynamicResource PressedBackgroundBrush}" />
+        </Style>
+        <Style Selector="Button.repo-action-button:disabled">
+            <Setter Property="Opacity" Value="0.5" />
+        </Style>
     </Window.Styles>
-    <Grid ColumnDefinitions="360,*">
+    <Grid RowDefinitions="*,Auto">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="340" MinWidth="260" MaxWidth="500" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
         <Border Background="{DynamicResource BackgroundSecondaryBrush}"
                 BorderBrush="{DynamicResource BorderPrimaryBrush}"
-                BorderThickness="0,0,1,0">
+                BorderThickness="0,0,0.5,0">
             <ScrollViewer VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled"
                           ClipToBounds="True">
-                <StackPanel Margin="16" Spacing="14">
+                <StackPanel Margin="12" Spacing="6">
 
-                    <!-- Settings Button & Profile Header -->
-                    <Border Background="{DynamicResource BackgroundPrimaryBrush}"
-                            BorderBrush="{DynamicResource BorderPrimaryBrush}"
-                            BorderThickness="1"
-                            CornerRadius="{DynamicResource CornerLarge}"
-                            Padding="{DynamicResource PaddingLarge}">
-                        <Grid ColumnDefinitions="*,Auto,Auto">
-                            <TextBlock Text="GitHub Trend"
-                                       Foreground="{DynamicResource TextPrimaryBrush}"
-                                       FontWeight="Bold"
-                                       FontSize="{DynamicResource FontSizeLarge}"
-                                       VerticalAlignment="Center" />
+                    <!-- Header -->
+                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4"
+                          Margin="4,4,4,2">
+                        <TextBlock Text="GitHub Trend"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   FontWeight="Bold"
+                                   FontSize="{DynamicResource FontSizeLarge}"
+                                   VerticalAlignment="Center" />
+                        <Button Grid.Column="1"
+                                Command="{Binding Auth.SignInCommand}"
+                                Width="32" Height="32"
+                                Padding="0"
+                                Background="Transparent"
+                                Foreground="{DynamicResource TextSecondaryBrush}"
+                                BorderThickness="0"
+                                CornerRadius="{DynamicResource CornerSmall}">
+                            <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/github.svg"
+                                               Width="16" Height="16" />
+                        </Button>
+                        <Button Grid.Column="2"
+                                Click="OnSettingsButtonClick"
+                                Width="32" Height="32"
+                                Padding="0"
+                                Background="Transparent"
+                                Foreground="{DynamicResource TextSecondaryBrush}"
+                                BorderThickness="0"
+                                CornerRadius="{DynamicResource CornerSmall}">
+                            <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/settings.svg"
+                                               Width="16" Height="16" />
+                        </Button>
+                    </Grid>
+
+                    <!-- Search -->
+                    <Border Background="{DynamicResource BackgroundTertiaryBrush}"
+                            CornerRadius="8"
+                            Padding="0">
+                        <TextBox x:Name="SearchTextBox"
+                                 Text="{Binding Filter.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 PlaceholderText="{Binding Source={x:Static loc:Localization.Instance}, Path=SearchPlaceholderText}"
+                                 Background="Transparent"
+                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                 BorderThickness="0"
+                                 CaretBrush="{DynamicResource AccentSecondaryBrush}"
+                                 FontSize="{DynamicResource FontSizeSmall}"
+                                 Padding="10,8" />
+                    </Border>
+
+                    <!-- Trending Period -->
+                    <Border Background="{DynamicResource BackgroundTertiaryBrush}"
+                            CornerRadius="8"
+                            Padding="3">
+                        <Border.Styles>
+                            <Style Selector="Button.time-segment">
+                                <Setter Property="Background" Value="Transparent" />
+                                <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+                                <Setter Property="BorderThickness" Value="0" />
+                                <Setter Property="Cursor" Value="Hand" />
+                                <Setter Property="Height" Value="32" />
+                                <Setter Property="Padding" Value="0,6" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                                <Setter Property="FontSize" Value="13" />
+                                <Setter Property="HorizontalAlignment" Value="Stretch" />
+                                <Setter Property="Template">
+                                    <ControlTemplate>
+                                        <Border Background="{TemplateBinding Background}"
+                                                CornerRadius="{TemplateBinding CornerRadius}"
+                                                Padding="{TemplateBinding Padding}">
+                                            <TextBlock Text="{TemplateBinding Content}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center" />
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter>
+                            </Style>
+                            <Style Selector="Button.time-segment:pointerover">
+                                <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}" />
+                            </Style>
+                            <Style Selector="Button.time-segment.selected">
+                                <Setter Property="Background" Value="{DynamicResource BackgroundPrimaryBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+                            </Style>
+                            <Style Selector="Button.time-segment.selected:pointerover">
+                                <Setter Property="Background" Value="{DynamicResource BackgroundPrimaryBrush}" />
+                            </Style>
+                        </Border.Styles>
+                        <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="0">
+                            <Button Classes="time-segment"
+                                    Classes.selected="{Binding IsDailySelected}"
+                                    Command="{Binding SelectDailyCommand}"
+                                    Content="{Binding Source={x:Static loc:Localization.Instance}, Path=TimeRangeDaily}"
+                                    CornerRadius="6,0,0,6" />
                             <Button Grid.Column="1"
-                                    Command="{Binding Auth.SignInCommand}"
-                                    Padding="8"
-                                    Background="{DynamicResource AccentPrimaryBrush}"
-                                    Foreground="{DynamicResource TextOnAccentBrush}"
-                                    BorderBrush="{DynamicResource AccentSecondaryBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="{DynamicResource CornerSmall}">
-                                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/github.svg"
-                                                   Width="18"
-                                                   Height="18" />
-                            </Button>
+                                    Classes="time-segment"
+                                    Classes.selected="{Binding IsWeeklySelected}"
+                                    Command="{Binding SelectWeeklyCommand}"
+                                    Content="{Binding Source={x:Static loc:Localization.Instance}, Path=TimeRangeWeekly}" />
                             <Button Grid.Column="2"
-                                    Click="OnSettingsButtonClick"
-                                    Margin="8,0,0,0"
-                                    Padding="8"
-                                    Background="{DynamicResource BackgroundTertiaryBrush}"
-                                    Foreground="{DynamicResource TextPrimaryBrush}"
-                                    BorderBrush="{DynamicResource BorderPrimaryBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="{DynamicResource CornerSmall}">
-                                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/settings.svg"
-                                                   Width="18"
-                                                   Height="18" />
-                            </Button>
+                                    Classes="time-segment"
+                                    Classes.selected="{Binding IsMonthlySelected}"
+                                    Command="{Binding SelectMonthlyCommand}"
+                                    Content="{Binding Source={x:Static loc:Localization.Instance}, Path=TimeRangeMonthly}" />
+                            <Button Grid.Column="3"
+                                    Classes="time-segment"
+                                    Classes.selected="{Binding IsAllSelected}"
+                                    Command="{Binding SelectAllCommand}"
+                                    Content="{Binding Source={x:Static loc:Localization.Instance}, Path=TimeRangeAll}"
+                                    CornerRadius="0,6,6,0" />
                         </Grid>
                     </Border>
 
-                    <Border Background="{DynamicResource BackgroundPrimaryBrush}"
-                            BorderBrush="{DynamicResource BorderPrimaryBrush}"
-                            BorderThickness="1"
-                            CornerRadius="{DynamicResource CornerLarge}"
-                            Padding="{DynamicResource PaddingLarge}">
-                        <StackPanel Spacing="10">
-                            <TextBlock Text="{Binding Source={x:Static loc:Localization.Instance}, Path=SearchTitle}"
-                                       Foreground="{DynamicResource TextPrimaryBrush}"
-                                       FontWeight="SemiBold" />
-                            <TextBox Text="{Binding Filter.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                     Background="{DynamicResource BackgroundPrimaryBrush}"
-                                     Foreground="{DynamicResource TextPrimaryBrush}"
-                                     BorderBrush="{DynamicResource BorderPrimaryBrush}"
-                                     CaretBrush="{DynamicResource AccentSecondaryBrush}"
-                                     CornerRadius="{DynamicResource CornerSmall}" />
-                        </StackPanel>
-                    </Border>
-
-                    <Border Background="{DynamicResource BackgroundPrimaryBrush}"
-                            BorderBrush="{DynamicResource BorderPrimaryBrush}"
-                            BorderThickness="1"
-                            CornerRadius="{DynamicResource CornerLarge}"
-                            Padding="{DynamicResource PaddingLarge}">
-                        <StackPanel Spacing="12">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <StackPanel Grid.Row="0" Spacing="2">
+                    <!-- Languages -->
+                    <Border Background="{DynamicResource BackgroundTertiaryBrush}"
+                            CornerRadius="8"
+                            Padding="0"
+                            MinHeight="200">
+                        <Grid RowDefinitions="Auto,Auto,*" RowSpacing="0">
+                            <!-- Header row -->
+                            <Border Padding="10,8,8,6">
+                                <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="6">
                                     <TextBlock
-                                        Text="{Binding Source={x:Static loc:Localization.Instance}, Path=TrendingPeriodTitle}"
+                                        Text="{Binding Source={x:Static loc:Localization.Instance}, Path=SuggestionsTitle}"
                                         Foreground="{DynamicResource TextPrimaryBrush}"
-                                        FontWeight="SemiBold" />
-                                    <TextBlock
-                                        Text="{Binding Source={x:Static loc:Localization.Instance}, Path=TrendingPeriodSubtitle}"
-                                        Foreground="{DynamicResource TextSecondaryBrush}"
-                                        FontSize="{DynamicResource FontSizeXSmall}" />
-                                </StackPanel>
-                            </Grid>
-
-                            <Border Background="{DynamicResource BackgroundPrimaryBrush}"
-                                    BorderBrush="{DynamicResource BorderPrimaryBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="{DynamicResource CornerMedium}"
-                                    Padding="8">
-                                <Grid ColumnDefinitions="*,*"
-                                      RowDefinitions="Auto,Auto"
-                                      ColumnSpacing="8"
-                                      RowSpacing="8">
-                                    <Button Command="{Binding SelectDailyCommand}"
-                                            Content="{Binding Source={x:Static loc:Localization.Instance}, Path=TimeRangeDaily}"
-                                            Height="44"
-                                            HorizontalAlignment="Stretch"
-                                            VerticalAlignment="Center"
-                                            Padding="12"
-                                            BorderThickness="1"
-                                            HorizontalContentAlignment="Center"
-                                            VerticalContentAlignment="Center"
-                                            FontWeight="SemiBold"
-                                            Classes="time-range-pill"
-                                            Classes.selected="{Binding IsDailySelected}" />
-                                    <Button Grid.Row="0" Grid.Column="1"
-                                            Command="{Binding SelectWeeklyCommand}"
-                                            Content="{Binding Source={x:Static loc:Localization.Instance}, Path=TimeRangeWeekly}"
-                                            Height="44"
-                                            HorizontalAlignment="Stretch"
-                                            VerticalAlignment="Center"
-                                            Padding="12"
-                                            BorderThickness="1"
-                                            HorizontalContentAlignment="Center"
-                                            VerticalContentAlignment="Center"
-                                            FontWeight="SemiBold"
-                                            Classes="time-range-pill"
-                                            Classes.selected="{Binding IsWeeklySelected}" />
-                                    <Button Grid.Row="1" Grid.Column="0"
-                                            Command="{Binding SelectMonthlyCommand}"
-                                            Content="{Binding Source={x:Static loc:Localization.Instance}, Path=TimeRangeMonthly}"
-                                            Height="44"
-                                            HorizontalAlignment="Stretch"
-                                            VerticalAlignment="Center"
-                                            Padding="12"
-                                            BorderThickness="1"
-                                            HorizontalContentAlignment="Center"
-                                            VerticalContentAlignment="Center"
-                                            FontWeight="SemiBold"
-                                            Classes="time-range-pill"
-                                            Classes.selected="{Binding IsMonthlySelected}" />
-                                    <Button Grid.Row="1" Grid.Column="1"
-                                            Command="{Binding SelectAllCommand}"
-                                            Content="∞"
-                                            Height="44"
-                                            HorizontalAlignment="Stretch"
-                                            VerticalAlignment="Center"
-                                            Padding="12"
-                                            BorderThickness="1"
-                                            HorizontalContentAlignment="Center"
-                                            VerticalContentAlignment="Center"
-                                            FontWeight="SemiBold"
-                                            Classes="time-range-pill"
-                                            Classes.selected="{Binding IsAllSelected}" />
-                                    <Grid.Styles>
-                                        <Style Selector="Button.time-range-pill">
-                                            <Setter Property="Background" Value="{DynamicResource BackgroundTertiaryBrush}" />
-                                            <Setter Property="BorderBrush" Value="{DynamicResource BorderPrimaryBrush}" />
-                                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
-                                        </Style>
-                                        <Style Selector="Button.time-range-pill.selected">
-                                            <Setter Property="Background" Value="{DynamicResource AccentPrimaryBrush}" />
-                                            <Setter Property="BorderBrush" Value="{DynamicResource AccentSecondaryBrush}" />
-                                            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}" />
-                                        </Style>
-                                        <Style Selector="Button.time-range-pill:pointerover">
-                                            <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}" />
-                                            <Setter Property="BorderBrush" Value="{DynamicResource BorderHoverBrush}" />
-                                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
-                                        </Style>
-                                    </Grid.Styles>
+                                        FontWeight="SemiBold"
+                                        FontSize="{DynamicResource FontSizeSmall}"
+                                        VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding Filter.SelectedCount, StringFormat='{}{0}'}"
+                                               Foreground="{DynamicResource TextTertiaryBrush}"
+                                               FontSize="{DynamicResource FontSizeXSmall}"
+                                               VerticalAlignment="Center" />
+                                    <Button Grid.Column="2"
+                                            Command="{Binding Filter.SelectAllCommand}"
+                                            Content="All"
+                                            Padding="0"
+                                            Background="Transparent"
+                                            Foreground="{DynamicResource AccentSecondaryBrush}"
+                                            BorderThickness="0"
+                                            FontSize="{DynamicResource FontSizeXSmall}"
+                                            FontWeight="SemiBold" />
+                                    <Button Grid.Column="3"
+                                            Command="{Binding Filter.DeselectAllCommand}"
+                                            Content="None"
+                                            Padding="0"
+                                            Background="Transparent"
+                                            Foreground="{DynamicResource TextTertiaryBrush}"
+                                            BorderThickness="0"
+                                            FontSize="{DynamicResource FontSizeXSmall}"
+                                            FontWeight="SemiBold" />
                                 </Grid>
                             </Border>
-                        </StackPanel>
-                    </Border>
 
-                    <Border Background="{DynamicResource BackgroundPrimaryBrush}"
-                            BorderBrush="{DynamicResource BorderPrimaryBrush}"
-                            BorderThickness="1"
-                            CornerRadius="{DynamicResource CornerLarge}"
-                            Padding="{DynamicResource PaddingLarge}">
-                        <StackPanel Spacing="10">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock
-                                    Text="{Binding Source={x:Static loc:Localization.Instance}, Path=SelectedLanguagesTitle}"
-                                    Foreground="{DynamicResource TextPrimaryBrush}"
-                                    FontWeight="SemiBold"
-                                    VerticalAlignment="Center" />
-                                <Border Grid.Column="1"
-                                        Background="{DynamicResource AccentPrimaryBrush}"
-                                        CornerRadius="{DynamicResource CornerPill}"
-                                        Padding="10,4">
-                                    <TextBlock Text="{Binding Filter.SelectedCount}"
-                                               Foreground="{DynamicResource TextOnAccentBrush}"
-                                               FontWeight="SemiBold" />
-                                </Border>
-                            </Grid>
+                            <!-- Separator -->
+                            <Border Grid.Row="1"
+                                    Height="1"
+                                    Background="{DynamicResource BackgroundSecondaryBrush}"
+                                    HorizontalAlignment="Stretch" />
 
-                            <ItemsControl ItemsSource="{Binding Filter.SelectedLanguages}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <WrapPanel />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="vm:LanguageOptionViewModel">
-                                        <Border Background="{Binding AccentBrush}"
-                                                CornerRadius="{DynamicResource CornerPill}"
-                                                Padding="10,6"
-                                                Margin="0,0,6,6">
-                                            <TextBlock Text="{Binding Language}"
-                                                       Foreground="{DynamicResource TextOnAccentBrush}"
-                                                       FontWeight="SemiBold" />
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-
-                        </StackPanel>
-                    </Border>
-
-                    <Border Background="{DynamicResource BackgroundPrimaryBrush}"
-                            BorderBrush="{DynamicResource BorderPrimaryBrush}"
-                            BorderThickness="1"
-                            CornerRadius="{DynamicResource CornerLarge}"
-                            Padding="{DynamicResource PaddingLarge}">
-                        <StackPanel Spacing="10">
-                            <Grid ColumnDefinitions="*,Auto,Auto">
-                                <TextBlock
-                                    Text="{Binding Source={x:Static loc:Localization.Instance}, Path=SuggestionsTitle}"
-                                    Foreground="{DynamicResource TextPrimaryBrush}"
-                                    FontWeight="SemiBold"
-                                    VerticalAlignment="Center" />
-                                <Border Grid.Column="1"
-                                        Background="{DynamicResource BackgroundTertiaryBrush}"
-                                        CornerRadius="{DynamicResource CornerPill}"
-                                        Padding="10,4">
-                                    <TextBlock Text="{Binding Filter.VisibleCount}"
-                                               Foreground="{DynamicResource TextOnAccentBrush}"
-                                               FontWeight="SemiBold" />
-                                </Border>
-                                <Button Grid.Column="2"
-                                        Command="{Binding RefreshCommand}"
-                                        Margin="8,0,0,0"
-                                        Padding="8,4"
-                                        Background="{DynamicResource BackgroundTertiaryBrush}"
-                                        Foreground="{DynamicResource TextPrimaryBrush}"
-                                        BorderBrush="{DynamicResource BorderPrimaryBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="{DynamicResource CornerSmall}"
-                                        Classes="refresh-button">
-                                    <Button.Styles>
-                                        <Style Selector="Button.refresh-button:pointerover">
-                                            <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}" />
-                                            <Setter Property="BorderBrush" Value="{DynamicResource BorderHoverBrush}" />
-                                        </Style>
-                                        <Style Selector="Button.refresh-button:pressed">
-                                            <Setter Property="Background" Value="{DynamicResource PressedBackgroundBrush}" />
-                                        </Style>
-                                    </Button.Styles>
-                                    <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/refresh.svg"
-                                                       Width="18"
-                                                       Height="18" />
-                                </Button>
-                            </Grid>
-
-                            <TextBlock Text="{Binding Filter.MatchingLanguagesLabel}"
-                                       Foreground="{DynamicResource TextSecondaryBrush}"
-                                       FontSize="{DynamicResource FontSizeSmall}" />
-
-                            <Border Background="{DynamicResource BackgroundPrimaryBrush}"
-                                    CornerRadius="16"
-                                    BorderBrush="{DynamicResource BorderPrimaryBrush}"
-                                    BorderThickness="1"
-                                    Padding="10">
-                                <ScrollViewer Height="320"
-                                              VerticalScrollBarVisibility="Auto">
-                                    <ItemsControl ItemsSource="{Binding Filter.FilteredLanguages}">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate x:DataType="vm:LanguageOptionViewModel">
-                                                <Border Background="{DynamicResource BackgroundSecondaryBrush}"
-                                                        BorderBrush="{DynamicResource BorderPrimaryBrush}"
-                                                        BorderThickness="1"
-                                                        CornerRadius="{DynamicResource CornerLarge}"
-                                                        Padding="12"
-                                                        Margin="0,0,0,8">
-                                                    <Grid ColumnDefinitions="6,*,Auto"
-                                                          ColumnSpacing="12">
-                                                        <Border Background="{Binding AccentBrush}"
-                                                                CornerRadius="{DynamicResource CornerPill}"
-                                                                Width="6" />
-
-                                                        <StackPanel Grid.Column="1"
-                                                                    Spacing="4"
-                                                                    VerticalAlignment="Center">
-                                                            <TextBlock Text="{Binding Language}"
-                                                                       Foreground="{DynamicResource TextPrimaryBrush}"
-                                                                       FontWeight="SemiBold"
-                                                                       VerticalAlignment="Center" />
-                                                        </StackPanel>
-
-                                                        <CheckBox Grid.Column="2"
-                                                                  IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                                                  Foreground="{DynamicResource TextPrimaryBrush}"
-                                                                  VerticalAlignment="Center" />
-                                                    </Grid>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </ScrollViewer>
-                            </Border>
-                        </StackPanel>
+                            <!-- Language list -->
+                            <ScrollViewer Grid.Row="2"
+                                          VerticalScrollBarVisibility="Auto"
+                                          Padding="4,2,4,4">
+                                <ItemsControl ItemsSource="{Binding Filter.FilteredLanguages}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:LanguageOptionViewModel">
+                                            <Border CornerRadius="6"
+                                                    Padding="8,5"
+                                                    Margin="0,0,0,1">
+                                                <Border.Styles>
+                                                    <Style Selector="Border">
+                                                        <Setter Property="Background" Value="Transparent" />
+                                                    </Style>
+                                                    <Style Selector="Border:pointerover">
+                                                        <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}" />
+                                                    </Style>
+                                                </Border.Styles>
+                                                <Grid ColumnDefinitions="8,*,Auto"
+                                                      ColumnSpacing="10">
+                                                    <Border Background="{Binding AccentBrush}"
+                                                            CornerRadius="4"
+                                                            Width="8"
+                                                            Height="8"
+                                                            VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Column="1"
+                                                               Text="{Binding Language}"
+                                                               Foreground="{DynamicResource TextPrimaryBrush}"
+                                                               FontSize="{DynamicResource FontSizeSmall}"
+                                                               VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <CheckBox Grid.Column="2"
+                                                              IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                              VerticalAlignment="Center" />
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Grid>
                     </Border>
                 </StackPanel>
             </ScrollViewer>
         </Border>
 
+        <GridSplitter Grid.Column="1"
+                       Width="4"
+                       Background="Transparent"
+                       ResizeDirection="Columns"
+                       ResizeBehavior="PreviousAndNext" />
+
         <ScrollViewer x:Name="TrendingScrollViewer"
-                      Grid.Column="1"
-                      Background="{DynamicResource BackgroundPrimaryBrush}"
-                      Padding="20"
-                      VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollBarVisibility="Disabled"
-                      ClipToBounds="True"
-                      PointerWheelChanged="OnTrendingScrollWheelChanged">
+                       Grid.Column="2"
+                       Background="{DynamicResource BackgroundPrimaryBrush}"
+                       Padding="20"
+                       VerticalScrollBarVisibility="Auto"
+                       HorizontalScrollBarVisibility="Disabled"
+                       ClipToBounds="True">
             <StackPanel Spacing="16"
                         Width="{Binding Viewport.Width, ElementName=TrendingScrollViewer}">
                 <Border Background="{DynamicResource BackgroundSecondaryBrush}"
@@ -414,7 +337,47 @@
                         Margin="8,0,8,0"
                         Padding="{DynamicResource PaddingXLarge}">
                     <StackPanel Spacing="12">
+
+                        <!-- Loading state -->
+                        <Border IsVisible="{Binding ShowTrendingLoading}"
+                                Padding="40"
+                                HorizontalAlignment="Center">
+                            <StackPanel Spacing="12"
+                                        HorizontalAlignment="Center">
+                                <ProgressBar IsIndeterminate="True"
+                                             Width="200"
+                                             Height="4"
+                                             Foreground="{DynamicResource AccentPrimaryBrush}"
+                                             Background="{DynamicResource BackgroundTertiaryBrush}" />
+                                <TextBlock Text="Loading trending repositories..."
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="{DynamicResource FontSizeSmall}"
+                                           HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Empty state -->
+                        <Border IsVisible="{Binding ShowTrendingEmpty}"
+                                Padding="40"
+                                HorizontalAlignment="Center">
+                            <StackPanel Spacing="8"
+                                        HorizontalAlignment="Center">
+                                <TextBlock Text="No repositories found"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           FontSize="{DynamicResource FontSizeLarge}"
+                                           FontWeight="SemiBold"
+                                           HorizontalAlignment="Center" />
+                                <TextBlock Text="Try changing your language filter or trending period."
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="{DynamicResource FontSizeSmall}"
+                                           HorizontalAlignment="Center"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Repository list -->
                         <ItemsControl x:Name="TrendingItemsControl"
+                                      IsVisible="{Binding ShowTrendingContent}"
                                       HorizontalAlignment="Stretch"
                                       ItemsSource="{Binding TrendingRepositories}">
                             <ItemsControl.ItemTemplate>
@@ -566,50 +529,61 @@
                                                 <StackPanel Spacing="8"
                                                             VerticalAlignment="Top">
                                                     <Button Classes="repo-action-button"
-                                                            HorizontalAlignment="Stretch"
-                                                            Command="{Binding ViewModel.OpenRepositoryCommand, ElementName=MainWindowRoot}"
-                                                            CommandParameter="{Binding}">
-                                                        <controls:SvgImage
-                                                            SourceUri="avares://Github-Trend/Assets/Icons/open.svg"
-                                                            Width="22"
-                                                            Height="22" />
-                                                    </Button>
+                                                             HorizontalAlignment="Stretch"
+                                                             ToolTip.Tip="Open in browser"
+                                                             Command="{Binding ViewModel.OpenRepositoryCommand, ElementName=MainWindowRoot}"
+                                                             CommandParameter="{Binding}">
+                                                         <controls:SvgImage
+                                                             SourceUri="avares://Github-Trend/Assets/Icons/open.svg"
+                                                             Width="22"
+                                                             Height="22" />
+                                                     </Button>
 
-                                                    <Button Classes="repo-action-button"
-                                                            HorizontalAlignment="Stretch"
-                                                            Command="{Binding ViewModel.StarRepositoryCommand, ElementName=MainWindowRoot}"
-                                                            CommandParameter="{Binding}">
-                                                        <controls:SvgImage
-                                                            SourceUri="avares://Github-Trend/Assets/Icons/star.svg"
-                                                            Width="22"
-                                                            Height="22" />
-                                                    </Button>
+                                                     <Button Classes="repo-action-button"
+                                                             HorizontalAlignment="Stretch"
+                                                             ToolTip.Tip="Star on GitHub"
+                                                             Background="{Binding IsStarred, Converter={StaticResource StarredBrushConverter}}"
+                                                             Command="{Binding ViewModel.StarRepositoryCommand, ElementName=MainWindowRoot}"
+                                                             CommandParameter="{Binding}">
+                                                         <controls:SvgImage
+                                                             SourceUri="avares://Github-Trend/Assets/Icons/star.svg"
+                                                             Width="22"
+                                                             Height="22" />
+                                                     </Button>
 
-                                                    <Button Classes="repo-action-button"
-                                                            HorizontalAlignment="Stretch"
-                                                            Command="{Binding ViewModel.WatchRepositoryCommand, ElementName=MainWindowRoot}"
-                                                            CommandParameter="{Binding}">
-                                                        <controls:SvgImage
-                                                            SourceUri="avares://Github-Trend/Assets/Icons/watch.svg"
-                                                            Width="22"
-                                                            Height="22" />
-                                                    </Button>
+                                                     <Button Classes="repo-action-button"
+                                                             HorizontalAlignment="Stretch"
+                                                             ToolTip.Tip="Watch on GitHub"
+                                                             Background="{Binding IsWatched, Converter={StaticResource WatchedBrushConverter}}"
+                                                             Command="{Binding ViewModel.WatchRepositoryCommand, ElementName=MainWindowRoot}"
+                                                             CommandParameter="{Binding}">
+                                                         <controls:SvgImage
+                                                             SourceUri="avares://Github-Trend/Assets/Icons/watch.svg"
+                                                             Width="22"
+                                                             Height="22" />
+                                                     </Button>
 
-                                                    <Button Classes="repo-action-button"
-                                                            HorizontalAlignment="Stretch">
-                                                        <controls:SvgImage
-                                                            SourceUri="avares://Github-Trend/Assets/Icons/delete.svg"
-                                                            Width="22"
-                                                            Height="22" />
-                                                    </Button>
+                                                     <Button Classes="repo-action-button"
+                                                              HorizontalAlignment="Stretch"
+                                                              ToolTip.Tip="Dismiss"
+                                                              Command="{Binding ViewModel.DismissRepositoryCommand, ElementName=MainWindowRoot}"
+                                                              CommandParameter="{Binding}">
+                                                          <controls:SvgImage
+                                                              SourceUri="avares://Github-Trend/Assets/Icons/delete.svg"
+                                                              Width="22"
+                                                              Height="22" />
+                                                      </Button>
 
-                                                    <Button Classes="repo-action-button"
-                                                            HorizontalAlignment="Stretch">
-                                                        <controls:SvgImage
-                                                            SourceUri="avares://Github-Trend/Assets/Icons/save.svg"
-                                                            Width="22"
-                                                            Height="22" />
-                                                    </Button>
+                                                      <Button Classes="repo-action-button"
+                                                              HorizontalAlignment="Stretch"
+                                                              ToolTip.Tip="Save for later"
+                                                              Command="{Binding ViewModel.SaveRepositoryCommand, ElementName=MainWindowRoot}"
+                                                              CommandParameter="{Binding}">
+                                                          <controls:SvgImage
+                                                              SourceUri="avares://Github-Trend/Assets/Icons/save.svg"
+                                                              Width="22"
+                                                              Height="22" />
+                                                      </Button>
                                                 </StackPanel>
                                             </Border>
                                         </Grid>
@@ -621,5 +595,17 @@
                 </Border>
             </StackPanel>
         </ScrollViewer>
+
+        <Border Grid.Row="1"
+                Grid.ColumnSpan="3"
+                Background="{DynamicResource BackgroundSecondaryBrush}"
+                BorderBrush="{DynamicResource BorderPrimaryBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="16,8">
+            <TextBlock Text="{Binding StatusMessage}"
+                       Foreground="{DynamicResource TextSecondaryBrush}"
+                       FontSize="{DynamicResource FontSizeSmall}"
+                       TextTrimming="CharacterEllipsis" />
+        </Border>
     </Grid>
 </Window>
