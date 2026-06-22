@@ -4,26 +4,28 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Github_Trend.Database;
+using Github_Trend.Utils;
 using Serilog;
 
-namespace Github_Trend;
+namespace Github_Trend.Services;
 
-public static class GithubColorsService
+public sealed class GithubColorsService : IGithubColorsService, IAsyncDisposable
 {
-    private static readonly HttpClient Http = CreateHttpClient();
     private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(24);
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
-    private static AppDatabase? _db;
+    private readonly AppDatabase _db;
+    private readonly HttpClient _http;
 
-    public static void SetDatabase(AppDatabase db)
+    public GithubColorsService(AppDatabase db, HttpClient? httpClient = null)
     {
         _db = db;
+        _http = httpClient ?? HttpClientFactory.Create();
     }
 
-    public static async Task<GithubColorsCatalog> FetchAsync(bool force = false)
+    public async Task<GithubColorsCatalog> FetchAsync(bool force = false)
     {
-        if (!force && _db is not null)
+        if (!force)
         {
             try
             {
@@ -43,19 +45,16 @@ public static class GithubColorsService
 
         try
         {
-            var json = await Http.GetStringAsync(Constants.GitHubColorsUrl);
+            var json = await _http.GetStringAsync(Constants.GitHubColorsUrl);
             var colors = DeserializeColors(json) ?? new Dictionary<string, GithubColorEntry>();
 
-            if (_db is not null)
+            try
             {
-                try
-                {
-                    await _db.SetColorsCacheAsync(json, CacheTtl);
-                }
-                catch (Exception ex)
-                {
-                    Log.Debug(ex, "Failed to write colors cache to database");
-                }
+                await _db.SetColorsCacheAsync(json, CacheTtl);
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "Failed to write colors cache to database");
             }
 
             return new GithubColorsCatalog(colors);
@@ -64,25 +63,22 @@ public static class GithubColorsService
         {
             Log.Warning(ex, "Colors network fetch failed");
 
-            if (_db is not null)
+            try
             {
-                try
+                var staleJson = await _db.GetColorsCacheAsync();
+                if (staleJson is not null)
                 {
-                    var staleJson = await _db.GetColorsCacheAsync();
-                    if (staleJson is not null)
+                    var cached = DeserializeColors(staleJson);
+                    if (cached is not null)
                     {
-                        var cached = DeserializeColors(staleJson);
-                        if (cached is not null)
-                        {
-                            Log.Warning("Colors stale-cache fallback ({Count})", cached.Count);
-                            return new GithubColorsCatalog(cached);
-                        }
+                        Log.Warning("Colors stale-cache fallback ({Count})", cached.Count);
+                        return new GithubColorsCatalog(cached);
                     }
                 }
-                catch (Exception cacheEx)
-                {
-                    Log.Debug(cacheEx, "Failed to read stale colors cache");
-                }
+            }
+            catch (Exception cacheEx)
+            {
+                Log.Debug(cacheEx, "Failed to read stale colors cache");
             }
 
             throw;
@@ -102,13 +98,9 @@ public static class GithubColorsService
         }
     }
 
-    private static HttpClient CreateHttpClient()
+    public async ValueTask DisposeAsync()
     {
-        var handler = new SocketsHttpHandler
-        {
-            PooledConnectionLifetime = TimeSpan.FromMinutes(5),
-            ConnectTimeout = TimeSpan.FromSeconds(15),
-        };
-        return new HttpClient(handler);
+        _http.Dispose();
+        await ValueTask.CompletedTask;
     }
 }

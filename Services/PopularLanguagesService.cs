@@ -5,7 +5,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Serilog;
 
-namespace Github_Trend;
+namespace Github_Trend.Services;
 
 public static class PopularLanguagesService
 {

@@ -1,27 +1,36 @@
 using System;
+using System.IO;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Styling;
 
 namespace Github_Trend.Services;
 
-public static class ThemeService
+public sealed class ThemeService
 {
+    public static ThemeService Default { get; } = new();
+
     private const string PreferenceKey = "theme_preference";
-    private static readonly string ConfigPath = System.IO.Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "Github_Trend",
-        PreferenceKey
-    );
+    private readonly string _configPath;
 
-    public static bool IsDark { get; private set; } = true;
+    public ThemeService()
+    {
+        _configPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Github_Trend",
+            PreferenceKey
+        );
+    }
 
-    public static void Initialize()
+    public bool IsDark { get; private set; } = true;
+
+    public async Task InitializeAsync()
     {
         try
         {
-            if (System.IO.File.Exists(ConfigPath))
+            if (File.Exists(_configPath))
             {
-                var value = System.IO.File.ReadAllText(ConfigPath).Trim();
+                var value = (await File.ReadAllTextAsync(_configPath)).Trim();
                 IsDark = value != "Light";
             }
         }
@@ -30,34 +39,34 @@ public static class ThemeService
         Apply();
     }
 
-    public static void Toggle()
+    public void Toggle()
     {
         IsDark = !IsDark;
         Apply();
-        Save();
+        _ = SaveAsync();
     }
 
-    public static void SetDark(bool dark)
+    public void SetDark(bool dark)
     {
         IsDark = dark;
         Apply();
-        Save();
+        _ = SaveAsync();
     }
 
-    private static void Apply()
+    private void Apply()
     {
         if (Application.Current is not null)
             Application.Current.RequestedThemeVariant = IsDark ? ThemeVariant.Dark : ThemeVariant.Light;
     }
 
-    private static void Save()
+    private async Task SaveAsync()
     {
         try
         {
-            var dir = System.IO.Path.GetDirectoryName(ConfigPath);
+            var dir = Path.GetDirectoryName(_configPath);
             if (!string.IsNullOrWhiteSpace(dir))
-                System.IO.Directory.CreateDirectory(dir);
-            System.IO.File.WriteAllText(ConfigPath, IsDark ? "Dark" : "Light");
+                Directory.CreateDirectory(dir);
+            await File.WriteAllTextAsync(_configPath, IsDark ? "Dark" : "Light");
         }
         catch { }
     }

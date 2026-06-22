@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Github_Trend.Database;
 
-namespace Github_Trend;
+namespace Github_Trend.Services;
 
 public sealed class SelectedLanguagesStore
 {
