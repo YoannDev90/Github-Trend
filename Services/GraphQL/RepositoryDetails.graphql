@@ -17,12 +17,5 @@ query RepositoryDetails($owner: String!, $name: String!) {
       }
     }
     updatedAt
-    defaultBranchRef {
-      target {
-        ... on Commit {
-          committedDate
-        }
-      }
-    }
   }
 }

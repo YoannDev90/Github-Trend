@@ -66,8 +66,6 @@ public sealed class RepositoryNode
     [JsonPropertyName("updatedAt")]
     public string? UpdatedAt { get; set; }
 
-    [JsonPropertyName("defaultBranchRef")]
-    public DefaultBranchRefNode? DefaultBranchRef { get; set; }
 }
 
 public sealed class LicenseInfoNode
@@ -95,18 +93,6 @@ public sealed class TopicValue
 {
     [JsonPropertyName("name")]
     public string? Name { get; set; }
-}
-
-public sealed class DefaultBranchRefNode
-{
-    [JsonPropertyName("target")]
-    public CommitTarget? Target { get; set; }
-}
-
-public sealed class CommitTarget
-{
-    [JsonPropertyName("committedDate")]
-    public string? CommittedDate { get; set; }
 }
 
 // --- Contributors ---
@@ -298,6 +284,40 @@ public sealed class UpdateRepoStarListsPayload
 }
 
 public sealed class UpdateRepoItemNode
+{
+    [JsonPropertyName("nameWithOwner")]
+    public string? NameWithOwner { get; set; }
+}
+
+// --- Repository ID ---
+
+internal sealed class GraphIdResponse
+{
+    [JsonPropertyName("repository")]
+    public GraphIdRepository? Repository { get; set; }
+}
+
+internal sealed class GraphIdRepository
+{
+    [JsonPropertyName("id")]
+    public string? Id { get; set; }
+}
+
+// --- Subscription (Watch/Unwatch) ---
+
+internal sealed class UpdateSubscriptionResponse
+{
+    [JsonPropertyName("updateSubscription")]
+    public UpdateSubscriptionPayload? UpdateSubscription { get; set; }
+}
+
+internal sealed class UpdateSubscriptionPayload
+{
+    [JsonPropertyName("subscribable")]
+    public SubscribableNode? Subscribable { get; set; }
+}
+
+internal sealed class SubscribableNode
 {
     [JsonPropertyName("nameWithOwner")]
     public string? NameWithOwner { get; set; }

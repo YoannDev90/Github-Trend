@@ -66,15 +66,31 @@ public static class GraphQlQueryLoader
         var depth = 0;
         var foundFirstBrace = false;
         var end = start;
+        var inString = false;
 
         for (var i = start; i < fileContent.Length; i++)
         {
-            if (fileContent[i] == '{')
+            var c = fileContent[i];
+
+            if (c == '"' && (i == 0 || fileContent[i - 1] != '\\'))
+                inString = !inString;
+
+            if (inString)
+                continue;
+
+            if (c == '#')
+            {
+                while (i < fileContent.Length && fileContent[i] != '\n')
+                    i++;
+                continue;
+            }
+
+            if (c == '{')
             {
                 depth++;
                 foundFirstBrace = true;
             }
-            else if (fileContent[i] == '}')
+            else if (c == '}')
             {
                 depth--;
                 if (foundFirstBrace && depth == 0)
