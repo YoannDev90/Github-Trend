@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Github_Trend.Database;
 using Github_Trend.Services.GraphQL;
+using Github_Trend.Utils;
 using Serilog;
 
 namespace Github_Trend.Services;
@@ -22,19 +23,16 @@ public sealed class GitHubGraphQlService : IAsyncDisposable
     private readonly HttpClient _httpClient;
     private readonly GitHubAuthenticationService _authService;
     private readonly GitHubRateLimitService _rateLimitService;
-    private readonly AppDatabase _db;
 
     public GitHubGraphQlService(
         GitHubAuthenticationService authService,
         GitHubRateLimitService rateLimitService,
-        AppDatabase db,
         HttpClient? httpClient = null
     )
     {
         _authService = authService;
         _rateLimitService = rateLimitService;
-        _db = db;
-        _httpClient = httpClient ?? CreateHttpClient();
+        _httpClient = httpClient ?? HttpClientFactory.Create();
     }
 
     public async Task<RepositoryEnrichmentData?> GetRepositoryDetailsAsync(
@@ -202,29 +200,15 @@ public sealed class GitHubGraphQlService : IAsyncDisposable
             ? GraphQlQueryLoader.ExtractMutation(starQuery, "UnstarRepository")
             : GraphQlQueryLoader.ExtractMutation(starQuery, "StarRepository");
 
-        // We need the repository ID for the mutation, fetch it first
-        var detailsQuery = GraphQlQueryLoader.Load("RepositoryDetails.graphql");
-        var detailsResponse = await ExecuteAsync<RepositoryDetailsResponse>(
-            detailsQuery,
-            new Dictionary<string, object> { ["owner"] = owner, ["name"] = name },
-            ct
-        );
-
-        // The GraphQL query doesn't return ID directly, we need to get it via a separate query
-        var idQuery = $"{{ repository(owner: \"{owner}\", name: \"{name}\") {{ id }} }}";
-        var idResponse = await ExecuteRawAsync<GraphIdResponse>(
-            idQuery,
-            ct
-        );
-
-        if (idResponse?.Repository?.Id is null)
+        var nodeId = await GetRepositoryNodeIdAsync(owner, name, ct);
+        if (nodeId is null)
             throw new InvalidOperationException($"Could not get repository ID for {owner}/{name}");
 
         var response = await ExecuteAsync<AddStarResponse>(
             op,
             new Dictionary<string, object>
             {
-                ["repositoryId"] = idResponse.Repository.Id,
+                ["repositoryId"] = nodeId,
             },
             ct
         );
@@ -266,8 +250,16 @@ public sealed class GitHubGraphQlService : IAsyncDisposable
         CancellationToken ct
     )
     {
-        var idQuery = $"{{ repository(owner: \"{owner}\", name: \"{name}\") {{ id }} }}";
-        var idResponse = await ExecuteRawAsync<GraphIdResponse>(idQuery, ct);
+        var idQuery = GraphQlQueryLoader.Load("RepositoryId.graphql");
+        var idResponse = await ExecuteAsync<GraphIdResponse>(
+            idQuery,
+            new Dictionary<string, object>
+            {
+                ["owner"] = owner,
+                ["name"] = name,
+            },
+            ct
+        );
         return idResponse?.Repository?.Id;
     }
 
@@ -276,13 +268,13 @@ public sealed class GitHubGraphQlService : IAsyncDisposable
         var allSlugs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         string? cursor = null;
 
-        for (var page = 0; page < 10; page++)
+        while (true)
         {
             if (_rateLimitService.IsInCooldown) break;
 
             try
             {
-        var query = GraphQlQueryLoader.Load("ViewerStarred.graphql");
+                var query = GraphQlQueryLoader.Load("ViewerStarred.graphql");
                 var op = GraphQlQueryLoader.ExtractQuery(query, "ViewerStarredRepositories");
 
                 var variables = new Dictionary<string, object>
@@ -304,14 +296,14 @@ public sealed class GitHubGraphQlService : IAsyncDisposable
                         allSlugs.Add(node.NameWithOwner);
                 }
 
-                if (!connection.PageInfo?.HasNextPage ?? true)
+                if (!(connection.PageInfo?.HasNextPage ?? false))
                     break;
 
                 cursor = connection.PageInfo?.EndCursor;
             }
             catch (Exception ex)
             {
-                Log.Warning(ex, "Failed to fetch starred repos page {Page}", page);
+                Log.Warning(ex, "Failed to fetch starred repos page");
                 break;
             }
         }
@@ -488,6 +480,12 @@ public sealed class GitHubGraphQlService : IAsyncDisposable
 
         _rateLimitService.TrackFromHeaders(response);
 
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            await _authService.RefreshCurrentAsync();
+            return default;
+        }
+
         if (!response.IsSuccessStatusCode)
             return default;
 
@@ -498,84 +496,9 @@ public sealed class GitHubGraphQlService : IAsyncDisposable
         return graphResponse?.Data;
     }
 
-    private static HttpClient CreateHttpClient()
-    {
-        var handler = new SocketsHttpHandler
-        {
-            PooledConnectionLifetime = TimeSpan.FromMinutes(5),
-            ConnectTimeout = TimeSpan.FromSeconds(15),
-        };
-        return new HttpClient(handler);
-    }
-
     public async ValueTask DisposeAsync()
     {
         _httpClient.Dispose();
         await ValueTask.CompletedTask;
     }
-}
-
-// --- Data transfer objects ---
-
-public sealed class RepositoryEnrichmentData
-{
-    public string HtmlUrl { get; set; } = string.Empty;
-    public string? Description { get; set; }
-    public string? License { get; set; }
-    public List<string> Topics { get; set; } = new();
-    public string? UpdatedAt { get; set; }
-}
-
-public sealed class ContributorData(string login, string? avatarUrl)
-{
-    public string Login { get; } = login;
-    public string? AvatarUrl { get; } = avatarUrl;
-}
-
-public sealed class ContributorFetchData(IReadOnlyList<ContributorData> contributors, int totalCount)
-{
-    public IReadOnlyList<ContributorData> Contributors { get; } = contributors;
-    public int TotalCount { get; } = totalCount;
-}
-
-internal sealed class GraphIdResponse
-{
-    [JsonPropertyName("repository")]
-    public GraphIdRepository? Repository { get; set; }
-}
-
-internal sealed class GraphIdRepository
-{
-    [JsonPropertyName("id")]
-    public string? Id { get; set; }
-}
-
-internal sealed class UpdateSubscriptionResponse
-{
-    [JsonPropertyName("updateSubscription")]
-    public UpdateSubscriptionPayload? UpdateSubscription { get; set; }
-}
-
-internal sealed class UpdateSubscriptionPayload
-{
-    [JsonPropertyName("subscribable")]
-    public SubscribableNode? Subscribable { get; set; }
-}
-
-internal sealed class SubscribableNode
-{
-    [JsonPropertyName("nameWithOwner")]
-    public string? NameWithOwner { get; set; }
-}
-
-public sealed class GraphQlRateLimitException : Exception
-{
-    public GraphQlRateLimitException()
-        : base("GitHub GraphQL rate limit reached") { }
-}
-
-public sealed class GraphQlAuthException : Exception
-{
-    public GraphQlAuthException(string message)
-        : base(message) { }
 }
