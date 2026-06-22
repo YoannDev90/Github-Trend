@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
@@ -10,13 +8,13 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Github_Trend.Database;
+using Github_Trend.Utils;
 using Serilog;
 
-namespace Github_Trend;
+namespace Github_Trend.Services;
 
-public static class GithubTrendingService
+public sealed class GithubTrendingService : IGithubTrendingService, IAsyncDisposable
 {
-    private static readonly HttpClient Http = CreateHttpClient();
     private static readonly TimeSpan CacheTtl = Constants.Trending.TrendingCacheTtl;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -24,18 +22,24 @@ public static class GithubTrendingService
         PropertyNameCaseInsensitive = true,
     };
 
-    private static readonly SemaphoreSlim EnrichmentLimiter = new(
-        Constants.Trending.MaxParallelEnrichmentRequests
-    );
+    private readonly SemaphoreSlim _enrichmentLimiter;
+    private readonly AppDatabase _db;
+    private readonly IRepositoryDetailsService _detailsService;
+    private readonly HttpClient _http;
 
-    private static AppDatabase? _db;
-
-    public static void SetDatabase(AppDatabase db)
+    public GithubTrendingService(
+        AppDatabase db,
+        IRepositoryDetailsService detailsService,
+        HttpClient? httpClient = null
+    )
     {
         _db = db;
+        _detailsService = detailsService;
+        _http = httpClient ?? HttpClientFactory.Create();
+        _enrichmentLimiter = new SemaphoreSlim(Constants.Trending.MaxParallelEnrichmentRequests);
     }
 
-    public static async Task<List<GithubTrendingRepository>> FetchAsync(
+    public async Task<List<GithubTrendingRepository>> FetchAsync(
         bool force = false,
         string? since = null,
         string? language = null
@@ -49,7 +53,7 @@ public static class GithubTrendingService
             language ?? "<null>"
         );
 
-        if (!force && _db is not null)
+        if (!force)
         {
             try
             {
@@ -74,20 +78,17 @@ public static class GithubTrendingService
 
         try
         {
-            var json = await Http.GetStringAsync(url);
+            var json = await _http.GetStringAsync(url);
             var trending = DeserializeTrending(json) ?? new List<GithubTrendingRepository>();
             Log.Information("Trending network fetch ok ({Count}) for {Key}", trending.Count, cacheKey);
 
-            if (_db is not null)
+            try
             {
-                try
-                {
-                    await _db.SetTrendingCacheAsync(cacheKey, since ?? "", language, json, CacheTtl);
-                }
-                catch (Exception ex)
-                {
-                    Log.Debug(ex, "Failed to write trending cache for {Key}", cacheKey);
-                }
+                await _db.SetTrendingCacheAsync(cacheKey, since ?? "", language, json, CacheTtl);
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "Failed to write trending cache for {Key}", cacheKey);
             }
 
             return await EnrichTrendingAsync(trending);
@@ -96,32 +97,29 @@ public static class GithubTrendingService
         {
             Log.Warning(ex, "Trending network fetch failed for {Key}", cacheKey);
 
-            if (_db is not null)
+            try
             {
-                try
+                var staleJson = await _db.GetTrendingCacheAsync(cacheKey);
+                if (staleJson is not null)
                 {
-                    var staleJson = await _db.GetTrendingCacheAsync(cacheKey);
-                    if (staleJson is not null)
+                    var stale = DeserializeTrending(staleJson);
+                    if (stale is not null)
                     {
-                        var stale = DeserializeTrending(staleJson);
-                        if (stale is not null)
-                        {
-                            Log.Warning("Trending stale-cache fallback ({Count}) for {Key}", stale.Count, cacheKey);
-                            return await EnrichTrendingAsync(stale);
-                        }
+                        Log.Warning("Trending stale-cache fallback ({Count}) for {Key}", stale.Count, cacheKey);
+                        return await EnrichTrendingAsync(stale);
                     }
                 }
-                catch (Exception cacheEx)
-                {
-                    Log.Debug(cacheEx, "Failed to read stale trending cache for {Key}", cacheKey);
-                }
+            }
+            catch (Exception cacheEx)
+            {
+                Log.Debug(cacheEx, "Failed to read stale trending cache for {Key}", cacheKey);
             }
 
             throw;
         }
     }
 
-    public static async IAsyncEnumerable<GithubTrendingRepository> StreamAsync(
+    public async IAsyncEnumerable<GithubTrendingRepository> StreamAsync(
         bool force = false,
         string? since = null,
         string? language = null,
@@ -132,7 +130,7 @@ public static class GithubTrendingService
 
         List<GithubTrendingRepository>? repositories = null;
 
-        if (!force && _db is not null)
+        if (!force)
         {
             try
             {
@@ -160,20 +158,17 @@ public static class GithubTrendingService
 
             try
             {
-                var json = await Http.GetStringAsync(url, cancellationToken);
+                var json = await _http.GetStringAsync(url, cancellationToken);
                 repositories = DeserializeTrending(json) ?? new List<GithubTrendingRepository>();
                 Log.Information("Trending network fetch ok ({Count}) for {Key}", repositories.Count, cacheKey);
 
-                if (_db is not null)
+                try
                 {
-                    try
-                    {
-                        await _db.SetTrendingCacheAsync(cacheKey, since ?? "", language, json, CacheTtl);
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Debug(ex, "Failed to write trending cache for {Key}", cacheKey);
-                    }
+                    await _db.SetTrendingCacheAsync(cacheKey, since ?? "", language, json, CacheTtl);
+                }
+                catch (Exception ex)
+                {
+                    Log.Debug(ex, "Failed to write trending cache for {Key}", cacheKey);
                 }
             }
             catch (OperationCanceledException)
@@ -184,22 +179,19 @@ public static class GithubTrendingService
             {
                 Log.Warning(ex, "Trending network fetch failed for {Key}", cacheKey);
 
-                if (_db is not null)
+                try
                 {
-                    try
+                    var staleJson = await _db.GetTrendingCacheAsync(cacheKey);
+                    if (staleJson is not null)
                     {
-                        var staleJson = await _db.GetTrendingCacheAsync(cacheKey);
-                        if (staleJson is not null)
-                        {
-                            repositories = DeserializeTrending(staleJson);
-                            if (repositories is not null)
-                                Log.Warning("Trending stale-cache fallback ({Count}) for {Key}", repositories.Count, cacheKey);
-                        }
+                        repositories = DeserializeTrending(staleJson);
+                        if (repositories is not null)
+                            Log.Warning("Trending stale-cache fallback ({Count}) for {Key}", repositories.Count, cacheKey);
                     }
-                    catch (Exception cacheEx)
-                    {
-                        Log.Debug(cacheEx, "Failed to read stale trending cache for {Key}", cacheKey);
-                    }
+                }
+                catch (Exception cacheEx)
+                {
+                    Log.Debug(cacheEx, "Failed to read stale trending cache for {Key}", cacheKey);
                 }
 
                 if (repositories is null)
@@ -210,7 +202,7 @@ public static class GithubTrendingService
         cancellationToken.ThrowIfCancellationRequested();
 
         var channel = Channel.CreateBounded<GithubTrendingRepository>(
-            new BoundedChannelOptions(50)
+            new BoundedChannelOptions(20)
             {
                 FullMode = BoundedChannelFullMode.Wait,
                 AllowSynchronousContinuations = false,
@@ -244,17 +236,17 @@ public static class GithubTrendingService
             yield return repo;
     }
 
-    private static async Task EnrichAndWriteAsync(
+    private async Task EnrichAndWriteAsync(
         GithubTrendingRepository repo,
         ChannelWriter<GithubTrendingRepository> writer,
         CancellationToken cancellationToken
     )
     {
-        await EnrichmentLimiter.WaitAsync(cancellationToken);
+        await _enrichmentLimiter.WaitAsync(cancellationToken);
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var enriched = await GithubRepositoryDetailsService.EnrichAsync(repo, cancellationToken);
+            var enriched = await _detailsService.EnrichAsync(repo, cancellationToken);
             await writer.WriteAsync(enriched, cancellationToken);
             await Task.Delay(
                 Constants.Trending.InterEnrichmentDelayMilliseconds,
@@ -263,24 +255,24 @@ public static class GithubTrendingService
         }
         finally
         {
-            EnrichmentLimiter.Release();
+            _enrichmentLimiter.Release();
         }
     }
 
-    private static async Task<List<GithubTrendingRepository>> EnrichTrendingAsync(
+    private async Task<List<GithubTrendingRepository>> EnrichTrendingAsync(
         IEnumerable<GithubTrendingRepository> repositories
     )
     {
         var enrichTasks = repositories.Select(async repo =>
         {
-            await EnrichmentLimiter.WaitAsync();
+            await _enrichmentLimiter.WaitAsync();
             try
             {
-                return await GithubRepositoryDetailsService.EnrichAsync(repo);
+                return await _detailsService.EnrichAsync(repo);
             }
             finally
             {
-                EnrichmentLimiter.Release();
+                _enrichmentLimiter.Release();
             }
         });
 
@@ -319,13 +311,10 @@ public static class GithubTrendingService
         return url;
     }
 
-    private static HttpClient CreateHttpClient()
+    public async ValueTask DisposeAsync()
     {
-        var handler = new SocketsHttpHandler
-        {
-            PooledConnectionLifetime = TimeSpan.FromMinutes(5),
-            ConnectTimeout = TimeSpan.FromSeconds(15),
-        };
-        return new HttpClient(handler);
+        _enrichmentLimiter.Dispose();
+        _http.Dispose();
+        await ValueTask.CompletedTask;
     }
 }
