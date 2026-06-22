@@ -13,15 +13,18 @@ namespace Github_Trend;
 
 public static class SaveToStarListDialog
 {
+    private const string NewListTag = "__new__";
+
     public static async Task<List<string>?> ShowAsync(
         Window owner,
         List<StarListNode> existingLists,
         Func<string, Task<StarListNode?>> createListAsync
     )
     {
+        var loc = Localization.Localization.Instance;
         var confirm = new Window
         {
-            Title = "Add to star list",
+            Title = loc.GetString("AddToStarList"),
             Width = 420,
             Height = 220,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
@@ -32,7 +35,7 @@ public static class SaveToStarListDialog
 
         panel.Children.Add(new TextBlock
         {
-            Text = "Select a star list to add this repository to:",
+            Text = loc.GetString("SelectStarListPrompt"),
             FontSize = 14,
             TextWrapping = TextWrapping.Wrap,
             Foreground = owner.FindResource("TextPrimaryBrush") as IBrush,
@@ -42,7 +45,7 @@ public static class SaveToStarListDialog
         {
             MinWidth = 300,
             HorizontalAlignment = HorizontalAlignment.Stretch,
-            PlaceholderText = "Choose a list...",
+            PlaceholderText = loc.GetString("ChooseListPlaceholder"),
         };
 
         var items = new List<ComboBoxItem>();
@@ -58,8 +61,8 @@ public static class SaveToStarListDialog
         }
         items.Add(new ComboBoxItem
         {
-            Content = "── Create new list ──",
-            Tag = "__new__",
+            Content = loc.GetString("CreateNewList"),
+            Tag = NewListTag,
             Foreground = owner.FindResource("AccentPrimaryBrush") as IBrush,
             Background = owner.FindResource("BackgroundPrimaryBrush") as IBrush,
         });
@@ -78,7 +81,7 @@ public static class SaveToStarListDialog
 
         var newListNameBox = new TextBox
         {
-            PlaceholderText = "New list name...",
+            PlaceholderText = loc.GetString("NewListNamePlaceholder"),
             Foreground = owner.FindResource("TextPrimaryBrush") as IBrush,
             Background = owner.FindResource("BackgroundSecondaryBrush") as IBrush,
         };
@@ -90,8 +93,8 @@ public static class SaveToStarListDialog
         {
             if (comboBox.SelectedItem is ComboBoxItem item && item.Tag is string tag)
             {
-                newListPanel.IsVisible = tag == "__new__";
-                if (tag == "__new__")
+                newListPanel.IsVisible = tag == NewListTag;
+                if (tag == NewListTag)
                 {
                     confirm.Height = 280;
                     newListNameBox.Focus();
@@ -113,7 +116,7 @@ public static class SaveToStarListDialog
 
         var cancelBtn = new Button
         {
-            Content = "Cancel",
+            Content = loc.GetString("Cancel"),
             Padding = new(16, 8),
             Background = owner.FindResource("BackgroundTertiaryBrush") as IBrush,
             Foreground = owner.FindResource("TextPrimaryBrush") as IBrush,
@@ -122,7 +125,7 @@ public static class SaveToStarListDialog
         };
         var okBtn = new Button
         {
-            Content = "Add to list",
+            Content = loc.GetString("AddToListButton"),
             Padding = new(16, 8),
             Background = owner.FindResource("AccentPrimaryBrush") as IBrush,
             Foreground = owner.FindResource("TextOnAccentBrush") as IBrush,
@@ -147,7 +150,7 @@ public static class SaveToStarListDialog
                 return;
             }
 
-            if (tag == "__new__")
+            if (tag == NewListTag)
             {
                 var name = newListNameBox.Text?.Trim();
                 if (string.IsNullOrWhiteSpace(name))
@@ -180,6 +183,8 @@ public static class SaveToStarListDialog
         buttonRow.Children.Add(okBtn);
         panel.Children.Add(buttonRow);
         confirm.Content = panel;
+
+        confirm.Closed += (_, _) => tcs.TrySetResult(null);
 
         await confirm.ShowDialog(owner);
         return await tcs.Task;

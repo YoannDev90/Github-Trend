@@ -21,7 +21,7 @@ public class App : Application
     public override void OnFrameworkInitializationCompleted()
     {
         Log.Debug("Framework initialization completed");
-        ThemeService.Initialize();
+        _ = ThemeService.Default.InitializeAsync();
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.MainWindow = new MainWindow();

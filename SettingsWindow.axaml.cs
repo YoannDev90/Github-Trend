@@ -8,6 +8,7 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Github_Trend.Services;
+using Github_Trend.Utils;
 using Serilog;
 
 namespace Github_Trend;
@@ -21,6 +22,7 @@ public partial class SettingsWindow : Window
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
         KeyDown += OnKeyDown;
+        Closed += OnClosed;
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e)
@@ -42,6 +44,23 @@ public partial class SettingsWindow : Window
             }
 
             UpdateFilterButtons();
+        }
+    }
+
+    private void OnClosed(object? sender, EventArgs e)
+    {
+        if (DataContext is MainWindowViewModel vm)
+        {
+            vm.Debug.CopyLogsRequested -= OnCopyLogsRequested;
+            vm.Debug.CopySelectedRequested -= OnCopySelectedRequested;
+            vm.Debug.CopyAllFilteredRequested -= OnCopyAllFilteredRequested;
+            vm.Debug.DeleteCurrentLogRequested -= OnDeleteCurrentLogRequested;
+            vm.Debug.DeleteAllLogsRequested -= OnDeleteAllLogsRequested;
+            if (_subscribedToDebug)
+            {
+                vm.Debug.PropertyChanged -= OnDebugPropertyChanged;
+                _subscribedToDebug = false;
+            }
         }
     }
 
@@ -105,128 +124,8 @@ public partial class SettingsWindow : Window
         return parts.ToString();
     }
 
-    private async Task ConfirmDeleteAsync(string title, string message, Action onConfirm)
-    {
-        var confirm = new Window
-        {
-            Title = title,
-            Width = 380,
-            Height = 180,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Background = this.FindResource("BackgroundPrimaryBrush") as IBrush,
-        };
-
-        var panel = new StackPanel { Spacing = 16, Margin = new(20) };
-        panel.Children.Add(new TextBlock
-        {
-            Text = message,
-            FontSize = 14,
-            TextWrapping = TextWrapping.Wrap,
-            Foreground = this.FindResource("TextPrimaryBrush") as IBrush,
-        });
-
-        var buttonRow = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Spacing = 8,
-        };
-
-        var cancelBtn = new Button
-        {
-            Content = "Cancel",
-            Padding = new(16, 8),
-            Background = this.FindResource("BackgroundTertiaryBrush") as IBrush,
-            Foreground = this.FindResource("TextPrimaryBrush") as IBrush,
-            CornerRadius = new(8),
-        };
-        var deleteBtn = new Button
-        {
-            Content = "Delete",
-            Padding = new(16, 8),
-            Background = this.FindResource("ErrorBrush") as IBrush,
-            Foreground = Brushes.White,
-            CornerRadius = new(8),
-        };
-
-        var tcs = new TaskCompletionSource<bool>();
-        cancelBtn.Click += (_, _) => { Log.Debug("ConfirmDelete: cancelled"); tcs.TrySetResult(false); confirm.Close(); };
-        deleteBtn.Click += (_, _) => { Log.Debug("ConfirmDelete: confirmed"); tcs.TrySetResult(true); confirm.Close(); };
-
-        buttonRow.Children.Add(cancelBtn);
-        buttonRow.Children.Add(deleteBtn);
-        panel.Children.Add(buttonRow);
-        confirm.Content = panel;
-
-        await confirm.ShowDialog(this);
-        if (await tcs.Task)
-            onConfirm();
-    }
-
-    private async Task<bool> ConfirmSignOutAsync()
-    {
-        var confirm = new Window
-        {
-            Title = "Sign out",
-            Width = 360,
-            Height = 180,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Background = this.FindResource("BackgroundPrimaryBrush") as IBrush,
-        };
-
-        var panel = new StackPanel { Spacing = 16, Margin = new(20) };
-        panel.Children.Add(new TextBlock
-        {
-            Text = "Are you sure you want to sign out?",
-            FontSize = 16,
-            FontWeight = FontWeight.SemiBold,
-            TextWrapping = TextWrapping.Wrap,
-            Foreground = this.FindResource("TextPrimaryBrush") as IBrush,
-        });
-        panel.Children.Add(new TextBlock
-        {
-            Text = "You will need to sign in again to star or watch repositories.",
-            FontSize = 12,
-            TextWrapping = TextWrapping.Wrap,
-            Foreground = this.FindResource("TextSecondaryBrush") as IBrush,
-        });
-
-        var buttonRow = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Spacing = 8,
-        };
-
-        var cancelBtn = new Button
-        {
-            Content = "Cancel",
-            Padding = new(16, 8),
-            Background = this.FindResource("BackgroundTertiaryBrush") as IBrush,
-            Foreground = this.FindResource("TextPrimaryBrush") as IBrush,
-            CornerRadius = new(8),
-        };
-        var signOutBtn = new Button
-        {
-            Content = "Sign out",
-            Padding = new(16, 8),
-            Background = this.FindResource("ErrorBrush") as IBrush,
-            Foreground = Brushes.White,
-            CornerRadius = new(8),
-        };
-
-        var tcs = new TaskCompletionSource<bool>();
-        cancelBtn.Click += (_, _) => { Log.Debug("ConfirmSignOut: cancelled"); tcs.TrySetResult(false); confirm.Close(); };
-        signOutBtn.Click += (_, _) => { Log.Debug("ConfirmSignOut: confirmed"); tcs.TrySetResult(true); confirm.Close(); };
-
-        buttonRow.Children.Add(cancelBtn);
-        buttonRow.Children.Add(signOutBtn);
-        panel.Children.Add(buttonRow);
-        confirm.Content = panel;
-
-        await confirm.ShowDialog(this);
-        return await tcs.Task;
-    }
+    private async Task<bool> ConfirmSignOutAsync() =>
+        await DialogHelper.ShowConfirmSignOutAsync(this);
 
     private async void OnCopyLogsRequested(object? sender, EventArgs e)
     {
@@ -259,36 +158,41 @@ public partial class SettingsWindow : Window
         var path = vm.Debug.CurrentLogPath;
         if (path is null) return;
 
-        await ConfirmDeleteAsync(
+        var confirmed = await DialogHelper.ShowConfirmAsync(
+            this,
             "Delete log file",
-            $"Delete the current log file \"{vm.Debug.CurrentLogFileName}\"?",
-            () =>
-            {
-                Log.Information("Deleting log file: {Path}", path);
-                Serilog.Log.CloseAndFlush();
-                vm.Debug.DeleteLogFile(path);
-                Program.ConfigureLogging();
-                vm.Debug.ReloadLogsCommand.Execute(null);
-                Log.Information("Log file deleted: {Path}", path);
-            });
+            $"Delete the current log file \"{vm.Debug.CurrentLogFileName}\"?"
+        );
+        if (confirmed)
+        {
+            Log.Information("Deleting log file: {Path}", path);
+            Serilog.Log.CloseAndFlush();
+            vm.Debug.DeleteLogFile(path);
+            Program.ConfigureLogging();
+            vm.Debug.ReloadLogsCommand.Execute(null);
+            Log.Information("Log file deleted: {Path}", path);
+        }
     }
 
     private async void OnDeleteAllLogsRequested(object? sender, EventArgs e)
     {
         Log.Debug("Delete all logs requested");
         if (DataContext is not MainWindowViewModel vm) return;
-        await ConfirmDeleteAsync(
+
+        var confirmed = await DialogHelper.ShowConfirmAsync(
+            this,
             "Delete all logs",
-            "Delete ALL log files? This cannot be undone.",
-            () =>
-            {
-                Log.Information("Deleting all log files");
-                Serilog.Log.CloseAndFlush();
-                vm.Debug.DeleteAllLogFiles();
-                Program.ConfigureLogging();
-                vm.Debug.ReloadLogsCommand.Execute(null);
-                Log.Information("All log files deleted");
-            });
+            "Delete ALL log files? This cannot be undone."
+        );
+        if (confirmed)
+        {
+            Log.Information("Deleting all log files");
+            Serilog.Log.CloseAndFlush();
+            vm.Debug.DeleteAllLogFiles();
+            Program.ConfigureLogging();
+            vm.Debug.ReloadLogsCommand.Execute(null);
+            Log.Information("All log files deleted");
+        }
     }
 
     private async Task CopyToClipboardAsync(string text)
@@ -311,20 +215,20 @@ public partial class SettingsWindow : Window
     private void OnDarkThemeClick(object? sender, RoutedEventArgs e)
     {
         Log.Information("Theme changed to Dark");
-        ThemeService.SetDark(true);
+        ThemeService.Default.SetDark(true);
         UpdateThemeUI();
     }
 
     private void OnLightThemeClick(object? sender, RoutedEventArgs e)
     {
         Log.Information("Theme changed to Light");
-        ThemeService.SetDark(false);
+        ThemeService.Default.SetDark(false);
         UpdateThemeUI();
     }
 
     private void UpdateThemeUI()
     {
-        var isDark = ThemeService.IsDark;
+        var isDark = ThemeService.Default.IsDark;
 
         if (isDark)
         {

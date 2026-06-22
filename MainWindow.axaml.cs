@@ -7,6 +7,7 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
+using Github_Trend.Utils;
 using Serilog;
 
 namespace Github_Trend;
@@ -23,11 +24,13 @@ public partial class MainWindow : Window
         ViewModel.DeviceCodeCopyRequested += async (_, _) =>
             await CopyGitHubDeviceCodeToClipboardAsync();
         var loc = Github_Trend.Localization.Localization.Instance;
-        ViewModel.ConfirmUnstarAsync = () => ConfirmRepoActionAsync(
+        ViewModel.ConfirmUnstarAsync = () => DialogHelper.ShowConfirmActionAsync(
+            this,
             loc.GetString("ConfirmUnstar"),
             loc.GetString("ActionUnstar")
         );
-        ViewModel.ConfirmUnwatchAsync = () => ConfirmRepoActionAsync(
+        ViewModel.ConfirmUnwatchAsync = () => DialogHelper.ShowConfirmActionAsync(
+            this,
             loc.GetString("ConfirmUnwatch"),
             loc.GetString("ActionUnwatch")
         );
@@ -41,66 +44,6 @@ public partial class MainWindow : Window
             _initialized = true;
             await ViewModel.InitializeAsync();
         };
-    }
-
-    private async Task<bool> ConfirmRepoActionAsync(string title, string action)
-    {
-        var confirm = new Window
-        {
-            Title = title,
-            Width = 360,
-            Height = 160,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Background = this.FindResource("BackgroundPrimaryBrush") as IBrush,
-        };
-
-        var panel = new StackPanel { Spacing = 16, Margin = new(20) };
-        panel.Children.Add(new TextBlock
-        {
-            Text = title,
-            FontSize = 16,
-            FontWeight = FontWeight.SemiBold,
-            TextWrapping = TextWrapping.Wrap,
-            Foreground = this.FindResource("TextPrimaryBrush") as IBrush,
-        });
-
-        var buttonRow = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Spacing = 8,
-        };
-
-        var cancelBtn = new Button
-        {
-            Content = "Cancel",
-            Padding = new(16, 8),
-            Background = this.FindResource("BackgroundTertiaryBrush") as IBrush,
-            Foreground = this.FindResource("TextPrimaryBrush") as IBrush,
-            BorderThickness = new(0),
-            CornerRadius = new(8),
-        };
-        var actionBtn = new Button
-        {
-            Content = action,
-            Padding = new(16, 8),
-            Background = this.FindResource("AccentPrimaryBrush") as IBrush,
-            Foreground = this.FindResource("TextOnAccentBrush") as IBrush,
-            BorderThickness = new(0),
-            CornerRadius = new(8),
-        };
-
-        var tcs = new TaskCompletionSource<bool>();
-        cancelBtn.Click += (_, _) => { Log.Debug("ConfirmDialog: cancelled"); tcs.TrySetResult(false); confirm.Close(); };
-        actionBtn.Click += (_, _) => { Log.Debug("ConfirmDialog: confirmed ({Action})", action); tcs.TrySetResult(true); confirm.Close(); };
-
-        buttonRow.Children.Add(cancelBtn);
-        buttonRow.Children.Add(actionBtn);
-        panel.Children.Add(buttonRow);
-        confirm.Content = panel;
-
-        await confirm.ShowDialog(this);
-        return await tcs.Task;
     }
 
     public MainWindowViewModel ViewModel { get; } = new();
