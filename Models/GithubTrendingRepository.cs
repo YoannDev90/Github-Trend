@@ -7,6 +7,7 @@ using System.Text.Json.Serialization;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Github_Trend.Localization;
+using Github_Trend.Utils;
 
 namespace Github_Trend;
 
@@ -221,24 +222,10 @@ public sealed class GithubTrendingRepository : IDisposable, INotifyPropertyChang
         );
     }
 
-    private static string GetRepositorySlug(string repositoryUrl)
-    {
-        var trimmed = repositoryUrl.Trim();
+    private static string GetRepositorySlug(string repositoryUrl) =>
+        RepositoryUrlParser.GetSlug(repositoryUrl);
 
-        if (trimmed.Contains("://", StringComparison.OrdinalIgnoreCase))
-        {
-            var parts = trimmed.Split(
-                '/',
-                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
-            );
-            if (parts.Length >= 2)
-                return $"{parts[^2]}/{parts[^1]}";
-        }
-
-        return trimmed;
-    }
-
-    private static int ParseCount(string? value)
+    public static int ParseCount(string? value)
     {
         return int.TryParse(value?.Replace(",", string.Empty), out var parsed) ? parsed : 0;
     }
@@ -258,63 +245,6 @@ public sealed class GithubTrendingRepository : IDisposable, INotifyPropertyChang
         }
     }
 
-    private static string FormatLastUpdatedBadge(string? updatedAt)
-    {
-        if (!DateTimeOffset.TryParse(updatedAt, out var updated))
-            return Localization.Localization.Instance.GetString(
-                nameof(LocalizationService.UpdatedUnknown)
-            );
-
-        var delta = DateTimeOffset.UtcNow - updated.ToUniversalTime();
-        if (delta.TotalMinutes < 60)
-            return delta.TotalMinutes < 1
-                ? Localization.Localization.Instance.GetString(
-                    nameof(LocalizationService.UpdatedJustNow)
-                )
-                : Localization.Localization.Instance.GetString(
-                    Math.Max(1, (int)delta.TotalMinutes) == 1
-                        ? nameof(LocalizationService.UpdatedMinutesAgoOne)
-                        : nameof(LocalizationService.UpdatedMinutesAgoMany),
-                    Math.Max(1, (int)delta.TotalMinutes)
-                );
-
-        if (delta.TotalHours < 24)
-            return delta.TotalHours < 2
-                ? Localization.Localization.Instance.GetString(
-                    nameof(LocalizationService.UpdatedHoursAgoOne)
-                )
-                : Localization.Localization.Instance.GetString(
-                    nameof(LocalizationService.UpdatedHoursAgoMany),
-                    Math.Max(1, (int)delta.TotalHours)
-                );
-
-        if (delta.TotalDays < 7)
-            return delta.TotalDays < 2
-                ? Localization.Localization.Instance.GetString(
-                    nameof(LocalizationService.UpdatedYesterday)
-                )
-                : Localization.Localization.Instance.GetString(
-                    Math.Max(1, (int)delta.TotalDays) == 1
-                        ? nameof(LocalizationService.UpdatedDaysAgoOne)
-                        : nameof(LocalizationService.UpdatedDaysAgoMany),
-                    Math.Max(1, (int)delta.TotalDays)
-                );
-
-        if (delta.TotalDays < 30)
-            return Localization.Localization.Instance.GetString(
-                nameof(LocalizationService.UpdatedWeeksAgo),
-                Math.Max(1, (int)Math.Round(delta.TotalDays / 7d))
-            );
-
-        if (delta.TotalDays < 365)
-            return Localization.Localization.Instance.GetString(
-                nameof(LocalizationService.UpdatedMonthsAgo),
-                Math.Max(1, (int)Math.Round(delta.TotalDays / 30d))
-            );
-
-        return Localization.Localization.Instance.GetString(
-            nameof(LocalizationService.UpdatedYearsAgo),
-            Math.Max(1, (int)Math.Round(delta.TotalDays / 365d))
-        );
-    }
+    private static string FormatLastUpdatedBadge(string? updatedAt) =>
+        TimeFormattingHelper.FormatLastUpdatedBadge(updatedAt);
 }
