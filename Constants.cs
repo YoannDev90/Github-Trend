@@ -18,7 +18,7 @@ public static class Constants
 
     public static class GitHubApp
     {
-        public const string ClientId = "Ov23liF9LELIduw9N0kH";
+        public const string ClientId = "";
         public const string CallbackUrl = "http://localhost:25885/callback";
         public const string LocalBaseUrl = "http://localhost:25885";
         public const bool PrivateRepoAccessEnabled = false;
