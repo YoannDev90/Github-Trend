@@ -9,38 +9,35 @@ namespace Github_Trend;
 
 public sealed class LogLevelToBrushConverter : IValueConverter
 {
-    // Pre-cached brushes for dark theme
-    private static readonly SolidColorBrush DarkErrBrush = new(Color.Parse("#F85149"));
-    private static readonly SolidColorBrush DarkWrnBrush = new(Color.Parse("#D29922"));
-    private static readonly SolidColorBrush DarkInfBrush = new(Color.Parse("#58A6FF"));
-    private static readonly SolidColorBrush DarkDgbBrush = new(Color.Parse("#8B949E"));
-    private static readonly SolidColorBrush DarkVrbBrush = new(Color.Parse("#6E7681"));
-
-    // Pre-cached brushes for light theme
-    private static readonly SolidColorBrush LightErrBrush = new(Color.Parse("#CF2222"));
-    private static readonly SolidColorBrush LightWrnBrush = new(Color.Parse("#9A6700"));
-    private static readonly SolidColorBrush LightInfBrush = new(Color.Parse("#0969DA"));
-    private static readonly SolidColorBrush LightDgbBrush = new(Color.Parse("#656D76"));
-    private static readonly SolidColorBrush LightVrbBrush = new(Color.Parse("#8C959F"));
+    private static readonly Color DarkErr = Color.Parse("#F85149");
+    private static readonly Color DarkWrn = Color.Parse("#D29922");
+    private static readonly Color DarkInf = Color.Parse("#58A6FF");
+    private static readonly Color DarkDgb = Color.Parse("#8B949E");
+    private static readonly Color DarkVrb = Color.Parse("#6E7681");
+    private static readonly Color LightErr = Color.Parse("#CF2222");
+    private static readonly Color LightWrn = Color.Parse("#9A6700");
+    private static readonly Color LightInf = Color.Parse("#0969DA");
+    private static readonly Color LightDgb = Color.Parse("#656D76");
+    private static readonly Color LightVrb = Color.Parse("#8C959F");
 
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        var theme = Application.Current?.ActualThemeVariant;
-        var isDark = theme == ThemeVariant.Dark;
+        var isDark = Application.Current?.ActualThemeVariant == ThemeVariant.Dark;
 
-        return (value?.ToString()?.ToUpperInvariant(), isDark) switch
+        var color = (value?.ToString()?.ToUpperInvariant(), isDark) switch
         {
-            ("ERR" or "FTL", true) => DarkErrBrush,
-            ("WRN", true) => DarkWrnBrush,
-            ("INF", true) => DarkInfBrush,
-            ("DBG", true) => DarkDgbBrush,
-            ("VRB", true) => DarkVrbBrush,
-            ("ERR" or "FTL", false) => LightErrBrush,
-            ("WRN", false) => LightWrnBrush,
-            ("INF", false) => LightInfBrush,
-            ("DBG" or "VRB", false) => LightDgbBrush,
-            _ => isDark ? DarkDgbBrush : LightDgbBrush,
+            ("ERR" or "FTL", true) => DarkErr,
+            ("WRN", true) => DarkWrn,
+            ("INF", true) => DarkInf,
+            ("DBG", true) => DarkDgb,
+            ("VRB", true) => DarkVrb,
+            ("ERR" or "FTL", false) => LightErr,
+            ("WRN", false) => LightWrn,
+            ("INF", false) => LightInf,
+            ("DBG" or "VRB", false) => LightDgb,
+            _ => isDark ? DarkDgb : LightDgb,
         };
+        return new SolidColorBrush(color);
     }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -50,30 +47,26 @@ public sealed class LogLevelToBrushConverter : IValueConverter
 public sealed class BoolToStarredBrushConverter : IValueConverter
 {
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-    {
-        var theme = Application.Current?.ActualThemeVariant;
-        if (value is true && Application.Current?.Resources.TryGetResource("StarActiveBrush", theme, out var active) == true)
-            return active;
-        if (Application.Current?.Resources.TryGetResource("BackgroundTertiaryBrush", theme, out var def) == true)
-            return def;
-        return new SolidColorBrush(Color.Parse("#FF21262D"));
-    }
+        => ConvertBoolToBrush(value, "StarActiveBrush");
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => throw new NotImplementedException();
+
+    internal static object? ConvertBoolToBrush(object? value, string activeKey)
+    {
+        var theme = Application.Current?.ActualThemeVariant;
+        if (value is true && Application.Current?.Resources.TryGetResource(activeKey, theme, out var active) == true)
+            return active;
+        object? def = null;
+        Application.Current?.Resources.TryGetResource("BackgroundTertiaryBrush", theme, out def);
+        return def ?? Brushes.Gray;
+    }
 }
 
 public sealed class BoolToWatchedBrushConverter : IValueConverter
 {
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-    {
-        var theme = Application.Current?.ActualThemeVariant;
-        if (value is true && Application.Current?.Resources.TryGetResource("WatchActiveBrush", theme, out var active) == true)
-            return active;
-        if (Application.Current?.Resources.TryGetResource("BackgroundTertiaryBrush", theme, out var def) == true)
-            return def;
-        return new SolidColorBrush(Color.Parse("#FF21262D"));
-    }
+        => BoolToStarredBrushConverter.ConvertBoolToBrush(value, "WatchActiveBrush");
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => throw new NotImplementedException();

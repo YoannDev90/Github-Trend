@@ -14,14 +14,12 @@ namespace Github_Trend.Controls;
 
 public class SvgImage : Image
 {
+    private static readonly ConcurrentDictionary<string, WeakReference<Bitmap>> SvgCache = new();
+
     public static readonly StyledProperty<string?> SourceUriProperty = AvaloniaProperty.Register<
         SvgImage,
         string?
     >(nameof(SourceUri));
-
-    private static readonly ConcurrentDictionary<string, byte> MissingLogged = new();
-    private static readonly ConcurrentDictionary<string, byte> RenderErrorLogged = new();
-    private static readonly ConcurrentDictionary<string, byte> RenderSuccessLogged = new();
 
     static SvgImage()
     {
@@ -41,6 +39,12 @@ public class SvgImage : Image
 
         try
         {
+            if (SvgCache.TryGetValue(uri, out var weakRef) && weakRef.TryGetTarget(out var cached))
+            {
+                Source = cached;
+                return;
+            }
+
             var bitmap = await RenderSvgToBitmapAsync(
                 uri,
                 (int)(Width > 0 ? Width : 18),
@@ -49,18 +53,12 @@ public class SvgImage : Image
             if (bitmap != null)
             {
                 Source = bitmap;
-                if (RenderSuccessLogged.TryAdd(uri, 0))
-                    Log.Debug("SVG rendered successfully: {Uri}", uri);
-                return;
+                SvgCache[uri] = new WeakReference<Bitmap>(bitmap);
             }
-
-            if (MissingLogged.TryAdd(uri, 0))
-                Log.Warning("SVG render returned null: {Uri}", uri);
         }
         catch (Exception ex)
         {
-            if (RenderErrorLogged.TryAdd(uri, 0))
-                Log.Error(ex, "SVG source change failed: {Uri}", uri);
+            Log.Error(ex, "SVG source change failed: {Uri}", uri);
         }
     }
 
@@ -76,28 +74,16 @@ public class SvgImage : Image
             {
                 using var stream = OpenSvgStream(uri);
                 if (stream == null)
-                {
-                    if (MissingLogged.TryAdd(uri, 0))
-                        Log.Warning("SVG not found: {Uri}", uri);
                     return null;
-                }
 
                 var svg = new SKSvg();
                 var picture = svg.Load(stream);
                 if (picture == null)
-                {
-                    if (RenderErrorLogged.TryAdd(uri, 0))
-                        Log.Warning("SVG parsing failed: {Uri}", uri);
                     return null;
-                }
 
                 var bounds = picture.CullRect;
                 if (bounds.Width <= 0 || bounds.Height <= 0)
-                {
-                    if (RenderErrorLogged.TryAdd(uri + "#bounds", 0))
-                        Log.Warning("SVG has invalid dimensions: {Uri}", uri);
                     return null;
-                }
 
                 var scale = Math.Min(targetWidth / bounds.Width, targetHeight / bounds.Height);
                 if (float.IsNaN(scale) || float.IsInfinity(scale) || scale <= 0)
@@ -132,8 +118,7 @@ public class SvgImage : Image
             }
             catch (Exception ex)
             {
-                if (RenderErrorLogged.TryAdd(uri, 0))
-                    Log.Error(ex, "SVG render failed: {Uri}", uri);
+                Log.Error(ex, "SVG render failed: {Uri}", uri);
                 return null;
             }
         });
