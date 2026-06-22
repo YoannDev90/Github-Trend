@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Github_Trend.Localization;
+using Github_Trend.Services;
 using Serilog;
 
 namespace Github_Trend;
@@ -133,20 +134,27 @@ public sealed class LanguageFilterViewModel : INotifyPropertyChanged
         }
     }
 
-    public async void RefreshColors(GithubColorsCatalog catalog)
+    public async Task RefreshColorsAsync(GithubColorsCatalog catalog)
     {
-        Colors = catalog;
-        _popularLanguages = await PopularLanguagesService.GetPopularLanguagesAsync();
-        var currentSelected = _allLanguages
-            .Where(l => l.IsSelected)
-            .Select(l => l.Language)
-            .ToArray();
-        RebuildLanguages(catalog, currentSelected);
-        RefreshSelectedLanguages();
-        ApplyFilter();
-        OnPropertyChanged(nameof(ColorCount));
-        OnPropertyChanged(nameof(VisibleCount));
-        OnPropertyChanged(nameof(SelectedCount));
+        try
+        {
+            Colors = catalog;
+            _popularLanguages = await PopularLanguagesService.GetPopularLanguagesAsync();
+            var currentSelected = _allLanguages
+                .Where(l => l.IsSelected)
+                .Select(l => l.Language)
+                .ToArray();
+            RebuildLanguages(catalog, currentSelected);
+            RefreshSelectedLanguages();
+            ApplyFilter();
+            OnPropertyChanged(nameof(ColorCount));
+            OnPropertyChanged(nameof(VisibleCount));
+            OnPropertyChanged(nameof(SelectedCount));
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to refresh colors");
+        }
     }
 
     private void RebuildLanguages(GithubColorsCatalog catalog, IReadOnlyCollection<string> selected)

@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Github_Trend.Localization;
+using Github_Trend.Services;
 using Serilog;
 
 namespace Github_Trend;
@@ -34,15 +35,15 @@ public sealed class GitHubAuthViewModel : INotifyPropertyChanged
         _accountSummaryKey = nameof(LocalizationService.GitHubAuthNoAccountConnected);
 
         SignInCommand = new RelayCommand(
-            _ => ExecuteSignIn(),
+            _ => SignInAsync(),
             _ => !_isInitializing && !_isAuthenticating
         );
         SignOutCommand = new RelayCommand(
-            _ => ExecuteSignOut(),
+            _ => SignOutAsync(),
             _ => IsConnected && !_isAuthenticating
         );
         RefreshSessionCommand = new RelayCommand(
-            _ => ExecuteRefreshSession(),
+            _ => RefreshSessionAsync(),
             _ => IsConnected && !_isAuthenticating
         );
         CopyDeviceCodeCommand = new RelayCommand(
@@ -140,10 +141,6 @@ public sealed class GitHubAuthViewModel : INotifyPropertyChanged
         (SignOutCommand as RelayCommand)?.RaiseCanExecuteChanged();
         (RefreshSessionCommand as RelayCommand)?.RaiseCanExecuteChanged();
     }
-
-    private void ExecuteSignIn() => _ = SignInAsync();
-    private void ExecuteSignOut() => _ = SignOutAsync();
-    private void ExecuteRefreshSession() => _ = RefreshSessionAsync();
 
     private async Task SignInAsync()
     {

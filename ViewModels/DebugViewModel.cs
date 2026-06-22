@@ -73,7 +73,6 @@ public sealed partial class DebugViewModel : INotifyPropertyChanged
     public event EventHandler? DeleteAllLogsRequested;
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public ObservableCollection<LogEntry> LogEntries { get; } = new();
     public ObservableCollection<LogEntry> FilteredLogEntries { get; } = new();
     public ObservableCollection<DebugInfoItem> InfoItems { get; } = new();
 
@@ -136,7 +135,7 @@ public sealed partial class DebugViewModel : INotifyPropertyChanged
             vm.Auth.IsConnected ? $"Connected ({vm.Auth.AccountSummary})" : "Disconnected",
             vm.Auth.IsConnected ? "#238636" : "#F85149"));
         InfoItems.Add(new DebugInfoItem("Theme",
-            ThemeService.IsDark ? "Dark" : "Light",
+            ThemeService.Default.IsDark ? "Dark" : "Light",
             "#58A6FF"));
         InfoItems.Add(new DebugInfoItem("Languages",
             $"{vm.Filter.SelectedCount} selected",
@@ -210,7 +209,6 @@ public sealed partial class DebugViewModel : INotifyPropertyChanged
 
     private void ParseLogEntries(string logs)
     {
-        LogEntries.Clear();
         _allLogEntries.Clear();
         var lines = logs.Split('\n');
         var start = Math.Max(0, lines.Length - MaxLogEntries);
@@ -225,20 +223,18 @@ public sealed partial class DebugViewModel : INotifyPropertyChanged
             {
                 var tsMatch = TimestampRegex().Match(trimmed);
                 var timestamp = tsMatch.Success ? tsMatch.Groups[1].Value : "";
-                var entry = new LogEntry(
+                _allLogEntries.Add(new LogEntry(
                     timestamp,
                     match.Groups[1].Value,
-                    match.Groups[2].Value);
-                LogEntries.Add(entry);
-                _allLogEntries.Add(entry);
+                    match.Groups[2].Value));
             }
             else
             {
-                var entry = new LogEntry("", "", trimmed);
-                LogEntries.Add(entry);
-                _allLogEntries.Add(entry);
+                _allLogEntries.Add(new LogEntry("", "", trimmed));
             }
         }
+
+        _appLogs = string.Empty;
     }
 
     private void ToggleLevel(string? level)
