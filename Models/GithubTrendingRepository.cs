@@ -19,6 +19,9 @@ public sealed class GithubTrendingRepository : IDisposable, INotifyPropertyChang
 
     private Bitmap? _bannerImage;
 
+    [JsonIgnore]
+    internal bool IsEnriched { get; set; }
+
     [JsonConstructor]
     public GithubTrendingRepository(
         List<GithubTrendingAuthor>? builders,

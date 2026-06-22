@@ -18,4 +18,9 @@ public interface IGithubTrendingService
         string? language = null,
         CancellationToken cancellationToken = default
     );
+
+    Task<List<GithubTrendingRepository>?> TryGetCachedTrendingAsync(
+        string? since = null,
+        string? language = null
+    );
 }

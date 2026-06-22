@@ -58,7 +58,7 @@ public sealed class GithubRepositoryDetailsService : IRepositoryDetailsService
         }
 
         var details = await GetDetailsAsync(owner, name, ct);
-        return repository.CloneWith(
+        var enriched = repository.CloneWith(
             htmlUrl: details.HtmlUrl,
             bannerUrl: details.BannerUrl,
             bannerImage: details.BannerImage,
@@ -68,6 +68,8 @@ public sealed class GithubRepositoryDetailsService : IRepositoryDetailsService
             topics: details.Topics,
             updatedAt: details.UpdatedAt
         );
+        enriched.IsEnriched = true;
+        return enriched;
     }
 
     private async Task<RepositoryDetails> GetDetailsAsync(

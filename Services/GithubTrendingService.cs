@@ -311,6 +311,17 @@ public sealed class GithubTrendingService : IGithubTrendingService, IAsyncDispos
         return url;
     }
 
+    public async Task<List<GithubTrendingRepository>?> TryGetCachedTrendingAsync(
+        string? since = null,
+        string? language = null
+    )
+    {
+        var cacheKey = BuildCacheKey(since, language);
+        var cachedJson = await _db.GetTrendingCacheAsync(cacheKey);
+        if (cachedJson is null) return null;
+        return DeserializeTrending(cachedJson);
+    }
+
     public async ValueTask DisposeAsync()
     {
         _enrichmentLimiter.Dispose();

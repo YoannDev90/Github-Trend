@@ -21,7 +21,7 @@ public sealed partial class MainWindowViewModel
         previousCts?.Cancel();
         previousCts?.Dispose();
 
-        IsTrendingLoading = true;
+        var token = cts.Token;
 
         try
         {
@@ -34,17 +34,97 @@ public sealed partial class MainWindowViewModel
                 string.Join(',', languages.Select(x => x ?? "<all>"))
             );
 
+            // Load slugs while old items are still displayed
+            var dismissedSlugs = await _db.GetDismissedSlugsAsync();
+            var starredSlugs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var watchedSlugs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            if (Auth.IsConnected)
+            {
+                try
+                {
+                    starredSlugs = await _db.GetStarredSlugsAsync();
+                    watchedSlugs = await _db.GetWatchedSlugsAsync();
+
+                    var freshStarred = await _graphQlService.GetAllStarredSlugsAsync(token);
+                    if (freshStarred.Count > 0)
+                    {
+                        starredSlugs = freshStarred;
+                        await _db.SetStarredSlugsAsync(freshStarred);
+                    }
+
+                    var freshWatched = await FetchWatchedSlugsFromRestAsync(token);
+                    if (freshWatched.Count > 0)
+                    {
+                        watchedSlugs = freshWatched;
+                        await _db.SetWatchedSlugsAsync(freshWatched);
+                    }
+
+                    Log.Information(
+                        "Loaded {StarCount} starred and {WatchCount} watched repos",
+                        starredSlugs.Count,
+                        watchedSlugs.Count
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "Failed to fetch starred/watched repos");
+                }
+            }
+
+            // Phase 1: load cached trending (old items still visible, no flash)
+            var cachedEntries = new List<(string key, GithubTrendingRepository repo)>();
+            var slugIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var since in sinceValues)
+            {
+                foreach (var lang in languages)
+                {
+                    var cached = await _trendingService.TryGetCachedTrendingAsync(since, lang);
+                    if (cached is null) continue;
+                    foreach (var repo in cached)
+                    {
+                        var key = repo.Repository ?? repo.Name;
+                        if (key is null || slugIndex.ContainsKey(key)) continue;
+                        var slug = RepositoryUrlParser.GetSlug(repo.Repository);
+                        if (!string.IsNullOrWhiteSpace(slug) && dismissedSlugs.Contains(slug))
+                            continue;
+                        slugIndex[key] = 0; // placeholder, real index after clear
+                        cachedEntries.Add((key, repo));
+                    }
+                }
+            }
+
+            // Swap: clear old items and show cached in one go
             foreach (var repo in TrendingRepositories)
                 repo.Dispose();
             TrendingRepositories.Clear();
+
+            foreach (var (key, repo) in cachedEntries)
+            {
+                var slug = RepositoryUrlParser.GetSlug(repo.Repository);
+                var visual = ApplyLanguageBrush(repo);
+                if (!string.IsNullOrWhiteSpace(slug))
+                {
+                    visual.IsStarred = starredSlugs.Contains(slug);
+                    visual.IsWatched = watchedSlugs.Contains(slug);
+                    visual.IsDismissed = dismissedSlugs.Contains(slug);
+                }
+                slugIndex[key] = TrendingRepositories.Count;
+                TrendingRepositories.Add(visual);
+            }
+
             OnPropertyChanged(nameof(ShowTrendingContent));
-            var seen = new HashSet<string>(
-                StringComparer.OrdinalIgnoreCase
-            );
+            OnPropertyChanged(nameof(ShowTrendingEmpty));
             OnPropertyChanged(nameof(TrendingCount));
             OnPropertyChanged(nameof(TrendingLabel));
 
-            var token = cts.Token;
+            var preCount = TrendingRepositories.Count;
+            if (preCount > 0)
+                Log.Information("Trending cache shown: {Count}", preCount);
+
+            // Phase 2: stream enriched data (loading = true, but spinner hidden while items exist)
+            IsTrendingLoading = true;
 
             var streams = sinceValues
                 .SelectMany(since =>
@@ -87,59 +167,21 @@ public sealed partial class MainWindowViewModel
                 token
             );
 
-            var starredSlugs = new HashSet<string>(
-                StringComparer.OrdinalIgnoreCase
-            );
-            var watchedSlugs = new HashSet<string>(
-                StringComparer.OrdinalIgnoreCase
-            );
-            var dismissedSlugs = await _db.GetDismissedSlugsAsync();
-
-            if (Auth.IsConnected)
-            {
-                try
-                {
-                    starredSlugs = await _db.GetStarredSlugsAsync();
-                    watchedSlugs = await _db.GetWatchedSlugsAsync();
-
-                    var freshStarred = await _graphQlService.GetAllStarredSlugsAsync(token);
-                    if (freshStarred.Count > 0)
-                    {
-                        starredSlugs = freshStarred;
-                        await _db.SetStarredSlugsAsync(freshStarred);
-                    }
-
-                    var freshWatched = await FetchWatchedSlugsFromRestAsync(token);
-                    if (freshWatched.Count > 0)
-                    {
-                        watchedSlugs = freshWatched;
-                        await _db.SetWatchedSlugsAsync(freshWatched);
-                    }
-
-                    Log.Information(
-                        "Loaded {StarCount} starred and {WatchCount} watched repos",
-                        starredSlugs.Count,
-                        watchedSlugs.Count
-                    );
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning(ex, "Failed to fetch starred/watched repos");
-                }
-            }
-
             var batch = new List<GithubTrendingRepository>(
                 Constants.Trending.MaxParallelEnrichmentRequests * 5
             );
+            var flushTimer = new System.Timers.Timer(300) { AutoReset = false };
+            flushTimer.Elapsed += (_, _) =>
+            {
+                FlushBatch(batch, TrendingRepositories);
+            };
+
+            var replacedItems = new List<GithubTrendingRepository>();
+
             await foreach (var repo in channel.Reader.ReadAllAsync(token))
             {
-                var key =
-                    !string.IsNullOrWhiteSpace(repo.Repository) ? repo.Repository!
-                    : !string.IsNullOrWhiteSpace(repo.Name) ? repo.Name!
-                    : null;
-
-                if (key != null && !seen.Add(key))
-                    continue;
+                var key = repo.Repository ?? repo.Name;
+                if (key is null) continue;
 
                 var slug = RepositoryUrlParser.GetSlug(repo.Repository);
                 if (!string.IsNullOrWhiteSpace(slug) && dismissedSlugs.Contains(slug))
@@ -152,16 +194,32 @@ public sealed partial class MainWindowViewModel
                     visual.IsWatched = watchedSlugs.Contains(slug);
                     visual.IsDismissed = dismissedSlugs.Contains(slug);
                 }
-                batch.Add(visual);
 
-                if (batch.Count >= 10)
+                if (slugIndex.TryGetValue(key, out var existingIdx))
                 {
-                    FlushBatch(batch, TrendingRepositories);
+                    // Replace cached item with enriched version (defer disposal to avoid UI race)
+                    var old = TrendingRepositories[existingIdx];
+                    TrendingRepositories[existingIdx] = visual;
+                    replacedItems.Add(old);
+                }
+                else
+                {
+                    // New item (not in cache) — add via batch
+                    slugIndex[key] = TrendingRepositories.Count + batch.Count;
+                    batch.Add(visual);
+                    flushTimer.Stop();
+                    flushTimer.Start();
                 }
             }
 
+            flushTimer.Stop();
+            flushTimer.Dispose();
             if (batch.Count > 0)
                 FlushBatch(batch, TrendingRepositories);
+
+            // Dispose replaced items after the stream ends (UI has released old bitmaps)
+            foreach (var d in replacedItems)
+                d.Dispose();
 
             Log.Information("Trending stream complete: {Count}", TrendingRepositories.Count);
         }
