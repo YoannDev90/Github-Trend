@@ -7,11 +7,13 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using Github_Trend;
+using Github_Trend.Utils;
 using Serilog;
 
-namespace Github_Trend;
+namespace Github_Trend.Services;
 
-public sealed class GitHubApiClient
+public sealed class GitHubApiClient : IDisposable
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -30,7 +32,7 @@ public sealed class GitHubApiClient
     {
         _authService = authService;
         _options = options ?? new GitHubAuthOptions();
-        _httpClient = httpClient ?? CreateHttpClient();
+        _httpClient = httpClient ?? HttpClientFactory.Create();
     }
 
     public async Task<HttpResponseMessage> SendAsync(Func<HttpRequestMessage> requestFactory)
@@ -58,15 +60,12 @@ public sealed class GitHubApiClient
                 continue;
             }
 
-            if (response.StatusCode == HttpStatusCode.TooManyRequests
-                || (response.StatusCode == HttpStatusCode.Forbidden
-                    && response.Headers.TryGetValues("X-RateLimit-Remaining", out var remaining)
-                    && string.Equals(remaining.FirstOrDefault(), "0", StringComparison.OrdinalIgnoreCase)))
+            if (RetryHelper.IsRetriableRateLimit(response))
             {
                 if (attempt >= Constants.RateLimit.MaxRetries)
                     return response;
 
-                var delay = ComputeRetryDelay(response, attempt);
+                var delay = RetryHelper.ComputeDelay(response, attempt);
                 Log.Warning("GitHub rate-limit. Retry {Attempt} in {Delay}ms", attempt + 1, (int)delay.TotalMilliseconds);
                 response.Dispose();
                 await Task.Delay(delay);
@@ -79,17 +78,17 @@ public sealed class GitHubApiClient
         throw new InvalidOperationException("GitHub request failed after retries.");
     }
 
-    public async Task<System.Collections.Generic.HashSet<string>> GetWatchedRepositorySlugsAsync()
+    public async Task<HashSet<string>> GetWatchedRepositorySlugsAsync()
     {
         return await FetchSlugsAsync($"{Constants.GitHub.ApiBaseUrl}/user/subscriptions");
     }
 
-    private async Task<System.Collections.Generic.HashSet<string>> FetchSlugsAsync(string baseUrl)
+    private async Task<HashSet<string>> FetchSlugsAsync(string baseUrl)
     {
-        var slugs = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var slugs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var page = 1;
 
-        while (page <= 10)
+        while (true)
         {
             HttpResponseMessage? response = null;
             try
@@ -123,24 +122,9 @@ public sealed class GitHubApiClient
         return slugs;
     }
 
-    private TimeSpan ComputeRetryDelay(HttpResponseMessage response, int attempt)
+    public void Dispose()
     {
-        if (response.Headers.RetryAfter?.Delta is not null)
-            return response.Headers.RetryAfter!.Delta!.Value;
-
-        var exponential = Constants.RateLimit.BaseBackoffMilliseconds * Math.Pow(2, attempt);
-        var bounded = Math.Min(exponential, Constants.RateLimit.MaxBackoffMilliseconds);
-        return TimeSpan.FromMilliseconds(bounded + Random.Shared.Next(0, 250));
-    }
-
-    private static HttpClient CreateHttpClient()
-    {
-        var handler = new SocketsHttpHandler
-        {
-            PooledConnectionLifetime = TimeSpan.FromMinutes(5),
-            ConnectTimeout = TimeSpan.FromSeconds(15),
-        };
-        return new HttpClient(handler);
+        _httpClient.Dispose();
     }
 }
 

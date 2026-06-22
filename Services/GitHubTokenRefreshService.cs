@@ -6,8 +6,10 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using Github_Trend;
+using Github_Trend.Utils;
 
-namespace Github_Trend;
+namespace Github_Trend.Services;
 
 public sealed class GitHubTokenRefreshService
 {
@@ -22,36 +24,7 @@ public sealed class GitHubTokenRefreshService
     public GitHubTokenRefreshService(GitHubAuthOptions options, HttpClient? httpClient = null)
     {
         _options = options;
-        _httpClient = httpClient ?? CreateHttpClient();
-    }
-
-    public async Task<GitHubTokenExchangeResult> ExchangeCodeAsync(string code, string state)
-    {
-        var body = new Dictionary<string, string>
-        {
-            ["client_id"] = _options.ClientId,
-            ["code"] = code,
-            ["state"] = state,
-            ["redirect_uri"] = _options.CallbackUrl
-        };
-
-        using HttpRequestMessage request = new(HttpMethod.Post, "https://github.com/login/oauth/access_token")
-        {
-            Content = new FormUrlEncodedContent(body)
-        };
-        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        request.Headers.UserAgent.ParseAdd(_options.UserAgent);
-
-        using var response = await _httpClient.SendAsync(request);
-        var json = await response.Content.ReadAsStringAsync();
-        if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException(
-                $"GitHub token exchange failed: {(int)response.StatusCode} {response.ReasonPhrase} - {json}");
-
-        var token = JsonSerializer.Deserialize<GitHubTokenResponse>(json, JsonOptions)
-                    ?? throw new InvalidOperationException("GitHub token response was empty.");
-
-        return BuildResult(token);
+        _httpClient = httpClient ?? HttpClientFactory.Create();
     }
 
     public async Task<GitHubTokenExchangeResult> RefreshAsync(string refreshToken)
@@ -128,13 +101,6 @@ public sealed class GitHubTokenRefreshService
                 .ToArray();
     }
 
-    private static HttpClient CreateHttpClient()
-    {
-        var client = new HttpClient();
-        client.DefaultRequestHeaders.UserAgent.ParseAdd(Constants.GitHub.UserAgent);
-        return client;
-    }
-
     private sealed record GitHubTokenResponse
     {
         [JsonPropertyName("access_token")] public string? AccessToken { get; init; }
@@ -152,29 +118,9 @@ public sealed class GitHubTokenRefreshService
     }
 }
 
-public sealed class GitHubTokenExchangeResult
-{
-    public GitHubTokenExchangeResult(
-        string accessToken,
-        string? refreshToken,
-        IReadOnlyList<string> scopeList,
-        DateTimeOffset expiresAt,
-        DateTimeOffset? refreshTokenExpiresAt)
-    {
-        AccessToken = accessToken;
-        RefreshToken = refreshToken;
-        ScopeList = scopeList;
-        ExpiresAt = expiresAt;
-        RefreshTokenExpiresAt = refreshTokenExpiresAt;
-    }
-
-    public string AccessToken { get; }
-
-    public string? RefreshToken { get; }
-
-    public IReadOnlyList<string> ScopeList { get; }
-
-    public DateTimeOffset ExpiresAt { get; }
-
-    public DateTimeOffset? RefreshTokenExpiresAt { get; }
-}
+public sealed record GitHubTokenExchangeResult(
+    string AccessToken,
+    string? RefreshToken,
+    IReadOnlyList<string> ScopeList,
+    DateTimeOffset ExpiresAt,
+    DateTimeOffset? RefreshTokenExpiresAt);

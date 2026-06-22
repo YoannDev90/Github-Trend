@@ -6,11 +6,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using Github_Trend.Database;
 using Github_Trend.Localization;
+using Github_Trend.Utils;
 using Serilog;
 
-namespace Github_Trend;
+namespace Github_Trend.Services;
 
-public sealed class GitHubAuthenticationService
+public sealed class GitHubAuthenticationService : IDisposable
 {
     private static readonly TimeSpan RefreshSkew = TimeSpan.FromMinutes(5);
     private readonly GitHubDeviceFlowAuthService _deviceFlowService;
@@ -419,5 +420,11 @@ public sealed class GitHubAuthenticationService
         {
             Log.Warning(ex, "Failed to save auth token to database");
         }
+    }
+
+    public void Dispose()
+    {
+        _refreshLock.Dispose();
+        _deviceFlowService.Dispose();
     }
 }

@@ -4,11 +4,13 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using Github_Trend;
+using Github_Trend.Utils;
 using Serilog;
 
-namespace Github_Trend;
+namespace Github_Trend.Services;
 
-public sealed class GitHubDeviceFlowAuthService
+public sealed class GitHubDeviceFlowAuthService : IDisposable
 {
     private readonly HttpClient _httpClient;
     private readonly string _clientId;
@@ -18,7 +20,12 @@ public sealed class GitHubDeviceFlowAuthService
     {
         _clientId = clientId;
         _options = options;
-        _httpClient = CreateHttpClient();
+        _httpClient = HttpClientFactory.Create();
+    }
+
+    public void Dispose()
+    {
+        _httpClient.Dispose();
     }
 
     public async Task<DeviceCodeResponse> RequestDeviceCodeAsync()
@@ -103,16 +110,6 @@ public sealed class GitHubDeviceFlowAuthService
         }
 
         return (false, null, "Device code verification timed out");
-    }
-
-    private static HttpClient CreateHttpClient()
-    {
-        var handler = new SocketsHttpHandler
-        {
-            PooledConnectionLifetime = TimeSpan.FromMinutes(5),
-            ConnectTimeout = TimeSpan.FromSeconds(15),
-        };
-        return new HttpClient(handler);
     }
 
     public sealed class DeviceCodeResponse

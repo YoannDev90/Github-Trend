@@ -2,13 +2,14 @@ using System;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Github_Trend.Utils;
 using Serilog;
 
 namespace Github_Trend.Services;
 
 public sealed class GitHubRateLimitService
 {
-    private static readonly object SyncLock = new();
+    private readonly object _syncLock = new();
     private DateTimeOffset? _cooldownUntilUtc;
     private int _remaining = -1;
 
@@ -16,7 +17,7 @@ public sealed class GitHubRateLimitService
     {
         get
         {
-            lock (SyncLock)
+            lock (_syncLock)
             {
                 if (_cooldownUntilUtc is null) return false;
                 if (DateTimeOffset.UtcNow >= _cooldownUntilUtc)
@@ -33,7 +34,7 @@ public sealed class GitHubRateLimitService
     {
         get
         {
-            lock (SyncLock)
+            lock (_syncLock)
             {
                 if (_cooldownUntilUtc is null) return TimeSpan.Zero;
                 var remaining = _cooldownUntilUtc.Value - DateTimeOffset.UtcNow;
@@ -59,7 +60,7 @@ public sealed class GitHubRateLimitService
         if (cooldown <= TimeSpan.Zero)
             cooldown = TimeSpan.FromSeconds(Constants.RateLimit.CooldownFallbackSeconds);
 
-        lock (SyncLock)
+        lock (_syncLock)
         {
             var candidate = DateTimeOffset.UtcNow + cooldown;
             if (_cooldownUntilUtc is null || candidate > _cooldownUntilUtc.Value)
@@ -72,53 +73,11 @@ public sealed class GitHubRateLimitService
         );
     }
 
-    public TimeSpan ComputeRetryDelay(HttpResponseMessage response, int attempt)
-    {
-        if (response.Headers.RetryAfter?.Delta is not null)
-            return response.Headers.RetryAfter!.Delta!.Value
-                + TimeSpan.FromMilliseconds(
-                    Random.Shared.Next(
-                        Constants.RateLimit.RetryJitterMinMilliseconds,
-                        Constants.RateLimit.RetryJitterMaxMilliseconds
-                    )
-                );
+    public TimeSpan ComputeRetryDelay(HttpResponseMessage response, int attempt) =>
+        RetryHelper.ComputeDelay(response, attempt);
 
-        if (
-            response.Headers.TryGetValues("X-RateLimit-Reset", out var resetValues)
-            && long.TryParse(System.Linq.Enumerable.FirstOrDefault(resetValues), out var unixSeconds)
-        )
-        {
-            var resetTime = DateTimeOffset.FromUnixTimeSeconds(unixSeconds);
-            var delay =
-                resetTime
-                - DateTimeOffset.UtcNow
-                + TimeSpan.FromSeconds(Constants.RateLimit.ResetSafetySeconds);
-            if (delay > TimeSpan.Zero)
-                return delay
-                    + TimeSpan.FromMilliseconds(
-                        Random.Shared.Next(
-                            Constants.RateLimit.RetryJitterMinMilliseconds,
-                            Constants.RateLimit.RetryJitterMaxMilliseconds
-                        )
-                    );
-        }
-
-        var exponential = Constants.RateLimit.BaseBackoffMilliseconds * Math.Pow(2, attempt);
-        var bounded = Math.Min(exponential, Constants.RateLimit.MaxBackoffMilliseconds);
-        return TimeSpan.FromMilliseconds(bounded + Random.Shared.Next(50, 200));
-    }
-
-    public bool IsRetriableRateLimit(HttpResponseMessage response)
-    {
-        if (response.StatusCode == (System.Net.HttpStatusCode)429)
-            return true;
-
-        return response.StatusCode == System.Net.HttpStatusCode.Forbidden
-            && (
-                HasRateLimitRemainingZero(response)
-                || response.Headers.RetryAfter is not null
-            );
-    }
+    public bool IsRetriableRateLimit(HttpResponseMessage response) =>
+        RetryHelper.IsRetriableRateLimit(response);
 
     public async Task ApplyProactiveThrottleAsync(CancellationToken ct = default)
     {
@@ -154,15 +113,5 @@ public sealed class GitHubRateLimitService
         }
 
         return TimeSpan.Zero;
-    }
-
-    private bool HasRateLimitRemainingZero(HttpResponseMessage response)
-    {
-        return response.Headers.TryGetValues("X-RateLimit-Remaining", out var remaining)
-            && string.Equals(
-                System.Linq.Enumerable.FirstOrDefault(remaining),
-                "0",
-                StringComparison.OrdinalIgnoreCase
-            );
     }
 }

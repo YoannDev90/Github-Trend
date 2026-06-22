@@ -4,7 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Serilog;
 
-namespace Github_Trend;
+namespace Github_Trend.Services;
 
 public sealed class GitHubTokenProtector
 {
