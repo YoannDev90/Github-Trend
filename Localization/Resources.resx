@@ -116,5 +116,15 @@
     <data name="NoDismissedRepositories" xml:space="preserve"><value>No dismissed repositories</value></data>
     <data name="DismissedCount" xml:space="preserve"><value>{0} dismissed repositories</value></data>
     <data name="AllDismissedCleared" xml:space="preserve"><value>Cleared {0} dismissed repositories</value></data>
+    <data name="Cancel" xml:space="preserve"><value>Cancel</value></data>
+    <data name="Delete" xml:space="preserve"><value>Delete</value></data>
+    <data name="AddToStarList" xml:space="preserve"><value>Add to star list</value></data>
+    <data name="SelectStarListPrompt" xml:space="preserve"><value>Select a star list to add this repository to:</value></data>
+    <data name="ChooseListPlaceholder" xml:space="preserve"><value>Choose a list...</value></data>
+    <data name="CreateNewList" xml:space="preserve"><value>── Create new list ──</value></data>
+    <data name="NewListNamePlaceholder" xml:space="preserve"><value>New list name...</value></data>
+    <data name="AddToListButton" xml:space="preserve"><value>Add to list</value></data>
+    <data name="ConfirmSignOut" xml:space="preserve"><value>Are you sure you want to sign out?</value></data>
+    <data name="ConfirmSignOutMessage" xml:space="preserve"><value>You will need to sign in again to star or watch repositories.</value></data>
 </root>
 

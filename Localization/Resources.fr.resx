@@ -116,5 +116,15 @@
     <data name="NoDismissedRepositories" xml:space="preserve"><value>Aucun dépôt ignoré</value></data>
     <data name="DismissedCount" xml:space="preserve"><value>{0} dépôts ignorés</value></data>
     <data name="AllDismissedCleared" xml:space="preserve"><value>{0} dépôts ignorés restaurés</value></data>
+    <data name="Cancel" xml:space="preserve"><value>Annuler</value></data>
+    <data name="Delete" xml:space="preserve"><value>Supprimer</value></data>
+    <data name="AddToStarList" xml:space="preserve"><value>Ajouter à une liste d'étoiles</value></data>
+    <data name="SelectStarListPrompt" xml:space="preserve"><value>Sélectionne une liste pour ajouter ce dépôt :</value></data>
+    <data name="ChooseListPlaceholder" xml:space="preserve"><value>Choisis une liste...</value></data>
+    <data name="CreateNewList" xml:space="preserve"><value>── Créer une nouvelle liste ──</value></data>
+    <data name="NewListNamePlaceholder" xml:space="preserve"><value>Nom de la nouvelle liste...</value></data>
+    <data name="AddToListButton" xml:space="preserve"><value>Ajouter à la liste</value></data>
+    <data name="ConfirmSignOut" xml:space="preserve"><value>Veux-tu vraiment te déconnecter ?</value></data>
+    <data name="ConfirmSignOutMessage" xml:space="preserve"><value>Tu devras te reconnecter pour étoiler ou surveiller des dépôts.</value></data>
 </root>
 

@@ -134,6 +134,16 @@ public sealed class LocalizationService
     public string NoDismissedRepositories => GetString(nameof(NoDismissedRepositories));
     public string DismissedCount => GetString(nameof(DismissedCount));
     public string AllDismissedCleared => GetString(nameof(AllDismissedCleared));
+    public string Cancel => GetString(nameof(Cancel));
+    public string Delete => GetString(nameof(Delete));
+    public string AddToStarList => GetString(nameof(AddToStarList));
+    public string SelectStarListPrompt => GetString(nameof(SelectStarListPrompt));
+    public string ChooseListPlaceholder => GetString(nameof(ChooseListPlaceholder));
+    public string CreateNewList => GetString(nameof(CreateNewList));
+    public string NewListNamePlaceholder => GetString(nameof(NewListNamePlaceholder));
+    public string AddToListButton => GetString(nameof(AddToListButton));
+    public string ConfirmSignOut => GetString(nameof(ConfirmSignOut));
+    public string ConfirmSignOutMessage => GetString(nameof(ConfirmSignOutMessage));
 
     public void Initialize(CultureInfo? culture = null)
     {
