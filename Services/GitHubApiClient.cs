@@ -37,32 +37,32 @@ public sealed class GitHubApiClient : IDisposable
 
     public async Task<HttpResponseMessage> SendAsync(Func<HttpRequestMessage> requestFactory)
     {
-        for (var attempt = 0; attempt <= Constants.RateLimit.MaxRetries; attempt++)
+        for (var attempt = 0; attempt <= AppConfig.RateLimit.MaxRetries; attempt++)
         {
-            var token = await _authService.GetAccessTokenAsync(true);
+            var token = await _authService.GetAccessTokenAsync(true).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(token))
                 throw new InvalidOperationException("User is not authenticated with GitHub.");
 
             using var request = requestFactory();
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
             request.Headers.Accept.Add(
-                new MediaTypeWithQualityHeaderValue(Constants.GitHub.ApiAccept)
+                new MediaTypeWithQualityHeaderValue(AppConfig.GitHub.ApiAccept)
             );
-            request.Headers.UserAgent.ParseAdd(Constants.GitHub.UserAgent);
-            request.Headers.TryAddWithoutValidation("X-GitHub-Api-Version", Constants.GitHub.ApiVersion);
+            request.Headers.UserAgent.ParseAdd(AppConfig.GitHub.UserAgent);
+            request.Headers.TryAddWithoutValidation("X-GitHub-Api-Version", AppConfig.GitHub.ApiVersion);
 
-            var response = await _httpClient.SendAsync(request);
+            var response = await _httpClient.SendAsync(request).ConfigureAwait(false);
 
             if (response.StatusCode == HttpStatusCode.Unauthorized && attempt == 0)
             {
                 response.Dispose();
-                await _authService.RefreshCurrentAsync();
+                await _authService.RefreshCurrentAsync().ConfigureAwait(false);
                 continue;
             }
 
             if (RetryHelper.IsRetriableRateLimit(response))
             {
-                if (attempt >= Constants.RateLimit.MaxRetries)
+                if (attempt >= AppConfig.RateLimit.MaxRetries)
                     return response;
 
                 var delay = RetryHelper.ComputeDelay(response, attempt);
@@ -80,7 +80,7 @@ public sealed class GitHubApiClient : IDisposable
 
     public async Task<HashSet<string>> GetWatchedRepositorySlugsAsync()
     {
-        return await FetchSlugsAsync($"{Constants.GitHub.ApiBaseUrl}/user/subscriptions");
+        return await FetchSlugsAsync($"{AppConfig.GitHub.ApiBaseUrl}/user/subscriptions");
     }
 
     private async Task<HashSet<string>> FetchSlugsAsync(string baseUrl)
@@ -99,7 +99,7 @@ public sealed class GitHubApiClient : IDisposable
 
                 if (!response.IsSuccessStatusCode) break;
 
-                var json = await response.Content.ReadAsStringAsync();
+                var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                 var repos = JsonSerializer.Deserialize<List<GitHubRepoBriefResponse>>(json, JsonOptions);
 
                 if (repos is null || repos.Count == 0) break;

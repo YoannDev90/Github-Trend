@@ -80,7 +80,7 @@ public sealed class GithubRepositoryDetailsService : IRepositoryDetailsService
     {
         try
         {
-            var cached = await _db.GetRepositoryDetailsCacheAsync(owner, name);
+            var cached = await _db.GetRepositoryDetailsCacheAsync(owner, name).ConfigureAwait(false);
             if (cached is not null)
             {
                 var record = JsonSerializer.Deserialize<RepositoryDetailsCacheRecord>(
@@ -108,7 +108,7 @@ public sealed class GithubRepositoryDetailsService : IRepositoryDetailsService
     )
     {
         var htmlUrl = $"https://github.com/{owner}/{name}";
-        var bannerUrl = $"https://opengraph.githubassets.com/1/{owner}/{name}";
+        var bannerUrl = AppConfig.GitHub.OpenGraphBannerUrl.Replace("{owner}", owner).Replace("{name}", name);
 
         var details = new RepositoryDetails
         {
@@ -124,7 +124,7 @@ public sealed class GithubRepositoryDetailsService : IRepositoryDetailsService
 
         try
         {
-            var enrichmentData = await _graphQlService.GetRepositoryDetailsAsync(owner, name, ct);
+            var enrichmentData = await _graphQlService.GetRepositoryDetailsAsync(owner, name, ct).ConfigureAwait(false);
             if (enrichmentData is not null)
             {
                 details.HtmlUrl = enrichmentData.HtmlUrl;
@@ -135,12 +135,12 @@ public sealed class GithubRepositoryDetailsService : IRepositoryDetailsService
 
             var isAuthenticated = _authService.IsConnected;
             var contributorCount = isAuthenticated
-                ? Constants.Trending.MaxContributorPreviewCount
-                : Constants.Trending.AnonymousContributorPreviewCount;
+                ? AppConfig.Trending.MaxContributorPreviewCount
+                : AppConfig.Trending.AnonymousContributorPreviewCount;
 
             var contributorData = await FetchContributorsViaRestAsync(
                 owner, name, contributorCount, ct
-            );
+            ).ConfigureAwait(false);
 
             var contributors = new List<GithubContributorPreview>();
             foreach (var c in contributorData.Contributors)
@@ -155,11 +155,11 @@ public sealed class GithubRepositoryDetailsService : IRepositoryDetailsService
             details.Contributors = contributors;
             details.ContributorsTotalCount = contributorData.TotalCount;
 
-            details.BannerImage = await TryLoadBitmapAsync(details.BannerUrl, BannerMaxWidth);
+            details.BannerImage = await TryLoadBitmapAsync(details.BannerUrl, BannerMaxWidth).ConfigureAwait(false);
 
             foreach (var c in details.Contributors)
             {
-                c.AvatarImage = await TryLoadBitmapAsync(c.AvatarUrl, AvatarMaxSize, AvatarMaxSize);
+                c.AvatarImage = await TryLoadBitmapAsync(c.AvatarUrl, AvatarMaxSize, AvatarMaxSize).ConfigureAwait(false);
             }
 
             try
@@ -181,8 +181,8 @@ public sealed class GithubRepositoryDetailsService : IRepositoryDetailsService
                 };
                 var json = JsonSerializer.Serialize(record, JsonOptions);
                 await _db.SetRepositoryDetailsCacheAsync(
-                    owner, name, json, null, Constants.Trending.RepositoryDetailsCacheTtl
-                );
+                    owner, name, json, null, AppConfig.Trending.RepositoryDetailsCacheTtl
+                ).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -203,7 +203,7 @@ public sealed class GithubRepositoryDetailsService : IRepositoryDetailsService
         string name
     )
     {
-        var fallbackBannerUrl = $"https://opengraph.githubassets.com/1/{owner}/{name}";
+        var fallbackBannerUrl = AppConfig.GitHub.OpenGraphBannerUrl.Replace("{owner}", owner).Replace("{name}", name);
         var bannerUrl = string.IsNullOrWhiteSpace(cached.BannerUrl) ? fallbackBannerUrl : cached.BannerUrl;
         var contributors = new List<GithubContributorPreview>();
 
@@ -228,11 +228,11 @@ public sealed class GithubRepositoryDetailsService : IRepositoryDetailsService
             UpdatedAt = cached.UpdatedAt,
         };
 
-        result.BannerImage = await TryLoadBitmapAsync(result.BannerUrl, BannerMaxWidth);
+        result.BannerImage = await TryLoadBitmapAsync(result.BannerUrl, BannerMaxWidth).ConfigureAwait(false);
 
         foreach (var c in result.Contributors)
         {
-            c.AvatarImage = await TryLoadBitmapAsync(c.AvatarUrl, AvatarMaxSize, AvatarMaxSize);
+            c.AvatarImage = await TryLoadBitmapAsync(c.AvatarUrl, AvatarMaxSize, AvatarMaxSize).ConfigureAwait(false);
         }
 
         return result;
@@ -252,7 +252,7 @@ public sealed class GithubRepositoryDetailsService : IRepositoryDetailsService
 
             try
             {
-                imageBytes = await _db.GetImageCacheAsync(url);
+                imageBytes = await _db.GetImageCacheAsync(url).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -261,11 +261,11 @@ public sealed class GithubRepositoryDetailsService : IRepositoryDetailsService
 
             if (imageBytes is null)
             {
-                imageBytes = await _http.GetByteArrayAsync(url);
+                imageBytes = await _http.GetByteArrayAsync(url).ConfigureAwait(false);
 
                 try
                 {
-                    await _db.SetImageCacheAsync(url, imageBytes, Constants.Trending.ImageCacheTtl);
+                    await _db.SetImageCacheAsync(url, imageBytes, AppConfig.Trending.ImageCacheTtl).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -289,11 +289,14 @@ public sealed class GithubRepositoryDetailsService : IRepositoryDetailsService
         {
             try
             {
-                var staleBytes = await _db.GetImageCacheAsync(url, allowExpired: true);
+                var staleBytes = await _db.GetImageCacheAsync(url, allowExpired: true).ConfigureAwait(false);
                 if (staleBytes is not null)
                     return CreateBitmapFromBytes(staleBytes, maxWidth, maxHeight);
             }
-            catch { }
+            catch (Exception staleEx)
+            {
+                Log.Warning(staleEx, "Stale image cache fallback also failed for {Url}", url);
+            }
 
             Log.Debug(ex, "Image load failed for {Url}", url);
             return null;
@@ -375,12 +378,14 @@ public sealed class GithubRepositoryDetailsService : IRepositoryDetailsService
         CancellationToken ct = default
     )
     {
-        var url = $"https://api.github.com/repos/{owner}/{name}/contributors?per_page={count}&page=1";
+        var url = AppConfig.GitHub.ContributorsEndpoint
+            .Replace("{owner}", owner)
+            .Replace("{name}", name) + $"?per_page={count}&page=1";
 
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.UserAgent.ParseAdd(Constants.GitHub.UserAgent);
+            request.Headers.UserAgent.ParseAdd(AppConfig.GitHub.UserAgent);
             request.Headers.Accept.ParseAdd("application/vnd.github+json");
             request.Headers.TryAddWithoutValidation("X-GitHub-Api-Version", "2022-11-28");
 
@@ -388,10 +393,10 @@ public sealed class GithubRepositoryDetailsService : IRepositoryDetailsService
             if (!string.IsNullOrWhiteSpace(token))
                 request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-            using var response = await _http.SendAsync(request, ct);
+            using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
-            var json = await response.Content.ReadAsStringAsync(ct);
+            var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
             var contributors = JsonSerializer.Deserialize<List<ContributorRestResponse>>(json, JsonOptions)
                 ?? new List<ContributorRestResponse>();
 

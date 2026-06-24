@@ -158,11 +158,19 @@ public sealed partial class AppDatabase : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        if (_connection is not null)
+        await _dbLock.WaitAsync();
+        try
         {
-            await _connection.CloseAsync();
-            await _connection.DisposeAsync();
-            _connection = null;
+            if (_connection is not null)
+            {
+                await _connection.CloseAsync();
+                await _connection.DisposeAsync();
+                _connection = null;
+            }
+        }
+        finally
+        {
+            _dbLock.Release();
         }
     }
 }

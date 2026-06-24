@@ -13,7 +13,7 @@ namespace Github_Trend.Services;
 
 public sealed class GitHubAuthenticationService : IDisposable
 {
-    private static readonly TimeSpan RefreshSkew = TimeSpan.FromMinutes(5);
+    private static TimeSpan RefreshSkew => TimeSpan.FromMinutes(AppConfig.Auth.TokenRefreshSkewMinutes);
     private readonly GitHubDeviceFlowAuthService _deviceFlowService;
     private readonly GitHubAuthOptions _options;
     private readonly GitHubTokenProtector _protector;
@@ -56,7 +56,7 @@ public sealed class GitHubAuthenticationService : IDisposable
 
     public async Task InitializeAsync()
     {
-        await _db.InitializeAsync();
+        await _db.InitializeAsync().ConfigureAwait(false);
         await LoadCurrentSessionAsync();
     }
 
@@ -120,7 +120,7 @@ public sealed class GitHubAuthenticationService : IDisposable
                     )
                 );
 
-            var profile = await _tokenService.FetchUserProfileAsync(tokenResponse.AccessToken);
+            var profile = await _tokenService.FetchUserProfileAsync(tokenResponse.AccessToken).ConfigureAwait(false);
             var localUserId = GetLocalUserId();
 
             var record = new GitHubAuthTokenRecord
@@ -129,7 +129,7 @@ public sealed class GitHubAuthenticationService : IDisposable
                 GitHubAccountId = profile.Id,
                 AccessTokenEncrypted = _protector.Protect(tokenResponse.AccessToken),
                 RefreshTokenEncrypted = null,
-                ExpiresAt = DateTimeOffset.UtcNow.AddHours(8),
+                ExpiresAt = DateTimeOffset.UtcNow.AddHours(AppConfig.Auth.FallbackTokenExpiryHours),
                 RefreshTokenExpiresAt = null,
                 ScopeList = tokenResponse.Scope?.Split(' ').ToList() ?? new List<string>(),
                 CreatedAt = DateTimeOffset.UtcNow,
@@ -211,7 +211,7 @@ public sealed class GitHubAuthenticationService : IDisposable
             try
             {
                 EnsureAuthConfigured();
-                var refreshed = await _tokenService.RefreshAsync(refreshToken);
+                var refreshed = await _tokenService.RefreshAsync(refreshToken).ConfigureAwait(false);
                 record.AccessTokenEncrypted = _protector.Protect(refreshed.AccessToken);
                 record.RefreshTokenEncrypted = string.IsNullOrWhiteSpace(refreshed.RefreshToken)
                     ? record.RefreshTokenEncrypted
@@ -350,7 +350,7 @@ public sealed class GitHubAuthenticationService : IDisposable
     {
         try
         {
-            var json = await _db.GetCurrentAuthTokenAsync();
+            var json = await _db.GetCurrentAuthTokenAsync().ConfigureAwait(false);
             if (json is null) return null;
 
             var element = json.Value;
@@ -414,7 +414,7 @@ public sealed class GitHubAuthenticationService : IDisposable
                 record.Name,
                 record.Email,
                 record.AvatarUrl
-            );
+            ).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -426,5 +426,6 @@ public sealed class GitHubAuthenticationService : IDisposable
     {
         _refreshLock.Dispose();
         _deviceFlowService.Dispose();
+        _tokenService.Dispose();
     }
 }

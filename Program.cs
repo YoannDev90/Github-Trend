@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using Avalonia;
+using Github_Trend.Services;
 using Serilog;
 
 namespace Github_Trend;
@@ -10,6 +11,7 @@ internal class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        AppConfig.Load();
         ConfigureLogging();
 
         try
@@ -41,7 +43,7 @@ internal class Program
     {
         var logDirectory = Path.Combine(
             AppContext.BaseDirectory,
-            Constants.Logging.LogDirectoryName
+            AppConfig.Logging.DirectoryName
         );
         Directory.CreateDirectory(logDirectory);
 
@@ -50,9 +52,9 @@ internal class Program
             .Enrich.FromLogContext()
             .WriteTo.Console(restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Information)
             .WriteTo.File(
-                Path.Combine(logDirectory, Constants.Logging.LogFilePattern),
+                Path.Combine(logDirectory, AppConfig.Logging.FilePattern),
                 rollingInterval: RollingInterval.Day,
-                retainedFileCountLimit: 7,
+                retainedFileCountLimit: AppConfig.Logging.RetainedFileCount,
                 restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Debug
             )
             .CreateLogger();

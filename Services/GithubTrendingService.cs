@@ -15,7 +15,7 @@ namespace Github_Trend.Services;
 
 public sealed class GithubTrendingService : IGithubTrendingService, IAsyncDisposable
 {
-    private static readonly TimeSpan CacheTtl = Constants.Trending.TrendingCacheTtl;
+    private static TimeSpan CacheTtl => AppConfig.Trending.TrendingCacheTtl;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -36,7 +36,7 @@ public sealed class GithubTrendingService : IGithubTrendingService, IAsyncDispos
         _db = db;
         _detailsService = detailsService;
         _http = httpClient ?? HttpClientFactory.Create();
-        _enrichmentLimiter = new SemaphoreSlim(Constants.Trending.MaxParallelEnrichmentRequests);
+        _enrichmentLimiter = new SemaphoreSlim(AppConfig.Trending.MaxParallelEnrichmentRequests);
     }
 
     public async Task<List<GithubTrendingRepository>> FetchAsync(
@@ -57,7 +57,7 @@ public sealed class GithubTrendingService : IGithubTrendingService, IAsyncDispos
         {
             try
             {
-                var cachedJson = await _db.GetTrendingCacheAsync(cacheKey);
+                var cachedJson = await _db.GetTrendingCacheAsync(cacheKey).ConfigureAwait(false);
                 if (cachedJson is not null)
                 {
                     var cached = DeserializeTrending(cachedJson);
@@ -78,13 +78,13 @@ public sealed class GithubTrendingService : IGithubTrendingService, IAsyncDispos
 
         try
         {
-            var json = await _http.GetStringAsync(url);
+            var json = await _http.GetStringAsync(url).ConfigureAwait(false);
             var trending = DeserializeTrending(json) ?? new List<GithubTrendingRepository>();
             Log.Information("Trending network fetch ok ({Count}) for {Key}", trending.Count, cacheKey);
 
             try
             {
-                await _db.SetTrendingCacheAsync(cacheKey, since ?? "", language, json, CacheTtl);
+                    await _db.SetTrendingCacheAsync(cacheKey, since ?? "", language, json, CacheTtl).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -134,7 +134,7 @@ public sealed class GithubTrendingService : IGithubTrendingService, IAsyncDispos
         {
             try
             {
-                var cachedJson = await _db.GetTrendingCacheAsync(cacheKey);
+                var cachedJson = await _db.GetTrendingCacheAsync(cacheKey).ConfigureAwait(false);
                 if (cachedJson is not null)
                 {
                     repositories = DeserializeTrending(cachedJson);
@@ -158,13 +158,13 @@ public sealed class GithubTrendingService : IGithubTrendingService, IAsyncDispos
 
             try
             {
-                var json = await _http.GetStringAsync(url, cancellationToken);
+                var json = await _http.GetStringAsync(url, cancellationToken).ConfigureAwait(false);
                 repositories = DeserializeTrending(json) ?? new List<GithubTrendingRepository>();
                 Log.Information("Trending network fetch ok ({Count}) for {Key}", repositories.Count, cacheKey);
 
                 try
                 {
-                    await _db.SetTrendingCacheAsync(cacheKey, since ?? "", language, json, CacheTtl);
+                await _db.SetTrendingCacheAsync(cacheKey, since ?? "", language, json, CacheTtl).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -181,7 +181,7 @@ public sealed class GithubTrendingService : IGithubTrendingService, IAsyncDispos
 
                 try
                 {
-                    var staleJson = await _db.GetTrendingCacheAsync(cacheKey);
+                    var staleJson = await _db.GetTrendingCacheAsync(cacheKey).ConfigureAwait(false);
                     if (staleJson is not null)
                     {
                         repositories = DeserializeTrending(staleJson);
@@ -202,7 +202,7 @@ public sealed class GithubTrendingService : IGithubTrendingService, IAsyncDispos
         cancellationToken.ThrowIfCancellationRequested();
 
         var channel = Channel.CreateBounded<GithubTrendingRepository>(
-            new BoundedChannelOptions(20)
+            new BoundedChannelOptions(AppConfig.Trending.StreamChannelCapacity)
             {
                 FullMode = BoundedChannelFullMode.Wait,
                 AllowSynchronousContinuations = false,
@@ -246,10 +246,10 @@ public sealed class GithubTrendingService : IGithubTrendingService, IAsyncDispos
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var enriched = await _detailsService.EnrichAsync(repo, cancellationToken);
+            var enriched = await _detailsService.EnrichAsync(repo, cancellationToken).ConfigureAwait(false);
             await writer.WriteAsync(enriched, cancellationToken);
             await Task.Delay(
-                Constants.Trending.InterEnrichmentDelayMilliseconds,
+                AppConfig.Trending.InterEnrichmentDelayMilliseconds,
                 cancellationToken
             );
         }
@@ -268,7 +268,7 @@ public sealed class GithubTrendingService : IGithubTrendingService, IAsyncDispos
             await _enrichmentLimiter.WaitAsync();
             try
             {
-                return await _detailsService.EnrichAsync(repo);
+                return await _detailsService.EnrichAsync(repo).ConfigureAwait(false);
             }
             finally
             {
@@ -300,7 +300,7 @@ public sealed class GithubTrendingService : IGithubTrendingService, IAsyncDispos
 
     private static string BuildTrendingUrl(string? since, string? language)
     {
-        var url = Constants.GitHubTrendingUrl;
+        var url = AppConfig.GitHub.TrendingUrl;
         var queryParts = new List<string>();
         if (!string.IsNullOrWhiteSpace(since))
             queryParts.Add($"since={Uri.EscapeDataString(since)}");
@@ -317,7 +317,7 @@ public sealed class GithubTrendingService : IGithubTrendingService, IAsyncDispos
     )
     {
         var cacheKey = BuildCacheKey(since, language);
-        var cachedJson = await _db.GetTrendingCacheAsync(cacheKey);
+        var cachedJson = await _db.GetTrendingCacheAsync(cacheKey).ConfigureAwait(false);
         if (cachedJson is null) return null;
         return DeserializeTrending(cachedJson);
     }

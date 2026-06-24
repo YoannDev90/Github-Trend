@@ -11,7 +11,7 @@ namespace Github_Trend.Services;
 
 public sealed class GithubColorsService : IGithubColorsService, IAsyncDisposable
 {
-    private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(24);
+    private static TimeSpan CacheTtl => TimeSpan.FromHours(AppConfig.Trending.ColorsCacheTtlHours);
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
     private readonly AppDatabase _db;
@@ -29,7 +29,7 @@ public sealed class GithubColorsService : IGithubColorsService, IAsyncDisposable
         {
             try
             {
-                var cachedJson = await _db.GetColorsCacheAsync();
+                var cachedJson = await _db.GetColorsCacheAsync().ConfigureAwait(false);
                 if (cachedJson is not null)
                 {
                     var cached = DeserializeColors(cachedJson);
@@ -45,12 +45,12 @@ public sealed class GithubColorsService : IGithubColorsService, IAsyncDisposable
 
         try
         {
-            var json = await _http.GetStringAsync(Constants.GitHubColorsUrl);
+            var json = await _http.GetStringAsync(AppConfig.GitHub.ColorsUrl).ConfigureAwait(false);
             var colors = DeserializeColors(json) ?? new Dictionary<string, GithubColorEntry>();
 
             try
             {
-                await _db.SetColorsCacheAsync(json, CacheTtl);
+                await _db.SetColorsCacheAsync(json, CacheTtl).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -65,7 +65,7 @@ public sealed class GithubColorsService : IGithubColorsService, IAsyncDisposable
 
             try
             {
-                var staleJson = await _db.GetColorsCacheAsync();
+                var staleJson = await _db.GetColorsCacheAsync().ConfigureAwait(false);
                 if (staleJson is not null)
                 {
                     var cached = DeserializeColors(staleJson);

@@ -30,7 +30,7 @@ public sealed class GitHubDeviceFlowAuthService : IDisposable
 
     public async Task<DeviceCodeResponse> RequestDeviceCodeAsync()
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, "https://github.com/login/device/code")
+        var request = new HttpRequestMessage(HttpMethod.Post, AppConfig.GitHub.DeviceCodeEndpoint)
         {
             Content = new FormUrlEncodedContent(new[]
             {
@@ -42,10 +42,10 @@ public sealed class GitHubDeviceFlowAuthService : IDisposable
         request.Headers.Add("Accept", "application/json");
         request.Headers.Add("User-Agent", _options.UserAgent);
 
-        var response = await _httpClient.SendAsync(request);
+        var response = await _httpClient.SendAsync(request).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
-        var content = await response.Content.ReadAsStringAsync();
+        var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
         var deviceCode = JsonSerializer.Deserialize<DeviceCodeResponse>(content);
         return deviceCode ?? throw new InvalidOperationException("Failed to parse device code response");
     }
@@ -63,7 +63,7 @@ public sealed class GitHubDeviceFlowAuthService : IDisposable
         {
             try
             {
-                var request = new HttpRequestMessage(HttpMethod.Post, "https://github.com/login/oauth/access_token")
+                var request = new HttpRequestMessage(HttpMethod.Post, AppConfig.GitHub.AccessTokenEndpoint)
                 {
                     Content = new FormUrlEncodedContent(new[]
                     {
@@ -76,8 +76,8 @@ public sealed class GitHubDeviceFlowAuthService : IDisposable
                 request.Headers.Add("Accept", "application/json");
                 request.Headers.Add("User-Agent", _options.UserAgent);
 
-                var response = await _httpClient.SendAsync(request);
-                var content = await response.Content.ReadAsStringAsync();
+                var response = await _httpClient.SendAsync(request).ConfigureAwait(false);
+                var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
                 var tokenResponse = JsonSerializer.Deserialize<AccessTokenResponse>(content);
 

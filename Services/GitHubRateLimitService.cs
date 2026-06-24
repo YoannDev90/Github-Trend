@@ -58,7 +58,7 @@ public sealed class GitHubRateLimitService
     {
         var cooldown = ComputeCooldown(response);
         if (cooldown <= TimeSpan.Zero)
-            cooldown = TimeSpan.FromSeconds(Constants.RateLimit.CooldownFallbackSeconds);
+            cooldown = TimeSpan.FromSeconds(AppConfig.RateLimit.CooldownFallbackSeconds);
 
         lock (_syncLock)
         {
@@ -84,12 +84,12 @@ public sealed class GitHubRateLimitService
         var remaining = Interlocked.CompareExchange(ref _remaining, -1, -1);
         if (remaining < 0) return;
 
-        if (remaining <= Constants.RateLimit.CriticalThreshold)
+        if (remaining <= AppConfig.RateLimit.CriticalThreshold)
         {
             Log.Warning("Rate-limit critical ({Remaining}), delaying 5s", remaining);
             await Task.Delay(5000, ct);
         }
-        else if (remaining <= Constants.RateLimit.WarningThreshold)
+        else if (remaining <= AppConfig.RateLimit.WarningThreshold)
         {
             Log.Debug("Rate-limit low ({Remaining}), delaying 1s", remaining);
             await Task.Delay(1000, ct);
@@ -109,7 +109,7 @@ public sealed class GitHubRateLimitService
             var resetTime = DateTimeOffset.FromUnixTimeSeconds(unixSeconds);
             return resetTime
                 - DateTimeOffset.UtcNow
-                + TimeSpan.FromSeconds(Constants.RateLimit.ResetSafetySeconds);
+                + TimeSpan.FromSeconds(AppConfig.RateLimit.ResetSafetySeconds);
         }
 
         return TimeSpan.Zero;

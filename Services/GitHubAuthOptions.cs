@@ -18,8 +18,8 @@ public sealed class GitHubAuthOptions
 
     public string Scope =>
         PrivateRepoAccessEnabled
-            ? "read:user user:email repo notifications"
-            : "read:user user:email public_repo notifications";
+            ? AppConfig.GitHub.ScopePrivate
+            : AppConfig.GitHub.ScopePublic;
 
     // GitHub API endpoints
     public string ApiBaseUrl { get; init; } = Constants.GitHub.ApiBaseUrl;

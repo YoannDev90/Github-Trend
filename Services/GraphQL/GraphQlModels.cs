@@ -150,7 +150,19 @@ public sealed class AddStarResponse
     public AddStarPayload? AddStar { get; set; }
 }
 
+public sealed class RemoveStarResponse
+{
+    [JsonPropertyName("removeStar")]
+    public RemoveStarPayload? RemoveStar { get; set; }
+}
+
 public sealed class AddStarPayload
+{
+    [JsonPropertyName("starrable")]
+    public StarrableNode? Starrable { get; set; }
+}
+
+public sealed class RemoveStarPayload
 {
     [JsonPropertyName("starrable")]
     public StarrableNode? Starrable { get; set; }

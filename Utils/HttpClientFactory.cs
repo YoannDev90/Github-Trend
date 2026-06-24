@@ -1,5 +1,6 @@
 using System;
 using System.Net.Http;
+using Github_Trend.Services;
 
 namespace Github_Trend.Utils;
 
@@ -9,9 +10,13 @@ public static class HttpClientFactory
     {
         var handler = new SocketsHttpHandler
         {
-            PooledConnectionLifetime = TimeSpan.FromMinutes(5),
-            ConnectTimeout = TimeSpan.FromSeconds(15),
+            PooledConnectionLifetime = TimeSpan.FromMinutes(AppConfig.HttpClient.PooledConnectionLifetimeMinutes),
+            ConnectTimeout = TimeSpan.FromSeconds(AppConfig.HttpClient.ConnectTimeoutSeconds),
+            MaxConnectionsPerServer = 10,
         };
-        return new HttpClient(handler);
+        return new HttpClient(handler)
+        {
+            Timeout = TimeSpan.FromSeconds(AppConfig.HttpClient.RequestTimeoutSeconds),
+        };
     }
 }

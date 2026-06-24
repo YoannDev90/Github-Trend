@@ -11,7 +11,7 @@ using Github_Trend.Utils;
 
 namespace Github_Trend.Services;
 
-public sealed class GitHubTokenRefreshService
+public sealed class GitHubTokenRefreshService : IDisposable
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -37,18 +37,18 @@ public sealed class GitHubTokenRefreshService
             ["redirect_uri"] = _options.CallbackUrl
         };
 
-        using HttpRequestMessage request = new(HttpMethod.Post, "https://github.com/login/oauth/access_token")
+        using HttpRequestMessage request = new(HttpMethod.Post, AppConfig.GitHub.AccessTokenEndpoint)
         {
             Content = new FormUrlEncodedContent(body)
         };
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         request.Headers.UserAgent.ParseAdd(_options.UserAgent);
 
-        using var response = await _httpClient.SendAsync(request);
-        var json = await response.Content.ReadAsStringAsync();
+        using var response = await _httpClient.SendAsync(request).ConfigureAwait(false);
+        var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
             throw new InvalidOperationException(
-                $"GitHub refresh failed: {(int)response.StatusCode} {response.ReasonPhrase} - {json}");
+                $"GitHub refresh failed: {(int)response.StatusCode} {response.ReasonPhrase}");
 
         var token = JsonSerializer.Deserialize<GitHubTokenResponse>(json, JsonOptions)
                     ?? throw new InvalidOperationException("GitHub refresh response was empty.");
@@ -58,17 +58,17 @@ public sealed class GitHubTokenRefreshService
 
     public async Task<GitHubUserProfile> FetchUserProfileAsync(string accessToken)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, $"{Constants.GitHub.ApiBaseUrl}/user");
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"{AppConfig.GitHub.ApiBaseUrl}/user");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(Constants.GitHub.ApiAccept));
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(AppConfig.GitHub.ApiAccept));
         request.Headers.UserAgent.ParseAdd(_options.UserAgent);
         request.Headers.TryAddWithoutValidation("X-GitHub-Api-Version", (string?)_options.ApiVersion);
 
-        using var response = await _httpClient.SendAsync(request);
-        var json = await response.Content.ReadAsStringAsync();
+        using var response = await _httpClient.SendAsync(request).ConfigureAwait(false);
+        var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
             throw new InvalidOperationException(
-                $"GitHub user profile fetch failed: {(int)response.StatusCode} {response.ReasonPhrase} - {json}");
+                $"GitHub user profile fetch failed: {(int)response.StatusCode} {response.ReasonPhrase}");
 
         return JsonSerializer.Deserialize<GitHubUserProfile>(json, JsonOptions)
                ?? throw new InvalidOperationException("GitHub user profile response was empty.");
@@ -90,6 +90,11 @@ public sealed class GitHubTokenRefreshService
             scopeList,
             expiresAt,
             refreshExpiresAt);
+    }
+
+    public void Dispose()
+    {
+        _httpClient.Dispose();
     }
 
     private static IReadOnlyList<string> ParseScopes(string? scope)

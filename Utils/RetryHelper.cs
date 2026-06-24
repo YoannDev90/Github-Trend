@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Net.Http;
+using Github_Trend.Services;
 using Serilog;
 
 namespace Github_Trend.Utils;
@@ -13,8 +14,8 @@ public static class RetryHelper
             return response.Headers.RetryAfter!.Delta!.Value
                 + TimeSpan.FromMilliseconds(
                     Random.Shared.Next(
-                        Constants.RateLimit.RetryJitterMinMilliseconds,
-                        Constants.RateLimit.RetryJitterMaxMilliseconds
+                        AppConfig.RateLimit.RetryJitterMinMilliseconds,
+                        AppConfig.RateLimit.RetryJitterMaxMilliseconds
                     )
                 );
 
@@ -27,19 +28,19 @@ public static class RetryHelper
             var delay =
                 resetTime
                 - DateTimeOffset.UtcNow
-                + TimeSpan.FromSeconds(Constants.RateLimit.ResetSafetySeconds);
+                + TimeSpan.FromSeconds(AppConfig.RateLimit.ResetSafetySeconds);
             if (delay > TimeSpan.Zero)
                 return delay
                     + TimeSpan.FromMilliseconds(
                         Random.Shared.Next(
-                            Constants.RateLimit.RetryJitterMinMilliseconds,
-                            Constants.RateLimit.RetryJitterMaxMilliseconds
+                            AppConfig.RateLimit.RetryJitterMinMilliseconds,
+                            AppConfig.RateLimit.RetryJitterMaxMilliseconds
                         )
                     );
         }
 
-        var exponential = Constants.RateLimit.BaseBackoffMilliseconds * Math.Pow(2, attempt);
-        var bounded = Math.Min(exponential, Constants.RateLimit.MaxBackoffMilliseconds);
+        var exponential = AppConfig.RateLimit.BaseBackoffMilliseconds * Math.Pow(2, attempt);
+        var bounded = Math.Min(exponential, AppConfig.RateLimit.MaxBackoffMilliseconds);
         return TimeSpan.FromMilliseconds(bounded + Random.Shared.Next(50, 200));
     }
 

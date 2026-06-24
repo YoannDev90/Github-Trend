@@ -204,16 +204,32 @@ public sealed class GitHubGraphQlService : IAsyncDisposable
         if (nodeId is null)
             throw new InvalidOperationException($"Could not get repository ID for {owner}/{name}");
 
-        var response = await ExecuteAsync<AddStarResponse>(
-            op,
-            new Dictionary<string, object>
-            {
-                ["repositoryId"] = nodeId,
-            },
-            ct
-        );
+        if (currentlyStarred)
+        {
+            var response = await ExecuteAsync<RemoveStarResponse>(
+                op,
+                new Dictionary<string, object>
+                {
+                    ["repositoryId"] = nodeId,
+                },
+                ct
+            );
 
-        return response?.AddStar?.Starrable?.IsStarredByViewer ?? false;
+            return response?.RemoveStar?.Starrable?.IsStarredByViewer ?? false;
+        }
+        else
+        {
+            var response = await ExecuteAsync<AddStarResponse>(
+                op,
+                new Dictionary<string, object>
+                {
+                    ["repositoryId"] = nodeId,
+                },
+                ct
+            );
+
+            return response?.AddStar?.Starrable?.IsStarredByViewer ?? false;
+        }
     }
 
     public async Task<bool> ToggleWatchAsync(
@@ -401,22 +417,24 @@ public sealed class GitHubGraphQlService : IAsyncDisposable
         var json = JsonSerializer.Serialize(request, JsonOptions);
         using var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
-        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, "https://api.github.com/graphql")
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, AppConfig.GitHub.GraphQlEndpoint)
         {
             Content = content,
         };
 
-        var token = await _authService.GetAccessTokenAsync(true);
+        var token = await _authService.GetAccessTokenAsync(true).ConfigureAwait(false);
         if (!string.IsNullOrWhiteSpace(token))
             requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        requestMessage.Headers.UserAgent.ParseAdd(Constants.GitHub.UserAgent);
+        requestMessage.Headers.UserAgent.ParseAdd(AppConfig.GitHub.UserAgent);
         requestMessage.Headers.Accept.Add(
             new MediaTypeWithQualityHeaderValue("application/json")
         );
 
-        var response = await _httpClient.SendAsync(requestMessage, ct);
-        var responseBody = await response.Content.ReadAsStringAsync(ct);
+        await _rateLimitService.ApplyProactiveThrottleAsync(ct);
+
+        var response = await _httpClient.SendAsync(requestMessage, ct).ConfigureAwait(false);
+        var responseBody = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
 
         _rateLimitService.TrackFromHeaders(response);
 
@@ -449,7 +467,7 @@ public sealed class GitHubGraphQlService : IAsyncDisposable
 
             if (errorMessages.Contains("permission", StringComparison.OrdinalIgnoreCase)
                 || errorMessages.Contains("OAuth App access restrictions", StringComparison.OrdinalIgnoreCase))
-                Log.Debug("GraphQL non-critical error (ignored): {Errors}", errorMessages);
+                Log.Information("GraphQL permission error (ignored): {Errors}", errorMessages);
             else
                 Log.Warning("GraphQL errors: {Errors}", errorMessages);
         }
@@ -464,19 +482,19 @@ public sealed class GitHubGraphQlService : IAsyncDisposable
         var json = JsonSerializer.Serialize(request, JsonOptions);
         using var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
-        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, "https://api.github.com/graphql")
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, AppConfig.GitHub.GraphQlEndpoint)
         {
             Content = content,
         };
 
-        var token = await _authService.GetAccessTokenAsync(true);
+        var token = await _authService.GetAccessTokenAsync(true).ConfigureAwait(false);
         if (!string.IsNullOrWhiteSpace(token))
             requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        requestMessage.Headers.UserAgent.ParseAdd(Constants.GitHub.UserAgent);
+        requestMessage.Headers.UserAgent.ParseAdd(AppConfig.GitHub.UserAgent);
 
-        var response = await _httpClient.SendAsync(requestMessage, ct);
-        var responseBody = await response.Content.ReadAsStringAsync(ct);
+        var response = await _httpClient.SendAsync(requestMessage, ct).ConfigureAwait(false);
+        var responseBody = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
 
         _rateLimitService.TrackFromHeaders(response);
 
