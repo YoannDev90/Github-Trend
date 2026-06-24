@@ -1,0 +1,120 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Github_Trend.Controls"
+             xmlns:vm="using:Github_Trend"
+             x:Class="Github_Trend.Views.Settings.BackupPage"
+             x:DataType="vm:SettingsWindowViewModel">
+    <StackPanel Spacing="28">
+        <StackPanel Spacing="6">
+            <TextBlock Classes="page-title" Text="Backup &amp; Restore" />
+            <TextBlock Classes="section-desc" Text="Export or import your application settings as a JSON file." />
+        </StackPanel>
+
+        <Border Classes="settings-card">
+            <StackPanel Spacing="14">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="section-title" Text="Export Settings" />
+                    <TextBlock Classes="section-desc" Text="Save your current preferences to a portable JSON file." />
+                </StackPanel>
+                <Border Background="{DynamicResource BackgroundTertiaryBrush}" CornerRadius="10" Padding="20">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
+                        <Border Background="{DynamicResource BackgroundSecondaryBrush}" CornerRadius="10"
+                                Width="48" Height="48" VerticalAlignment="Center">
+                            <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/download.svg"
+                                               Width="24" Height="24" />
+                        </Border>
+                        <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock Classes="value-text"
+                                       Text="All your settings will be exported to a JSON file you can store anywhere." />
+                            <Button Classes="btn-primary" HorizontalAlignment="Left"
+                                    Command="{Binding ExportSettingsCommand}"
+                                    AutomationProperties.Name="Export settings">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/download.svg"
+                                                       Width="14" Height="14" VerticalAlignment="Center" />
+                                    <TextBlock Text="Export Settings" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <Border Classes="settings-card">
+            <StackPanel Spacing="14">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="section-title" Text="Import Settings" />
+                    <TextBlock Classes="section-desc" Text="Restore your preferences from a previous backup file." />
+                </StackPanel>
+                <Border Background="{DynamicResource BackgroundTertiaryBrush}" CornerRadius="10" Padding="20">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
+                        <Border Background="{DynamicResource BackgroundSecondaryBrush}" CornerRadius="10"
+                                Width="48" Height="48" VerticalAlignment="Center">
+                            <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/upload.svg"
+                                               Width="24" Height="24" />
+                        </Border>
+                        <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock Classes="value-text"
+                                       Text="Select a previously exported JSON file to restore your settings." />
+                            <TextBlock Classes="label-text"
+                                       Text="This will overwrite your current preferences." />
+                            <Button Classes="btn-secondary" HorizontalAlignment="Left"
+                                    Command="{Binding ImportSettingsCommand}"
+                                    AutomationProperties.Name="Import settings">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/upload.svg"
+                                                       Width="14" Height="14" VerticalAlignment="Center" />
+                                    <TextBlock Text="Import Settings" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <Border Classes="settings-card">
+            <StackPanel Spacing="14">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="section-title" Text="What's Included" />
+                    <TextBlock Classes="section-desc" Text="The backup file contains the following data." />
+                </StackPanel>
+                <Border Background="{DynamicResource BackgroundTertiaryBrush}" CornerRadius="10" Padding="4">
+                    <StackPanel Spacing="2">
+                        <Border CornerRadius="8" Padding="14,10" Margin="2,1">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                <TextBlock Text="✓" Foreground="{DynamicResource SuccessBrush}" FontWeight="Bold" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Classes="value-text" Text="Theme &amp; display preferences" />
+                            </Grid>
+                        </Border>
+                        <Border CornerRadius="8" Padding="14,10" Margin="2,1">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                <TextBlock Text="✓" Foreground="{DynamicResource SuccessBrush}" FontWeight="Bold" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Classes="value-text" Text="Language &amp; localization settings" />
+                            </Grid>
+                        </Border>
+                        <Border CornerRadius="8" Padding="14,10" Margin="2,1">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                <TextBlock Text="✓" Foreground="{DynamicResource SuccessBrush}" FontWeight="Bold" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Classes="value-text" Text="Trending filters &amp; time range selection" />
+                            </Grid>
+                        </Border>
+                        <Border CornerRadius="8" Padding="14,10" Margin="2,1">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                <TextBlock Text="✓" Foreground="{DynamicResource SuccessBrush}" FontWeight="Bold" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Classes="value-text" Text="General behavior &amp; preferences" />
+                            </Grid>
+                        </Border>
+                        <Border CornerRadius="8" Padding="14,10" Margin="2,1">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                <TextBlock Text="✗" Foreground="{DynamicResource ErrorBrush}" FontWeight="Bold" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Classes="value-text" Text="GitHub authentication tokens (never exported)" />
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

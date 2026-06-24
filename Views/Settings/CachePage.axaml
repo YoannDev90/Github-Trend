@@ -1,0 +1,104 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Github_Trend.Controls"
+             xmlns:vm="using:Github_Trend"
+             x:Class="Github_Trend.Views.Settings.CachePage"
+             x:DataType="vm:SettingsWindowViewModel">
+    <StackPanel Spacing="28">
+        <StackPanel Spacing="6">
+            <TextBlock Classes="page-title" Text="Cache" />
+            <TextBlock Classes="section-desc" Text="Manage locally cached data to free up space or force a fresh fetch." />
+        </StackPanel>
+        <Border Classes="settings-card">
+            <StackPanel Spacing="14">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="section-title" Text="Cache Status" />
+                    <TextBlock Classes="section-desc" Text="Current cache entries stored locally." />
+                </StackPanel>
+                <Border Background="{DynamicResource BackgroundTertiaryBrush}" CornerRadius="10" Padding="14">
+                    <StackPanel Spacing="8">
+                        <Grid ColumnDefinitions="120,*" ColumnSpacing="12">
+                            <TextBlock Classes="label-text" Text="Trending" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Classes="value-text" Text="{Binding CacheTrendingCount}" />
+                        </Grid>
+                        <Grid ColumnDefinitions="120,*" ColumnSpacing="12">
+                            <TextBlock Classes="label-text" Text="Repo Details" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Classes="value-text" Text="{Binding CacheDetailsCount}" />
+                        </Grid>
+                        <Grid ColumnDefinitions="120,*" ColumnSpacing="12">
+                            <TextBlock Classes="label-text" Text="Images" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Classes="value-text" Text="{Binding CacheImagesCount}" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Border>
+        <Border Classes="settings-card">
+            <StackPanel Spacing="14">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="section-title" Text="Clear Cache" />
+                    <TextBlock Classes="section-desc" Text="Clear specific caches or wipe all stored data." />
+                </StackPanel>
+                <Border Background="{DynamicResource BackgroundTertiaryBrush}" CornerRadius="10" Padding="4">
+                    <StackPanel Spacing="2">
+                        <Border CornerRadius="8" Padding="14,10" Margin="2,1">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel>
+                                    <TextBlock Classes="value-text" Text="Trending Cache" />
+                                    <TextBlock Classes="label-text" Text="Fetched trending repositories" />
+                                </StackPanel>
+                                <Button Grid.Column="1" Classes="btn-secondary" VerticalAlignment="Center"
+                                        Command="{Binding ClearTrendingCacheCommand}" AutomationProperties.Name="Clear trending cache">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/delete.svg"
+                                                           Width="14" Height="14" VerticalAlignment="Center" />
+                                        <TextBlock Text="Clear" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                        </Border>
+                        <Border CornerRadius="8" Padding="14,10" Margin="2,1">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel>
+                                    <TextBlock Classes="value-text" Text="Repository Details" />
+                                    <TextBlock Classes="label-text" Text="Enriched repo metadata" />
+                                </StackPanel>
+                                <Button Grid.Column="1" Classes="btn-secondary" VerticalAlignment="Center"
+                                        Command="{Binding ClearDetailsCacheCommand}" AutomationProperties.Name="Clear repository details cache">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/delete.svg"
+                                                           Width="14" Height="14" VerticalAlignment="Center" />
+                                        <TextBlock Text="Clear" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                        </Border>
+                        <Border CornerRadius="8" Padding="14,10" Margin="2,1">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel>
+                                    <TextBlock Classes="value-text" Text="Image Cache" />
+                                    <TextBlock Classes="label-text" Text="Cached banner &amp; avatar images" />
+                                </StackPanel>
+                                <Button Grid.Column="1" Classes="btn-secondary" VerticalAlignment="Center"
+                                        Command="{Binding ClearImageCacheCommand}" AutomationProperties.Name="Clear image cache">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/delete.svg"
+                                                           Width="14" Height="14" VerticalAlignment="Center" />
+                                        <TextBlock Text="Clear" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
+                <Button Classes="btn-danger" HorizontalAlignment="Left" Command="{Binding ClearAllCacheCommand}" AutomationProperties.Name="Clear all cached data">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/database-outline.svg"
+                                           Width="16" Height="16" VerticalAlignment="Center" />
+                        <TextBlock Text="Clear All Cached Data" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

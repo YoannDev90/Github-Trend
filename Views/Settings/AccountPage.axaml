@@ -1,0 +1,122 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:Github_Trend.Localization"
+             xmlns:controls="using:Github_Trend.Controls"
+             xmlns:vm="using:Github_Trend"
+             x:Class="Github_Trend.Views.Settings.AccountPage"
+             x:DataType="vm:SettingsWindowViewModel">
+    <StackPanel Spacing="28">
+        <StackPanel Spacing="6">
+            <TextBlock Classes="page-title" Text="Account" />
+            <TextBlock Classes="section-desc" Text="Manage your GitHub authentication and session." />
+        </StackPanel>
+        <Border Classes="settings-card" IsVisible="{Binding Auth.IsConnected}">
+            <StackPanel Spacing="14">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="section-title" Text="Profile" />
+                    <TextBlock Classes="section-desc" Text="Your GitHub account information." />
+                </StackPanel>
+                <Border Background="{DynamicResource BackgroundTertiaryBrush}" CornerRadius="10" Padding="20">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="20">
+                        <Border Width="72" Height="72" CornerRadius="36" ClipToBounds="True"
+                                Background="{DynamicResource BackgroundSecondaryBrush}" VerticalAlignment="Center">
+                            <Image Source="{Binding Auth.UserAvatar}" Stretch="UniformToFill" Width="72" Height="72" />
+                        </Border>
+                        <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Auth.UserDisplayName}" Foreground="{DynamicResource TextPrimaryBrush}"
+                                       FontSize="20" FontWeight="Bold" />
+                            <TextBlock Text="{Binding Auth.UserLogin, StringFormat='@{0}'}"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" FontSize="14" />
+                             <TextBlock Text="{Binding Auth.UserEmail}" Foreground="{DynamicResource TextTertiaryBrush}" FontSize="13"
+                                        IsVisible="{Binding Auth.UserEmail, Converter={StaticResource StringNotEmptyConverter}}" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </Border>
+        <Border Classes="settings-card">
+            <StackPanel Spacing="14">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="section-title" Text="{Binding Source={x:Static loc:Localization.Instance}, Path=GitHubAccountSectionTitle}" />
+                    <TextBlock Classes="section-desc" Text="Connect your GitHub account to star, watch, and save repositories." />
+                </StackPanel>
+                <Border Background="{DynamicResource BackgroundTertiaryBrush}" CornerRadius="10" Padding="14">
+                    <StackPanel Spacing="8">
+                        <Grid ColumnDefinitions="120,*" ColumnSpacing="12">
+                            <TextBlock Classes="label-text" Text="Status" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Classes="value-text" Text="{Binding Auth.AuthStatus}" TextWrapping="Wrap" />
+                        </Grid>
+                        <Grid ColumnDefinitions="120,*" ColumnSpacing="12" IsVisible="{Binding Auth.IsConnected}">
+                            <TextBlock Classes="label-text" Text="Account" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Classes="value-text" Text="{Binding Auth.AccountSummary}" TextWrapping="Wrap" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+                <Border Background="{DynamicResource BackgroundTertiaryBrush}" CornerRadius="10" Padding="14"
+                        IsVisible="{Binding Auth.HasDeviceCode}">
+                    <StackPanel Spacing="8">
+                        <TextBlock Classes="section-desc" Text="Enter this code on GitHub to authenticate:" />
+                        <TextBlock Text="{Binding Auth.DeviceCode}" Foreground="{DynamicResource AccentSecondaryBrush}"
+                                   FontWeight="Bold" FontSize="{DynamicResource FontSizeLarge}" TextWrapping="Wrap" />
+                        <Button Command="{Binding Auth.CopyDeviceCodeCommand}" Classes="btn-secondary" HorizontalAlignment="Left" AutomationProperties.Name="Copy device code to clipboard">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/content-copy.svg" Width="14" Height="14" />
+                                <TextBlock Text="{Binding Source={x:Static loc:Localization.Instance}, Path=CopyCodeButtonText}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Border>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Command="{Binding Auth.SignInCommand}" Classes="btn-primary" Background="{DynamicResource AccentPrimaryBrush}" AutomationProperties.Name="Sign in with GitHub">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/github.svg" Width="14" Height="14" />
+                            <TextBlock Text="{Binding Source={x:Static loc:Localization.Instance}, Path=GitHubSignInButtonText}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{Binding Auth.RefreshSessionCommand}" Classes="btn-secondary" IsVisible="{Binding Auth.IsConnected}" AutomationProperties.Name="Refresh GitHub session">
+                        <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/refresh.svg" Width="14" Height="14" />
+                    </Button>
+                    <Button Command="{Binding Auth.SignOutCommand}" Classes="btn-danger" IsVisible="{Binding Auth.IsConnected}" AutomationProperties.Name="Sign out of GitHub">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/logout.svg" Width="14" Height="14" />
+                            <TextBlock Text="{Binding Source={x:Static loc:Localization.Instance}, Path=GitHubSignOutButtonText}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+        <Border Classes="settings-card" IsVisible="{Binding Auth.IsConnected}">
+            <StackPanel Spacing="14">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="section-title" Text="Session" />
+                    <TextBlock Classes="section-desc" Text="Authentication token and permissions." />
+                </StackPanel>
+                <Border Background="{DynamicResource BackgroundTertiaryBrush}" CornerRadius="10" Padding="14">
+                    <StackPanel Spacing="8">
+                        <Grid ColumnDefinitions="120,*" ColumnSpacing="12">
+                            <TextBlock Classes="label-text" Text="Scope" VerticalAlignment="Top" />
+                            <ItemsControl Grid.Column="1" ItemsSource="{Binding Auth.SessionScopeList}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{DynamicResource AccentPrimaryBrush}" CornerRadius="10"
+                                                Padding="10,4" Margin="0,0,6,6">
+                                            <TextBlock Text="{Binding}" Foreground="{DynamicResource TextOnAccentBrush}"
+                                                       FontSize="11" FontWeight="SemiBold" />
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Grid>
+                        <Grid ColumnDefinitions="120,*" ColumnSpacing="12">
+                            <TextBlock Classes="label-text" Text="Expires" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Classes="value-text" Text="{Binding Auth.SessionExpiry}" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

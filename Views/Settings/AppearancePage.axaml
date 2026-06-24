@@ -1,0 +1,95 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Github_Trend.Controls"
+             xmlns:vm="using:Github_Trend"
+             x:Class="Github_Trend.Views.Settings.AppearancePage"
+             x:DataType="vm:SettingsWindowViewModel">
+    <StackPanel Spacing="28">
+        <StackPanel Spacing="6">
+            <TextBlock Classes="page-title" Text="Appearance" />
+            <TextBlock Classes="section-desc" Text="Customize the look and feel of the application." />
+        </StackPanel>
+        <Border Classes="settings-card">
+            <StackPanel Spacing="14">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="section-title" Text="Theme" />
+                    <TextBlock Classes="section-desc" Text="Switch between dark and light mode." />
+                </StackPanel>
+                <Border Background="{DynamicResource BackgroundTertiaryBrush}" CornerRadius="10" Padding="4"
+                        HorizontalAlignment="Left" MinWidth="240">
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="0">
+                        <Button Classes="seg-control" x:Name="DarkThemeButton" CornerRadius="8,0,0,8"
+                                Click="OnDarkThemeClick" AutomationProperties.Name="Dark theme">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/weather-night.svg" Width="16" Height="16" />
+                                <TextBlock Text="Dark" />
+                            </StackPanel>
+                        </Button>
+                        <Button Grid.Column="1" Classes="seg-control" x:Name="LightThemeButton" CornerRadius="0,8,8,0"
+                                Click="OnLightThemeClick" AutomationProperties.Name="Light theme">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/weather-sunny.svg" Width="16" Height="16" />
+                                <TextBlock Text="Light" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </Border>
+        <Border Classes="settings-card">
+            <StackPanel Spacing="14">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="section-title" Text="Language" />
+                    <TextBlock Classes="section-desc" Text="Choose your preferred interface language." />
+                </StackPanel>
+                <Border Background="{DynamicResource BackgroundTertiaryBrush}" CornerRadius="10" Padding="4"
+                        HorizontalAlignment="Left" MinWidth="240">
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="0">
+                        <Button Classes="seg-control" x:Name="EnglishLangButton" CornerRadius="8,0,0,8"
+                                Click="OnEnglishLangClick" AutomationProperties.Name="English language">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="English" />
+                            </StackPanel>
+                        </Button>
+                        <Button Grid.Column="1" Classes="seg-control" x:Name="FrenchLangButton" CornerRadius="0,8,8,0"
+                                Click="OnFrenchLangClick" AutomationProperties.Name="French language">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="Français" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </Border>
+        <Border Classes="settings-card">
+            <StackPanel Spacing="14">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="section-title" Text="Display Options" />
+                    <TextBlock Classes="section-desc" Text="Toggle visual elements in the repository cards." />
+                </StackPanel>
+                <Border Background="{DynamicResource BackgroundTertiaryBrush}" CornerRadius="10" Padding="4">
+                    <StackPanel Spacing="2">
+                        <Border CornerRadius="8" Padding="14,10" Margin="2,1">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel>
+                                    <TextBlock Classes="value-text" Text="Show Banners" />
+                                    <TextBlock Classes="label-text" Text="Display repository banner images" />
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" IsChecked="{Binding Settings.ShowBanners}" VerticalAlignment="Center" AutomationProperties.Name="Show banners" />
+                            </Grid>
+                        </Border>
+                        <Border CornerRadius="8" Padding="14,10" Margin="2,1">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel>
+                                    <TextBlock Classes="value-text" Text="Show Topics" />
+                                    <TextBlock Classes="label-text" Text="Display repository topic tags" />
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" IsChecked="{Binding Settings.ShowTopics}" VerticalAlignment="Center" AutomationProperties.Name="Show topics" />
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

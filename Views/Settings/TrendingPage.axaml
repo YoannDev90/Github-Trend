@@ -1,0 +1,66 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Github_Trend.Controls"
+             xmlns:vm="using:Github_Trend"
+             x:Class="Github_Trend.Views.Settings.TrendingPage"
+             x:DataType="vm:SettingsWindowViewModel">
+    <StackPanel Spacing="28">
+        <StackPanel Spacing="6">
+            <TextBlock Classes="page-title" Text="Trending" />
+            <TextBlock Classes="section-desc" Text="Configure your trending repositories display preferences." />
+        </StackPanel>
+        <Border Classes="settings-card">
+            <StackPanel Spacing="14">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="section-title" Text="Default Time Range" />
+                    <TextBlock Classes="section-desc" Text="Set the default trending period." />
+                </StackPanel>
+                <Border Background="{DynamicResource BackgroundTertiaryBrush}" CornerRadius="10" Padding="4"
+                        HorizontalAlignment="Left" MinWidth="320">
+                    <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="0">
+                        <Button Classes="seg-control" Classes.selected="{Binding IsDailySelected}"
+                                x:Name="TimeDailyButton" CornerRadius="8,0,0,8" Command="{Binding SelectDailyCommand}" AutomationProperties.Name="Daily time range">
+                            <TextBlock Text="Daily" />
+                        </Button>
+                        <Button Grid.Column="1" Classes="seg-control" Classes.selected="{Binding IsWeeklySelected}"
+                                x:Name="TimeWeeklyButton" Command="{Binding SelectWeeklyCommand}" AutomationProperties.Name="Weekly time range">
+                            <TextBlock Text="Weekly" />
+                        </Button>
+                        <Button Grid.Column="2" Classes="seg-control" Classes.selected="{Binding IsMonthlySelected}"
+                                x:Name="TimeMonthlyButton" Command="{Binding SelectMonthlyCommand}" AutomationProperties.Name="Monthly time range">
+                            <TextBlock Text="Monthly" />
+                        </Button>
+                        <Button Grid.Column="3" Classes="seg-control" Classes.selected="{Binding IsAllSelected}"
+                                x:Name="TimeAllButton" CornerRadius="0,8,8,0" Command="{Binding SelectAllCommand}" AutomationProperties.Name="All time range">
+                            <TextBlock Text="All Time" />
+                        </Button>
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </Border>
+        <Border Classes="settings-card">
+            <StackPanel Spacing="14">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="section-title" Text="Overview" />
+                    <TextBlock Classes="section-desc" Text="Current trending session statistics." />
+                </StackPanel>
+                <Border Background="{DynamicResource BackgroundTertiaryBrush}" CornerRadius="10" Padding="14">
+                    <StackPanel Spacing="8">
+                        <Grid ColumnDefinitions="120,*" ColumnSpacing="12">
+                            <TextBlock Classes="label-text" Text="Time Range" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Classes="value-text" Text="{Binding TrendingTimeRangeLabel}" />
+                        </Grid>
+                        <Grid ColumnDefinitions="120,*" ColumnSpacing="12">
+                            <TextBlock Classes="label-text" Text="Repositories" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Classes="value-text" Text="{Binding TrendingCount}" />
+                        </Grid>
+                        <Grid ColumnDefinitions="120,*" ColumnSpacing="12">
+                            <TextBlock Classes="label-text" Text="Languages" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Classes="value-text" Text="{Binding Filter.SelectedCount, StringFormat={}{0} selected}" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

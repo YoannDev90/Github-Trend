@@ -1,0 +1,84 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Github_Trend"
+             x:Class="Github_Trend.Views.Settings.GeneralPage"
+             x:DataType="vm:SettingsWindowViewModel">
+    <StackPanel Spacing="28">
+        <StackPanel Spacing="6">
+            <TextBlock Classes="page-title" Text="General" />
+            <TextBlock Classes="section-desc" Text="Configure application behavior and preferences." />
+        </StackPanel>
+        <Border Classes="settings-card">
+            <StackPanel Spacing="14">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="section-title" Text="Auto-Refresh" />
+                    <TextBlock Classes="section-desc" Text="Automatically refresh trending data at a set interval." />
+                </StackPanel>
+                <Border Background="{DynamicResource BackgroundTertiaryBrush}" CornerRadius="10" Padding="4">
+                    <StackPanel Spacing="2">
+                        <Border CornerRadius="8" Padding="14,10" Margin="2,1">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel>
+                                    <TextBlock Classes="value-text" Text="Enable Auto-Refresh" />
+                                    <TextBlock Classes="label-text" Text="Periodically check for new trending repos" />
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" IsChecked="{Binding Settings.AutoRefresh}" VerticalAlignment="Center" AutomationProperties.Name="Enable auto-refresh" />
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Border>
+        <Border Classes="settings-card">
+            <StackPanel Spacing="14">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="section-title" Text="Confirmations" />
+                    <TextBlock Classes="section-desc" Text="Enable or disable confirmation dialogs before actions." />
+                </StackPanel>
+                <Border Background="{DynamicResource BackgroundTertiaryBrush}" CornerRadius="10" Padding="4">
+                    <StackPanel Spacing="2">
+                        <Border CornerRadius="8" Padding="14,10" Margin="2,1">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel>
+                                    <TextBlock Classes="value-text" Text="Confirm Unstar" />
+                                    <TextBlock Classes="label-text" Text="Show confirmation before unstarring a repo" />
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" IsChecked="{Binding Settings.ConfirmUnstar}" VerticalAlignment="Center" AutomationProperties.Name="Confirm unstar" />
+                            </Grid>
+                        </Border>
+                        <Border CornerRadius="8" Padding="14,10" Margin="2,1">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel>
+                                    <TextBlock Classes="value-text" Text="Confirm Unwatch" />
+                                    <TextBlock Classes="label-text" Text="Show confirmation before unwatching a repo" />
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" IsChecked="{Binding Settings.ConfirmUnwatch}" VerticalAlignment="Center" AutomationProperties.Name="Confirm unwatch" />
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Border>
+        <Border Classes="settings-card">
+            <StackPanel Spacing="14">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="section-title" Text="Session" />
+                    <TextBlock Classes="section-desc" Text="Control session and startup behavior." />
+                </StackPanel>
+                <Border Background="{DynamicResource BackgroundTertiaryBrush}" CornerRadius="10" Padding="4">
+                    <StackPanel Spacing="2">
+                        <Border CornerRadius="8" Padding="14,10" Margin="2,1">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel>
+                                    <TextBlock Classes="value-text" Text="Remember Time Range" />
+                                    <TextBlock Classes="label-text" Text="Restore last selected trending period on startup" />
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" IsChecked="{Binding Settings.RememberLastTimeRange}" VerticalAlignment="Center" AutomationProperties.Name="Remember last time range" />
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>
