@@ -71,8 +71,8 @@ The app uses GitHub's OAuth device flow for secure authentication:
 
 ## Screenshots
 
-![Screenshot](Screenshots/1.png)
-![Screenshot](Screenshots/2.png)
+![Screenshot](Assets/screenshots/1.png)
+![Screenshot](Assets/screenshots/2.png)
 
 ## Requirements
 
