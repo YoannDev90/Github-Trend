@@ -145,6 +145,19 @@ public sealed class LocalizationService
     public string ConfirmSignOut => GetString(nameof(ConfirmSignOut));
     public string ConfirmSignOutMessage => GetString(nameof(ConfirmSignOutMessage));
 
+    public static string CurrentLanguage =>
+        Localization.Instance.CurrentCulture.TwoLetterISOLanguageName;
+
+    public static void SetLanguage(string? languageCode)
+    {
+        var culture = languageCode?.ToLowerInvariant() switch
+        {
+            "fr" => CultureInfo.GetCultureInfo("fr-FR"),
+            _ => CultureInfo.GetCultureInfo("en-US"),
+        };
+        Localization.Instance.ApplyCulture(culture);
+    }
+
     public void Initialize(CultureInfo? culture = null)
     {
         var targetCulture = culture ?? CultureInfo.CurrentUICulture;
@@ -181,7 +194,7 @@ public sealed class LocalizationService
         return args.Length == 0 ? template : string.Format(CurrentCulture, template, args);
     }
 
-    private void ApplyCulture(CultureInfo culture)
+    internal void ApplyCulture(CultureInfo culture)
     {
         var targetCulture = ResolveSupportedCulture(culture ?? CultureInfo.CurrentUICulture);
         Logger.Information(

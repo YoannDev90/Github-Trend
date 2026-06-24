@@ -24,16 +24,26 @@ public partial class MainWindow : Window
         ViewModel.DeviceCodeCopyRequested += async (_, _) =>
             await CopyGitHubDeviceCodeToClipboardAsync();
         var loc = Github_Trend.Localization.Localization.Instance;
-        ViewModel.ConfirmUnstarAsync = () => DialogHelper.ShowConfirmActionAsync(
-            this,
-            loc.GetString("ConfirmUnstar"),
-            loc.GetString("ActionUnstar")
-        );
-        ViewModel.ConfirmUnwatchAsync = () => DialogHelper.ShowConfirmActionAsync(
-            this,
-            loc.GetString("ConfirmUnwatch"),
-            loc.GetString("ActionUnwatch")
-        );
+        ViewModel.ConfirmUnstarAsync = () =>
+        {
+            if (!Services.AppSettings.Default.ConfirmUnstar)
+                return Task.FromResult(true);
+            return DialogHelper.ShowConfirmActionAsync(
+                this,
+                loc.GetString("ConfirmUnstar"),
+                loc.GetString("ActionUnstar")
+            );
+        };
+        ViewModel.ConfirmUnwatchAsync = () =>
+        {
+            if (!Services.AppSettings.Default.ConfirmUnwatch)
+                return Task.FromResult(true);
+            return DialogHelper.ShowConfirmActionAsync(
+                this,
+                loc.GetString("ConfirmUnwatch"),
+                loc.GetString("ActionUnwatch")
+            );
+        };
         ViewModel.ShowSaveToStarListDialogAsync = (lists, createAsync) =>
             SaveToStarListDialog.ShowAsync(this, lists, createAsync);
         Loaded += async (_, _) =>
@@ -44,6 +54,14 @@ public partial class MainWindow : Window
             _initialized = true;
             await ViewModel.InitializeAsync();
         };
+    }
+
+    protected override void OnOpened(EventArgs e)
+    {
+        base.OnOpened(e);
+
+        if (this.FindControl<Views.Main.SidebarPanel>("Sidebar") is { } sidebar)
+            sidebar.SettingsClicked += OnSettingsButtonClick;
     }
 
     public MainWindowViewModel ViewModel { get; } = new();
@@ -70,7 +88,7 @@ public partial class MainWindow : Window
         Log.Debug("Settings button clicked");
         if (_settingsWindow is null || !_settingsWindow.IsVisible)
         {
-            _settingsWindow = new SettingsWindow { DataContext = ViewModel };
+            _settingsWindow = new SettingsWindow { DataContext = new SettingsWindowViewModel(ViewModel) };
             await _settingsWindow.ShowDialog(this);
         }
         else
@@ -89,8 +107,7 @@ public partial class MainWindow : Window
                 case Key.F:
                     Log.Debug("Ctrl+F: focusing search");
                     e.Handled = true;
-                    var searchBox = this.FindControl<TextBox>("SearchTextBox");
-                    searchBox?.Focus();
+                    Sidebar?.FocusSearch();
                     break;
                 case Key.R:
                     Log.Debug("Ctrl+R: refreshing colors");

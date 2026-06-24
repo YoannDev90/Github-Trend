@@ -5,8 +5,8 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
-using Avalonia.Layout;
-using Avalonia.Media;
+using Avalonia.Platform.Storage;
+using Github_Trend.Localization;
 using Github_Trend.Services;
 using Github_Trend.Utils;
 using Serilog;
@@ -20,60 +20,86 @@ public partial class SettingsWindow : Window
     public SettingsWindow()
     {
         InitializeComponent();
-        DataContextChanged += OnDataContextChanged;
         KeyDown += OnKeyDown;
         Closed += OnClosed;
     }
 
-    private void OnDataContextChanged(object? sender, EventArgs e)
+    protected override void OnOpened(EventArgs e)
     {
-        if (DataContext is MainWindowViewModel vm)
-        {
-            vm.Debug.CopyLogsRequested += OnCopyLogsRequested;
-            vm.Debug.CopySelectedRequested += OnCopySelectedRequested;
-            vm.Debug.CopyAllFilteredRequested += OnCopyAllFilteredRequested;
-            vm.Debug.DeleteCurrentLogRequested += OnDeleteCurrentLogRequested;
-            vm.Debug.DeleteAllLogsRequested += OnDeleteAllLogsRequested;
-            vm.Auth.ConfirmSignOutAsync = ConfirmSignOutAsync;
-            vm.Debug.LoadExtraInfo(vm);
-
-            if (!_subscribedToDebug)
-            {
-                vm.Debug.PropertyChanged += OnDebugPropertyChanged;
-                _subscribedToDebug = true;
-            }
-
-            UpdateFilterButtons();
-        }
+        base.OnOpened(e);
+        WireDebugEvents();
+        WireBackupDelegates();
+        InitPageUI();
     }
+
+    private void WireDebugEvents()
+    {
+        if (DataContext is not SettingsWindowViewModel vm) return;
+        if (_subscribedToDebug) return;
+        _subscribedToDebug = true;
+
+        vm.Debug.CopyLogsRequested += OnCopyLogsRequested;
+        vm.Debug.CopySelectedRequested += OnCopySelectedRequested;
+        vm.Debug.CopyAllFilteredRequested += OnCopyAllFilteredRequested;
+        vm.Debug.DeleteCurrentLogRequested += OnDeleteCurrentLogRequested;
+        vm.Debug.DeleteAllLogsRequested += OnDeleteAllLogsRequested;
+        vm.Auth.ConfirmSignOutAsync = ConfirmSignOutAsync;
+        vm.Debug.PropertyChanged += OnDebugPropertyChanged;
+        var mainVm = GetMainVm();
+        if (mainVm is not null)
+            vm.Debug.LoadExtraInfo(mainVm);
+    }
+
+    private void UnwireDebugEvents()
+    {
+        if (DataContext is not SettingsWindowViewModel vm) return;
+        if (!_subscribedToDebug) return;
+        _subscribedToDebug = false;
+
+        vm.Debug.CopyLogsRequested -= OnCopyLogsRequested;
+        vm.Debug.CopySelectedRequested -= OnCopySelectedRequested;
+        vm.Debug.CopyAllFilteredRequested -= OnCopyAllFilteredRequested;
+        vm.Debug.DeleteCurrentLogRequested -= OnDeleteCurrentLogRequested;
+        vm.Debug.DeleteAllLogsRequested -= OnDeleteAllLogsRequested;
+        vm.Debug.PropertyChanged -= OnDebugPropertyChanged;
+    }
+
+    private void InitPageUI()
+    {
+        AppearancePageControl?.UpdateThemeUI();
+        AppearancePageControl?.UpdateLangUI();
+        LogsPageControl?.UpdateFilterButtons();
+    }
+
+    private MainWindowViewModel? GetMainVm() =>
+        (DataContext as SettingsWindowViewModel)?.SourceViewModel;
 
     private void OnClosed(object? sender, EventArgs e)
     {
-        if (DataContext is MainWindowViewModel vm)
-        {
-            vm.Debug.CopyLogsRequested -= OnCopyLogsRequested;
-            vm.Debug.CopySelectedRequested -= OnCopySelectedRequested;
-            vm.Debug.CopyAllFilteredRequested -= OnCopyAllFilteredRequested;
-            vm.Debug.DeleteCurrentLogRequested -= OnDeleteCurrentLogRequested;
-            vm.Debug.DeleteAllLogsRequested -= OnDeleteAllLogsRequested;
-            if (_subscribedToDebug)
-            {
-                vm.Debug.PropertyChanged -= OnDebugPropertyChanged;
-                _subscribedToDebug = false;
-            }
-        }
+        KeyDown -= OnKeyDown;
+        UnwireDebugEvents();
+        (DataContext as IDisposable)?.Dispose();
     }
 
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.KeyModifiers.HasFlag(KeyModifiers.Control) && e.Key == Key.C)
         {
-            if (DataContext is MainWindowViewModel vm && vm.Debug.SelectedLogEntry is { } entry)
+            if (DataContext is SettingsWindowViewModel vm && vm.Debug.SelectedLogEntry is { } entry)
             {
-                var text = FormatLogEntry(entry);
+                var text = Views.Settings.LogsPage.FormatLogEntryForClipboard(entry);
                 _ = CopyToClipboardAsync(text);
                 e.Handled = true;
             }
+        }
+    }
+
+    private void OnTabPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is Border border && border.Tag is SettingsPage page)
+        {
+            if (DataContext is SettingsWindowViewModel vm)
+                vm.SelectPageCommand.Execute(page);
         }
     }
 
@@ -84,44 +110,39 @@ public partial class SettingsWindow : Window
             or nameof(DebugViewModel.IsInfActive)
             or nameof(DebugViewModel.IsWrnActive)
             or nameof(DebugViewModel.IsErrActive)
-            or nameof(DebugViewModel.IsFtlActive))
+            or nameof(DebugViewModel.IsFtlActive)
+            && LogsPageControl is not null)
         {
-            UpdateFilterButtons();
+            LogsPageControl.UpdateFilterButtons();
         }
     }
 
-    private void UpdateFilterButtons()
+    private void WireBackupDelegates()
     {
-        if (DataContext is not MainWindowViewModel vm) return;
-        var debug = vm.Debug;
+        if (DataContext is not SettingsWindowViewModel vm) return;
 
-        SetFilterActive("TrcButton", debug.IsTrcActive);
-        SetFilterActive("DbgButton", debug.IsDbgActive);
-        SetFilterActive("InfButton", debug.IsInfActive);
-        SetFilterActive("WrnButton", debug.IsWrnActive);
-        SetFilterActive("ErrButton", debug.IsErrActive);
-        SetFilterActive("FtlButton", debug.IsFtlActive);
-    }
+        vm.PickExportFilePath = async () =>
+        {
+            var file = await this.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Export Settings",
+                DefaultExtension = ".json",
+                ShowOverwritePrompt = true,
+                FileTypeChoices = [new FilePickerFileType("JSON") { Patterns = ["*.json"] }]
+            });
+            return file?.Path.LocalPath;
+        };
 
-    private void SetFilterActive(string buttonName, bool active)
-    {
-        var button = this.FindControl<Button>(buttonName);
-        if (button is null) return;
-        if (active)
-            button.Classes.Add("active");
-        else
-            button.Classes.Remove("active");
-    }
-
-    private static string FormatLogEntry(LogEntry entry)
-    {
-        var parts = new System.Text.StringBuilder();
-        if (!string.IsNullOrEmpty(entry.Timestamp))
-            parts.Append(entry.Timestamp).Append(' ');
-        if (!string.IsNullOrEmpty(entry.Level))
-            parts.Append('[').Append(entry.Level).Append("] ");
-        parts.Append(entry.Message);
-        return parts.ToString();
+        vm.PickImportFilePath = async () =>
+        {
+            var files = await this.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Import Settings",
+                AllowMultiple = false,
+                FileTypeFilter = [new FilePickerFileType("JSON") { Patterns = ["*.json"] }]
+            });
+            return files.Count > 0 ? files[0].Path.LocalPath : null;
+        };
     }
 
     private async Task<bool> ConfirmSignOutAsync() =>
@@ -130,31 +151,32 @@ public partial class SettingsWindow : Window
     private async void OnCopyLogsRequested(object? sender, EventArgs e)
     {
         Log.Debug("Copy all logs requested");
-        if (DataContext is not MainWindowViewModel vm) return;
+        if (DataContext is not SettingsWindowViewModel vm) return;
         await CopyToClipboardAsync(vm.Debug.LogsContent);
     }
 
     private async void OnCopySelectedRequested(object? sender, EventArgs e)
     {
-        if (DataContext is not MainWindowViewModel vm) return;
+        if (DataContext is not SettingsWindowViewModel vm) return;
         if (vm.Debug.SelectedLogEntry is { } entry)
         {
-            Log.Debug("Copy selected log entry: {Entry}", FormatLogEntry(entry));
-            await CopyToClipboardAsync(FormatLogEntry(entry));
+            var text = Views.Settings.LogsPage.FormatLogEntryForClipboard(entry);
+            Log.Debug("Copy selected log entry: {Entry}", text);
+            await CopyToClipboardAsync(text);
         }
     }
 
     private async void OnCopyAllFilteredRequested(object? sender, EventArgs e)
     {
         Log.Debug("Copy all filtered logs requested");
-        if (DataContext is not MainWindowViewModel vm) return;
+        if (DataContext is not SettingsWindowViewModel vm) return;
         await CopyToClipboardAsync(vm.Debug.GetFilteredLogsAsText());
     }
 
     private async void OnDeleteCurrentLogRequested(object? sender, EventArgs e)
     {
         Log.Debug("Delete current log requested");
-        if (DataContext is not MainWindowViewModel vm) return;
+        if (DataContext is not SettingsWindowViewModel vm) return;
         var path = vm.Debug.CurrentLogPath;
         if (path is null) return;
 
@@ -177,7 +199,7 @@ public partial class SettingsWindow : Window
     private async void OnDeleteAllLogsRequested(object? sender, EventArgs e)
     {
         Log.Debug("Delete all logs requested");
-        if (DataContext is not MainWindowViewModel vm) return;
+        if (DataContext is not SettingsWindowViewModel vm) return;
 
         var confirmed = await DialogHelper.ShowConfirmAsync(
             this,
@@ -210,41 +232,5 @@ public partial class SettingsWindow : Window
         {
             Log.Error(ex, "Failed to copy to clipboard");
         }
-    }
-
-    private void OnDarkThemeClick(object? sender, RoutedEventArgs e)
-    {
-        Log.Information("Theme changed to Dark");
-        ThemeService.Default.SetDark(true);
-        UpdateThemeUI();
-    }
-
-    private void OnLightThemeClick(object? sender, RoutedEventArgs e)
-    {
-        Log.Information("Theme changed to Light");
-        ThemeService.Default.SetDark(false);
-        UpdateThemeUI();
-    }
-
-    private void UpdateThemeUI()
-    {
-        var isDark = ThemeService.Default.IsDark;
-
-        if (isDark)
-        {
-            DarkThemeButton.Classes.Add("selected");
-            LightThemeButton.Classes.Remove("selected");
-        }
-        else
-        {
-            LightThemeButton.Classes.Add("selected");
-            DarkThemeButton.Classes.Remove("selected");
-        }
-    }
-
-    protected override void OnOpened(EventArgs e)
-    {
-        base.OnOpened(e);
-        UpdateThemeUI();
     }
 }
