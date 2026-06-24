@@ -7,6 +7,7 @@
          xmlns:controls="using:Github_Trend.Controls"
          xmlns:loc="using:Github_Trend.Localization"
          xmlns:converters="using:Github_Trend"
+         xmlns:main="using:Github_Trend.Views.Main"
         mc:Ignorable="d"
         x:DataType="vm:MainWindowViewModel"
         x:Class="Github_Trend.MainWindow"
@@ -19,31 +20,8 @@
     <Window.Resources>
         <converters:BoolToStarredBrushConverter x:Key="StarredBrushConverter" />
         <converters:BoolToWatchedBrushConverter x:Key="WatchedBrushConverter" />
+        <converters:BoolAndConverter x:Key="BoolAndConverter" />
     </Window.Resources>
-    <Window.Styles>
-        <Style Selector="Border.repo-card">
-            <Setter Property="ClipToBounds" Value="True" />
-        </Style>
-        <Style Selector="Button.repo-action-button">
-            <Setter Property="Background" Value="{DynamicResource BackgroundTertiaryBrush}" />
-            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Height" Value="40" />
-            <Setter Property="Padding" Value="10,6" />
-            <Setter Property="Margin" Value="0" />
-        </Style>
-        <Style Selector="Button.repo-action-button:pointerover">
-            <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderHoverBrush}" />
-        </Style>
-        <Style Selector="Button.repo-action-button:pressed">
-            <Setter Property="Background" Value="{DynamicResource PressedBackgroundBrush}" />
-        </Style>
-        <Style Selector="Button.repo-action-button:disabled">
-            <Setter Property="Opacity" Value="0.5" />
-        </Style>
-    </Window.Styles>
     <Grid RowDefinitions="*,Auto">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="340" MinWidth="260" MaxWidth="500" />
@@ -57,206 +35,7 @@
                           HorizontalScrollBarVisibility="Disabled"
                           ClipToBounds="True">
                 <StackPanel Margin="12" Spacing="6">
-
-                    <!-- Header -->
-                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4"
-                          Margin="4,4,4,2">
-                        <TextBlock Text="GitHub Trend"
-                                   Foreground="{DynamicResource TextPrimaryBrush}"
-                                   FontWeight="Bold"
-                                   FontSize="{DynamicResource FontSizeLarge}"
-                                   VerticalAlignment="Center" />
-                        <Button Grid.Column="1"
-                                Command="{Binding Auth.SignInCommand}"
-                                Width="32" Height="32"
-                                Padding="0"
-                                Background="Transparent"
-                                Foreground="{DynamicResource TextSecondaryBrush}"
-                                BorderThickness="0"
-                                CornerRadius="{DynamicResource CornerSmall}">
-                            <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/github.svg"
-                                               Width="16" Height="16" />
-                        </Button>
-                        <Button Grid.Column="2"
-                                Click="OnSettingsButtonClick"
-                                Width="32" Height="32"
-                                Padding="0"
-                                Background="Transparent"
-                                Foreground="{DynamicResource TextSecondaryBrush}"
-                                BorderThickness="0"
-                                CornerRadius="{DynamicResource CornerSmall}">
-                            <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/settings.svg"
-                                               Width="16" Height="16" />
-                        </Button>
-                    </Grid>
-
-                    <!-- Search -->
-                    <Border Background="{DynamicResource BackgroundTertiaryBrush}"
-                            CornerRadius="8"
-                            Padding="0">
-                        <TextBox x:Name="SearchTextBox"
-                                 Text="{Binding Filter.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 PlaceholderText="{Binding Source={x:Static loc:Localization.Instance}, Path=SearchPlaceholderText}"
-                                 Background="Transparent"
-                                 Foreground="{DynamicResource TextPrimaryBrush}"
-                                 BorderThickness="0"
-                                 CaretBrush="{DynamicResource AccentSecondaryBrush}"
-                                 FontSize="{DynamicResource FontSizeSmall}"
-                                 Padding="10,8" />
-                    </Border>
-
-                    <!-- Trending Period -->
-                    <Border Background="{DynamicResource BackgroundTertiaryBrush}"
-                            CornerRadius="8"
-                            Padding="3">
-                        <Border.Styles>
-                            <Style Selector="Button.time-segment">
-                                <Setter Property="Background" Value="Transparent" />
-                                <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
-                                <Setter Property="BorderThickness" Value="0" />
-                                <Setter Property="Cursor" Value="Hand" />
-                                <Setter Property="Height" Value="32" />
-                                <Setter Property="Padding" Value="0,6" />
-                                <Setter Property="FontWeight" Value="SemiBold" />
-                                <Setter Property="FontSize" Value="13" />
-                                <Setter Property="HorizontalAlignment" Value="Stretch" />
-                                <Setter Property="Template">
-                                    <ControlTemplate>
-                                        <Border Background="{TemplateBinding Background}"
-                                                CornerRadius="{TemplateBinding CornerRadius}"
-                                                Padding="{TemplateBinding Padding}">
-                                            <TextBlock Text="{TemplateBinding Content}"
-                                                       HorizontalAlignment="Center"
-                                                       VerticalAlignment="Center" />
-                                        </Border>
-                                    </ControlTemplate>
-                                </Setter>
-                            </Style>
-                            <Style Selector="Button.time-segment:pointerover">
-                                <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}" />
-                            </Style>
-                            <Style Selector="Button.time-segment.selected">
-                                <Setter Property="Background" Value="{DynamicResource BackgroundPrimaryBrush}" />
-                                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
-                            </Style>
-                            <Style Selector="Button.time-segment.selected:pointerover">
-                                <Setter Property="Background" Value="{DynamicResource BackgroundPrimaryBrush}" />
-                            </Style>
-                        </Border.Styles>
-                        <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="0">
-                            <Button Classes="time-segment"
-                                    Classes.selected="{Binding IsDailySelected}"
-                                    Command="{Binding SelectDailyCommand}"
-                                    Content="{Binding Source={x:Static loc:Localization.Instance}, Path=TimeRangeDaily}"
-                                    CornerRadius="6,0,0,6" />
-                            <Button Grid.Column="1"
-                                    Classes="time-segment"
-                                    Classes.selected="{Binding IsWeeklySelected}"
-                                    Command="{Binding SelectWeeklyCommand}"
-                                    Content="{Binding Source={x:Static loc:Localization.Instance}, Path=TimeRangeWeekly}" />
-                            <Button Grid.Column="2"
-                                    Classes="time-segment"
-                                    Classes.selected="{Binding IsMonthlySelected}"
-                                    Command="{Binding SelectMonthlyCommand}"
-                                    Content="{Binding Source={x:Static loc:Localization.Instance}, Path=TimeRangeMonthly}" />
-                            <Button Grid.Column="3"
-                                    Classes="time-segment"
-                                    Classes.selected="{Binding IsAllSelected}"
-                                    Command="{Binding SelectAllCommand}"
-                                    Content="{Binding Source={x:Static loc:Localization.Instance}, Path=TimeRangeAll}"
-                                    CornerRadius="0,6,6,0" />
-                        </Grid>
-                    </Border>
-
-                    <!-- Languages -->
-                    <Border Background="{DynamicResource BackgroundTertiaryBrush}"
-                            CornerRadius="8"
-                            Padding="0"
-                            MinHeight="200">
-                        <Grid RowDefinitions="Auto,Auto,*" RowSpacing="0">
-                            <!-- Header row -->
-                            <Border Padding="10,8,8,6">
-                                <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="6">
-                                    <TextBlock
-                                        Text="{Binding Source={x:Static loc:Localization.Instance}, Path=SuggestionsTitle}"
-                                        Foreground="{DynamicResource TextPrimaryBrush}"
-                                        FontWeight="SemiBold"
-                                        FontSize="{DynamicResource FontSizeSmall}"
-                                        VerticalAlignment="Center" />
-                                    <TextBlock Grid.Column="1"
-                                               Text="{Binding Filter.SelectedCount, StringFormat='{}{0}'}"
-                                               Foreground="{DynamicResource TextTertiaryBrush}"
-                                               FontSize="{DynamicResource FontSizeXSmall}"
-                                               VerticalAlignment="Center" />
-                                    <Button Grid.Column="2"
-                                            Command="{Binding Filter.SelectAllCommand}"
-                                            Content="All"
-                                            Padding="0"
-                                            Background="Transparent"
-                                            Foreground="{DynamicResource AccentSecondaryBrush}"
-                                            BorderThickness="0"
-                                            FontSize="{DynamicResource FontSizeXSmall}"
-                                            FontWeight="SemiBold" />
-                                    <Button Grid.Column="3"
-                                            Command="{Binding Filter.DeselectAllCommand}"
-                                            Content="None"
-                                            Padding="0"
-                                            Background="Transparent"
-                                            Foreground="{DynamicResource TextTertiaryBrush}"
-                                            BorderThickness="0"
-                                            FontSize="{DynamicResource FontSizeXSmall}"
-                                            FontWeight="SemiBold" />
-                                </Grid>
-                            </Border>
-
-                            <!-- Separator -->
-                            <Border Grid.Row="1"
-                                    Height="1"
-                                    Background="{DynamicResource BackgroundSecondaryBrush}"
-                                    HorizontalAlignment="Stretch" />
-
-                            <!-- Language list -->
-                            <ScrollViewer Grid.Row="2"
-                                          VerticalScrollBarVisibility="Auto"
-                                          Padding="4,2,4,4">
-                                <ItemsControl ItemsSource="{Binding Filter.FilteredLanguages}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="vm:LanguageOptionViewModel">
-                                            <Border CornerRadius="6"
-                                                    Padding="8,5"
-                                                    Margin="0,0,0,1">
-                                                <Border.Styles>
-                                                    <Style Selector="Border">
-                                                        <Setter Property="Background" Value="Transparent" />
-                                                    </Style>
-                                                    <Style Selector="Border:pointerover">
-                                                        <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}" />
-                                                    </Style>
-                                                </Border.Styles>
-                                                <Grid ColumnDefinitions="8,*,Auto"
-                                                      ColumnSpacing="10">
-                                                    <Border Background="{Binding AccentBrush}"
-                                                            CornerRadius="4"
-                                                            Width="8"
-                                                            Height="8"
-                                                            VerticalAlignment="Center" />
-                                                    <TextBlock Grid.Column="1"
-                                                               Text="{Binding Language}"
-                                                               Foreground="{DynamicResource TextPrimaryBrush}"
-                                                               FontSize="{DynamicResource FontSizeSmall}"
-                                                               VerticalAlignment="Center"
-                                                               TextTrimming="CharacterEllipsis" />
-                                                    <CheckBox Grid.Column="2"
-                                                              IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                                              VerticalAlignment="Center" />
-                                                </Grid>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </ScrollViewer>
-                        </Grid>
-                    </Border>
+                    <main:SidebarPanel x:Name="Sidebar" />
                 </StackPanel>
             </ScrollViewer>
         </Border>
@@ -391,14 +170,15 @@
                                             Classes="repo-card"
                                             ClipToBounds="True"
                                             MinHeight="240">
-                                        <Grid ColumnDefinitions="1.25*,1.75*,160"
+                                        <Grid ColumnDefinitions="1.25*,1.75*,180"
                                               MinHeight="240">
                                             <Border Background="{DynamicResource BackgroundSecondaryBrush}"
                                                     CornerRadius="14,0,0,14"
                                                     MinHeight="240"
                                                     HorizontalAlignment="Stretch"
                                                     VerticalAlignment="Stretch"
-                                                    ClipToBounds="True">
+                                                    ClipToBounds="True"
+                                                    IsVisible="{Binding ViewModel.Settings.ShowBanners, ElementName=MainWindowRoot}">
                                                 <Grid>
                                                     <Image Source="{Binding BannerImage}"
                                                            Stretch="Uniform"
@@ -493,8 +273,13 @@
 
                                                 </WrapPanel>
 
-                                                <ItemsControl ItemsSource="{Binding Topics}"
-                                                              IsVisible="{Binding HasTopics}">
+                                                <ItemsControl ItemsSource="{Binding Topics}">
+                                                    <ItemsControl.IsVisible>
+                                                        <MultiBinding Converter="{StaticResource BoolAndConverter}">
+                                                            <Binding Path="HasTopics" />
+                                                            <Binding Path="ViewModel.Settings.ShowTopics" ElementName="MainWindowRoot" />
+                                                        </MultiBinding>
+                                                    </ItemsControl.IsVisible>
                                                     <ItemsControl.ItemsPanel>
                                                         <ItemsPanelTemplate>
                                                             <WrapPanel />
@@ -528,62 +313,77 @@
                                                     ClipToBounds="True">
                                                 <StackPanel Spacing="8"
                                                             VerticalAlignment="Top">
-                                                    <Button Classes="repo-action-button"
-                                                             HorizontalAlignment="Stretch"
-                                                             ToolTip.Tip="Open in browser"
-                                                             Command="{Binding ViewModel.OpenRepositoryCommand, ElementName=MainWindowRoot}"
-                                                             CommandParameter="{Binding}">
-                                                         <controls:SvgImage
-                                                             SourceUri="avares://Github-Trend/Assets/Icons/open.svg"
-                                                             Width="22"
-                                                             Height="22" />
-                                                     </Button>
-
                                                      <Button Classes="repo-action-button"
-                                                             HorizontalAlignment="Stretch"
-                                                             ToolTip.Tip="Star on GitHub"
-                                                             Background="{Binding IsStarred, Converter={StaticResource StarredBrushConverter}}"
-                                                             Command="{Binding ViewModel.StarRepositoryCommand, ElementName=MainWindowRoot}"
-                                                             CommandParameter="{Binding}">
-                                                         <controls:SvgImage
-                                                             SourceUri="avares://Github-Trend/Assets/Icons/star.svg"
-                                                             Width="22"
-                                                             Height="22" />
-                                                     </Button>
-
-                                                     <Button Classes="repo-action-button"
-                                                             HorizontalAlignment="Stretch"
-                                                             ToolTip.Tip="Watch on GitHub"
-                                                             Background="{Binding IsWatched, Converter={StaticResource WatchedBrushConverter}}"
-                                                             Command="{Binding ViewModel.WatchRepositoryCommand, ElementName=MainWindowRoot}"
-                                                             CommandParameter="{Binding}">
-                                                         <controls:SvgImage
-                                                             SourceUri="avares://Github-Trend/Assets/Icons/watch.svg"
-                                                             Width="22"
-                                                             Height="22" />
+                                                              HorizontalAlignment="Stretch"
+                                                              ToolTip.Tip="Open in browser"
+                                                              AutomationProperties.Name="Open in browser"
+                                                              Command="{Binding ViewModel.OpenRepositoryCommand, ElementName=MainWindowRoot}"
+                                                              CommandParameter="{Binding}">
+                                                         <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                                             <controls:SvgImage
+                                                                 SourceUri="avares://Github-Trend/Assets/Icons/open.svg"
+                                                                 Width="18" Height="18" />
+                                                             <TextBlock Text="Open" VerticalAlignment="Center" />
+                                                         </StackPanel>
                                                      </Button>
 
                                                      <Button Classes="repo-action-button"
                                                               HorizontalAlignment="Stretch"
-                                                              ToolTip.Tip="Dismiss"
-                                                              Command="{Binding ViewModel.DismissRepositoryCommand, ElementName=MainWindowRoot}"
+                                                              ToolTip.Tip="Star on GitHub"
+                                                              AutomationProperties.Name="Star on GitHub"
+                                                              Background="{Binding IsStarred, Converter={StaticResource StarredBrushConverter}}"
+                                                              Command="{Binding ViewModel.StarRepositoryCommand, ElementName=MainWindowRoot}"
                                                               CommandParameter="{Binding}">
-                                                          <controls:SvgImage
-                                                              SourceUri="avares://Github-Trend/Assets/Icons/delete.svg"
-                                                              Width="22"
-                                                              Height="22" />
-                                                      </Button>
+                                                         <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                                             <controls:SvgImage
+                                                                 SourceUri="avares://Github-Trend/Assets/Icons/star.svg"
+                                                                 Width="18" Height="18" />
+                                                             <TextBlock Text="Star" VerticalAlignment="Center" />
+                                                         </StackPanel>
+                                                     </Button>
+
+                                                     <Button Classes="repo-action-button"
+                                                              HorizontalAlignment="Stretch"
+                                                              ToolTip.Tip="Watch on GitHub"
+                                                              AutomationProperties.Name="Watch on GitHub"
+                                                              Background="{Binding IsWatched, Converter={StaticResource WatchedBrushConverter}}"
+                                                              Command="{Binding ViewModel.WatchRepositoryCommand, ElementName=MainWindowRoot}"
+                                                              CommandParameter="{Binding}">
+                                                         <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                                             <controls:SvgImage
+                                                                 SourceUri="avares://Github-Trend/Assets/Icons/watch.svg"
+                                                                 Width="18" Height="18" />
+                                                             <TextBlock Text="Watch" VerticalAlignment="Center" />
+                                                         </StackPanel>
+                                                     </Button>
+
+                                                     <Button Classes="repo-action-button"
+                                                               HorizontalAlignment="Stretch"
+                                                               ToolTip.Tip="Dismiss"
+                                                               AutomationProperties.Name="Dismiss"
+                                                               Command="{Binding ViewModel.DismissRepositoryCommand, ElementName=MainWindowRoot}"
+                                                               CommandParameter="{Binding}">
+                                                           <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                                               <controls:SvgImage
+                                                                   SourceUri="avares://Github-Trend/Assets/Icons/close.svg"
+                                                                   Width="18" Height="18" />
+                                                               <TextBlock Text="Dismiss" VerticalAlignment="Center" />
+                                                           </StackPanel>
+                                                       </Button>
 
                                                       <Button Classes="repo-action-button"
-                                                              HorizontalAlignment="Stretch"
-                                                              ToolTip.Tip="Save for later"
-                                                              Command="{Binding ViewModel.SaveRepositoryCommand, ElementName=MainWindowRoot}"
-                                                              CommandParameter="{Binding}">
-                                                          <controls:SvgImage
-                                                              SourceUri="avares://Github-Trend/Assets/Icons/save.svg"
-                                                              Width="22"
-                                                              Height="22" />
-                                                      </Button>
+                                                                HorizontalAlignment="Stretch"
+                                                                ToolTip.Tip="Save for later"
+                                                                AutomationProperties.Name="Save for later"
+                                                                Command="{Binding ViewModel.SaveRepositoryCommand, ElementName=MainWindowRoot}"
+                                                               CommandParameter="{Binding}">
+                                                           <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                                               <controls:SvgImage
+                                                                   SourceUri="avares://Github-Trend/Assets/Icons/save.svg"
+                                                                   Width="18" Height="18" />
+                                                               <TextBlock Text="Save" VerticalAlignment="Center" />
+                                                           </StackPanel>
+                                                       </Button>
                                                 </StackPanel>
                                             </Border>
                                         </Grid>
@@ -596,16 +396,6 @@
             </StackPanel>
         </ScrollViewer>
 
-        <Border Grid.Row="1"
-                Grid.ColumnSpan="3"
-                Background="{DynamicResource BackgroundSecondaryBrush}"
-                BorderBrush="{DynamicResource BorderPrimaryBrush}"
-                BorderThickness="0,1,0,0"
-                Padding="16,8">
-            <TextBlock Text="{Binding StatusMessage}"
-                       Foreground="{DynamicResource TextSecondaryBrush}"
-                       FontSize="{DynamicResource FontSizeSmall}"
-                       TextTrimming="CharacterEllipsis" />
-        </Border>
+        <main:StatusBar Grid.Row="1" Grid.ColumnSpan="3" />
     </Grid>
 </Window>
