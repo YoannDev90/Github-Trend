@@ -1,11 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -16,7 +14,7 @@ using Serilog;
 
 namespace Github_Trend;
 
-public sealed partial class DebugViewModel : INotifyPropertyChanged
+public sealed partial class DebugViewModel : ViewModelBase
 {
     private string _appLogs = string.Empty;
     private string _debugInfo = string.Empty;
@@ -30,13 +28,10 @@ public sealed partial class DebugViewModel : INotifyPropertyChanged
     [GeneratedRegex(@"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+ [+-]\d{2}:\d{2})", RegexOptions.Compiled)]
     private static partial Regex TimestampRegex();
 
-    private const int MaxLogEntries = 500;
+    private static int MaxLogEntries => AppConfig.Logging.MaxLogEntries;
 
     private readonly List<LogEntry> _allLogEntries = new();
-    private readonly HashSet<string> _activeLevels = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "DBG", "INF", "WRN", "ERR"
-    };
+    private readonly HashSet<string> _activeLevels = AppConfig.Logging.DefaultActiveLevelSet;
 
     public DebugViewModel()
     {
@@ -71,8 +66,6 @@ public sealed partial class DebugViewModel : INotifyPropertyChanged
     public event EventHandler? CopyAllFilteredRequested;
     public event EventHandler? DeleteCurrentLogRequested;
     public event EventHandler? DeleteAllLogsRequested;
-    public event PropertyChangedEventHandler? PropertyChanged;
-
     public ObservableCollection<LogEntry> FilteredLogEntries { get; } = new();
     public ObservableCollection<DebugInfoItem> InfoItems { get; } = new();
 
@@ -81,38 +74,26 @@ public sealed partial class DebugViewModel : INotifyPropertyChanged
         get => _selectedLogEntry;
         set
         {
-            if (_selectedLogEntry == value) return;
-            _selectedLogEntry = value;
-            OnPropertyChanged();
-            (CopySelectedLogCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            if (SetProperty(ref _selectedLogEntry, value))
+                (CopySelectedLogCommand as RelayCommand)?.RaiseCanExecuteChanged();
         }
     }
 
     public string DebugInfo
     {
         get => _debugInfo;
-        private set
-        {
-            if (_debugInfo == value) return;
-            _debugInfo = value;
-            OnPropertyChanged();
-        }
+        private set => SetProperty(ref _debugInfo, value);
     }
 
     public string AppLogs
     {
         get => _appLogs;
-        private set
-        {
-            if (_appLogs == value) return;
-            _appLogs = value;
-            OnPropertyChanged();
-        }
+        private set => SetProperty(ref _appLogs, value);
     }
 
     public string LogsContent => $"{DebugInfo}\n\n=== APPLICATION LOGS ===\n\n{AppLogs}";
 
-    public string LogDirPath => Path.Combine(AppContext.BaseDirectory, Constants.Logging.LogDirectoryName);
+    public string LogDirPath => Path.Combine(AppContext.BaseDirectory, AppConfig.Logging.DirectoryName);
 
     public string CurrentLogFileName => _currentLogPath is not null
         ? Path.GetFileName(_currentLogPath)
@@ -317,8 +298,6 @@ public sealed partial class DebugViewModel : INotifyPropertyChanged
         catch { return "Unable to read log file."; }
     }
 
-    private void OnPropertyChanged([CallerMemberName] string? name = null) =>
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
 
 public sealed record LogEntry(string Timestamp, string Level, string Message);

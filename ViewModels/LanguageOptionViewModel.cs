@@ -1,11 +1,9 @@
 using System;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 using Avalonia.Media;
 
 namespace Github_Trend;
 
-public sealed class LanguageOptionViewModel : INotifyPropertyChanged
+public sealed class LanguageOptionViewModel : ViewModelBase
 {
     private static readonly IBrush DefaultAccentBrush = new SolidColorBrush(
         Color.Parse("#FF3B82F6")
@@ -33,18 +31,8 @@ public sealed class LanguageOptionViewModel : INotifyPropertyChanged
     public bool IsSelected
     {
         get => _isSelected;
-        set
-        {
-            if (_isSelected == value)
-                return;
-
-            _isSelected = value;
-            OnPropertyChanged();
-            _selectionChanged?.Invoke();
-        }
+        set => SetProperty(ref _isSelected, value, _selectionChanged);
     }
-
-    public event PropertyChangedEventHandler? PropertyChanged;
 
     private static IBrush CreateBrush(string? accentColorHex)
     {
@@ -57,8 +45,4 @@ public sealed class LanguageOptionViewModel : INotifyPropertyChanged
         return DefaultAccentBrush;
     }
 
-    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Serilog;
@@ -10,6 +11,7 @@ public sealed class RelayCommand : ICommand
     private readonly Func<object?, bool>? _canExecute;
     private readonly Func<object?, Task>? _executeAsync;
     private readonly Action<object?>? _executeSync;
+    private int _isExecuting;
 
     private EventHandler? _canExecuteChangedHandlers;
 
@@ -27,13 +29,18 @@ public sealed class RelayCommand : ICommand
 
     public bool CanExecute(object? parameter)
     {
-        return _canExecute?.Invoke(parameter) ?? true;
+        return (_canExecute?.Invoke(parameter) ?? true) && _isExecuting == 0;
     }
 
     public async void Execute(object? parameter)
     {
+        if (Interlocked.Exchange(ref _isExecuting, 1) != 0)
+            return;
+
         try
         {
+            RaiseCanExecuteChanged();
+
             if (_executeAsync is not null)
                 await _executeAsync(parameter);
             else
@@ -42,6 +49,11 @@ public sealed class RelayCommand : ICommand
         catch (Exception ex)
         {
             Log.Error(ex, "Unhandled exception in RelayCommand");
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _isExecuting, 0);
+            RaiseCanExecuteChanged();
         }
     }
 

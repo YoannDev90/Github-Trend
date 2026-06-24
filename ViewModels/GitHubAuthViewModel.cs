@@ -1,15 +1,20 @@
 using System;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using Avalonia;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using Github_Trend.Localization;
 using Github_Trend.Services;
 using Serilog;
 
 namespace Github_Trend;
 
-public sealed class GitHubAuthViewModel : INotifyPropertyChanged
+public sealed class GitHubAuthViewModel : ViewModelBase
 {
     private readonly GitHubAuthenticationService _authService;
     private readonly Action<string, object?[]> _setStatusMessage;
@@ -60,7 +65,6 @@ public sealed class GitHubAuthViewModel : INotifyPropertyChanged
     public ICommand CopyDeviceCodeCommand { get; }
 
     public event EventHandler? DeviceCodeCopyRequested;
-    public event PropertyChangedEventHandler? PropertyChanged;
 
     public Func<Task<bool>>? ConfirmSignOutAsync { get; set; }
 
@@ -71,9 +75,7 @@ public sealed class GitHubAuthViewModel : INotifyPropertyChanged
         get => _isAuthenticating;
         private set
         {
-            if (_isAuthenticating == value) return;
-            _isAuthenticating = value;
-            OnPropertyChanged();
+            if (!SetProperty(ref _isAuthenticating, value)) return;
             RaiseCommandStateChanged();
         }
     }
@@ -83,9 +85,7 @@ public sealed class GitHubAuthViewModel : INotifyPropertyChanged
         get => _deviceCode;
         set
         {
-            if (_deviceCode == value) return;
-            _deviceCode = value;
-            OnPropertyChanged();
+            if (!SetProperty(ref _deviceCode, value)) return;
             OnPropertyChanged(nameof(HasDeviceCode));
             (CopyDeviceCodeCommand as RelayCommand)?.RaiseCanExecuteChanged();
         }
@@ -99,6 +99,39 @@ public sealed class GitHubAuthViewModel : INotifyPropertyChanged
 
     public string AccountSummary =>
         Localization.Localization.Instance.GetString(_accountSummaryKey, _accountSummaryArgs);
+
+    public string? UserLogin { get; private set; }
+    public string? UserDisplayName { get; private set; }
+    public string? UserEmail { get; private set; }
+    public string? AvatarUrl { get; private set; }
+    public List<string> SessionScopeList { get; private set; } = new();
+    public string? SessionExpiry { get; private set; }
+    public Bitmap? UserAvatar { get; private set; }
+    public bool HasAvatar => UserAvatar is not null;
+
+    private static readonly HttpClient _httpClient = new();
+    private async Task LoadAvatarAsync(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            UserAvatar = null;
+            OnPropertyChanged(nameof(UserAvatar));
+            OnPropertyChanged(nameof(HasAvatar));
+            return;
+        }
+        try
+        {
+            var data = await _httpClient.GetByteArrayAsync(url);
+            using var ms = new MemoryStream(data);
+            UserAvatar = new Bitmap(ms);
+        }
+        catch
+        {
+            UserAvatar = null;
+        }
+        OnPropertyChanged(nameof(UserAvatar));
+        OnPropertyChanged(nameof(HasAvatar));
+    }
 
     public void SetInitializing(bool value)
     {
@@ -120,6 +153,13 @@ public sealed class GitHubAuthViewModel : INotifyPropertyChanged
         {
             SetAuthStatus(nameof(LocalizationService.GitHubAuthNotConnected));
             SetAccountSummary(nameof(LocalizationService.GitHubAuthNoAccountLinked));
+
+            UserLogin = null;
+            UserDisplayName = null;
+            UserEmail = null;
+            AvatarUrl = null;
+            SessionScopeList.Clear();
+            SessionExpiry = null;
         }
         else
         {
@@ -129,9 +169,27 @@ public sealed class GitHubAuthViewModel : INotifyPropertyChanged
                 session.DisplayName,
                 session.Login
             );
+
+            UserLogin = session.Login;
+            UserDisplayName = session.DisplayName;
+            UserEmail = session.Email;
+            AvatarUrl = session.AvatarUrl;
+            _ = LoadAvatarAsync(session.AvatarUrl);
+            SessionScopeList = session.ScopeList.ToList();
+            var remaining = session.ExpiresAt - DateTimeOffset.UtcNow;
+            SessionExpiry = remaining > TimeSpan.Zero
+                ? $"{(int)remaining.TotalHours}h {remaining.Minutes}m"
+                : "Expired";
         }
 
         OnPropertyChanged(nameof(IsConnected));
+        OnPropertyChanged(nameof(UserLogin));
+        OnPropertyChanged(nameof(UserDisplayName));
+        OnPropertyChanged(nameof(UserEmail));
+        OnPropertyChanged(nameof(AvatarUrl));
+        OnPropertyChanged(nameof(SessionScopeList));
+        OnPropertyChanged(nameof(SessionExpiry));
+        OnPropertyChanged(nameof(HasAvatar));
         RaiseCommandStateChanged();
     }
 
@@ -261,7 +319,4 @@ public sealed class GitHubAuthViewModel : INotifyPropertyChanged
         _accountSummaryArgs = args;
         OnPropertyChanged(nameof(AccountSummary));
     }
-
-    private void OnPropertyChanged([CallerMemberName] string? name = null) =>
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }

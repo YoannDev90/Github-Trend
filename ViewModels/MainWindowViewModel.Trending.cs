@@ -5,7 +5,9 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Avalonia.Threading;
 using Github_Trend.Localization;
+using Github_Trend.Services;
 using Github_Trend.Utils;
 using Serilog;
 
@@ -159,6 +161,10 @@ public sealed partial class MainWindowViewModel
                     {
                         Log.Debug("Trending refresh cancelled");
                     }
+                    catch (Exception ex)
+                    {
+                        Log.Warning(ex, "Trending stream producer failed");
+                    }
                     finally
                     {
                         channel.Writer.TryComplete();
@@ -168,12 +174,20 @@ public sealed partial class MainWindowViewModel
             );
 
             var batch = new List<GithubTrendingRepository>(
-                Constants.Trending.MaxParallelEnrichmentRequests * 5
+                AppConfig.Trending.MaxParallelEnrichmentRequests * 5
             );
+            var batchLock = new object();
             var flushTimer = new System.Timers.Timer(300) { AutoReset = false };
             flushTimer.Elapsed += (_, _) =>
             {
-                FlushBatch(batch, TrendingRepositories);
+                Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    lock (batchLock)
+                    {
+                        if (batch.Count > 0)
+                            FlushBatch(batch, TrendingRepositories);
+                    }
+                });
             };
 
             var replacedItems = new List<GithubTrendingRepository>();
@@ -205,17 +219,25 @@ public sealed partial class MainWindowViewModel
                 else
                 {
                     // New item (not in cache) — add via batch
-                    slugIndex[key] = TrendingRepositories.Count + batch.Count;
-                    batch.Add(visual);
-                    flushTimer.Stop();
-                    flushTimer.Start();
+                    lock (batchLock)
+                    {
+                        slugIndex[key] = TrendingRepositories.Count + batch.Count;
+                        batch.Add(visual);
+                        flushTimer.Stop();
+                        flushTimer.Start();
+                    }
                 }
             }
 
             flushTimer.Stop();
-            flushTimer.Dispose();
-            if (batch.Count > 0)
-                FlushBatch(batch, TrendingRepositories);
+            using (flushTimer)
+            {
+                lock (batchLock)
+                {
+                    if (batch.Count > 0)
+                        FlushBatch(batch, TrendingRepositories);
+                }
+            }
 
             // Dispose replaced items after the stream ends (UI has released old bitmaps)
             foreach (var d in replacedItems)
@@ -259,6 +281,7 @@ public sealed partial class MainWindowViewModel
             (RefreshCommand as RelayCommand)?.RaiseCanExecuteChanged();
 
             var catalog = await _colorsService.FetchAsync(force: true);
+            RebuildLanguageBrushCache(catalog);
             await Filter.RefreshColorsAsync(catalog);
 
             if (TrendingRepositories.Count > 0)

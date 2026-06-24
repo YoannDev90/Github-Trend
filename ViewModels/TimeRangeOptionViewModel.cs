@@ -1,10 +1,8 @@
 using System;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 
 namespace Github_Trend;
 
-public sealed class TimeRangeOptionViewModel : INotifyPropertyChanged
+public sealed class TimeRangeOptionViewModel : ViewModelBase
 {
     private readonly Action<int>? _onSelected;
     private bool _isSelected;
@@ -26,19 +24,8 @@ public sealed class TimeRangeOptionViewModel : INotifyPropertyChanged
         get => _isSelected;
         set
         {
-            if (_isSelected == value) return;
-
-            _isSelected = value;
-            OnPropertyChanged();
-
-            if (value) _onSelected?.Invoke(Index);
+            if (SetProperty(ref _isSelected, value) && value)
+                _onSelected?.Invoke(Index);
         }
-    }
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }

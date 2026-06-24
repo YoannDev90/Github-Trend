@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Github_Trend.Localization;
@@ -12,7 +10,7 @@ using Serilog;
 
 namespace Github_Trend;
 
-public sealed class LanguageFilterViewModel : INotifyPropertyChanged
+public sealed class LanguageFilterViewModel : ViewModelBase
 {
     private System.Collections.Generic.HashSet<string> _popularLanguages = new(
         StringComparer.OrdinalIgnoreCase
@@ -44,8 +42,6 @@ public sealed class LanguageFilterViewModel : INotifyPropertyChanged
     public ICommand SelectAllCommand { get; }
     public ICommand DeselectAllCommand { get; }
 
-    public event PropertyChangedEventHandler? PropertyChanged;
-
     public ObservableCollection<LanguageOptionViewModel> FilteredLanguages { get; } = new();
     public ObservableCollection<LanguageOptionViewModel> SelectedLanguages { get; } = new();
 
@@ -56,10 +52,8 @@ public sealed class LanguageFilterViewModel : INotifyPropertyChanged
         get => _searchText;
         set
         {
-            if (_searchText == value) return;
-            _searchText = value;
-            OnPropertyChanged();
-            ApplyFilter();
+            if (SetProperty(ref _searchText, value))
+                ApplyFilter();
         }
     }
 
@@ -267,6 +261,4 @@ public sealed class LanguageFilterViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(VisibleCount));
     }
 
-    private void OnPropertyChanged([CallerMemberName] string? name = null) =>
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -16,7 +15,7 @@ using Serilog;
 
 namespace Github_Trend;
 
-public sealed partial class MainWindowViewModel : INotifyPropertyChanged, IAsyncDisposable
+public sealed partial class MainWindowViewModel : ViewModelBase, IAsyncDisposable
 {
     private static readonly (string Query, string Label)[] TimeRanges =
     {
@@ -43,8 +42,12 @@ public sealed partial class MainWindowViewModel : INotifyPropertyChanged, IAsync
     private bool _isInitializing;
     private bool _isRefreshing;
     private bool _isTrendingLoading;
+    private Timer? _autoRefreshTimer;
 
     private static readonly SolidColorBrush DefaultLanguageBrush = new(Color.Parse("#FF3B82F6"));
+    private readonly Dictionary<string, SolidColorBrush> _languageBrushCache = new(StringComparer.OrdinalIgnoreCase);
+
+    public AppSettings Settings => AppSettings.Default;
 
     public MainWindowViewModel()
     {
@@ -115,13 +118,13 @@ public sealed partial class MainWindowViewModel : INotifyPropertyChanged, IAsync
         get => _isTrendingLoading;
         set
         {
-            if (_isTrendingLoading == value) return;
-            _isTrendingLoading = value;
-            OnPropertyChanged();
+            if (!SetProperty(ref _isTrendingLoading, value)) return;
             OnPropertyChanged(nameof(ShowTrendingLoading));
             OnPropertyChanged(nameof(ShowTrendingEmpty));
         }
     }
+
+    public AppDatabase Database => _db;
 
     public bool ShowTrendingContent => TrendingRepositories.Count > 0;
     public bool ShowTrendingLoading => _isTrendingLoading && TrendingRepositories.Count == 0;
@@ -147,7 +150,6 @@ public sealed partial class MainWindowViewModel : INotifyPropertyChanged, IAsync
 
     public event EventHandler? DeviceCodeCopyRequested;
     public event EventHandler? CopyLogsRequested;
-    public event PropertyChangedEventHandler? PropertyChanged;
 
     public string StatusMessage =>
         _statusMessageOverride
@@ -177,10 +179,7 @@ public sealed partial class MainWindowViewModel : INotifyPropertyChanged, IAsync
         get => _selectedTimeRangeIndex;
         set
         {
-            if (_selectedTimeRangeIndex == value)
-                return;
-            _selectedTimeRangeIndex = value;
-            OnPropertyChanged();
+            if (!SetProperty(ref _selectedTimeRangeIndex, value)) return;
             OnPropertyChanged(nameof(SelectedTimeRangeLabel));
             OnPropertyChanged(nameof(IsDailySelected));
             OnPropertyChanged(nameof(IsWeeklySelected));
@@ -227,9 +226,14 @@ public sealed partial class MainWindowViewModel : INotifyPropertyChanged, IAsync
             _isInitializing = true;
             Auth.SetInitializing(true);
 
+            await AppSettings.Default.LoadAsync();
+            AppSettings.Default.PropertyChanged += OnSettingsPropertyChanged;
+            SetupAutoRefresh();
+
             await _db.InitializeAsync();
 
             var colors = await _colorsService.FetchAsync();
+            RebuildLanguageBrushCache(colors);
             await Filter.LoadAsync(colors);
 
             SetStatusMessageFromKey(
@@ -260,16 +264,51 @@ public sealed partial class MainWindowViewModel : INotifyPropertyChanged, IAsync
         _ = RefreshTrendingRepositoriesAsync();
     }
 
+    private void OnSettingsPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        switch (e.PropertyName)
+        {
+            case nameof(AppSettings.AutoRefresh):
+            case nameof(AppSettings.AutoRefreshIntervalMinutes):
+                SetupAutoRefresh();
+                break;
+        }
+    }
+
+    private void SetupAutoRefresh()
+    {
+        _autoRefreshTimer?.Dispose();
+        _autoRefreshTimer = null;
+
+        if (!AppSettings.Default.AutoRefresh)
+            return;
+
+        var intervalMs = Math.Max(60_000, AppSettings.Default.AutoRefreshIntervalMinutes * 60_000);
+        _autoRefreshTimer = new Timer(
+            _ => _ = RefreshTrendingRepositoriesAsync(),
+            null,
+            intervalMs,
+            intervalMs
+        );
+    }
+
+    private void RebuildLanguageBrushCache(GithubColorsCatalog catalog)
+    {
+        _languageBrushCache.Clear();
+        foreach (var (lang, entry) in catalog.Colors)
+        {
+            if (!string.IsNullOrWhiteSpace(entry?.Color) && Color.TryParse(entry.Color, out var c))
+                _languageBrushCache[lang] = new SolidColorBrush(c);
+        }
+    }
+
     private GithubTrendingRepository ApplyLanguageBrush(GithubTrendingRepository repo)
     {
         if (
-            Filter.Colors?.Colors != null
-            && !string.IsNullOrWhiteSpace(repo.Language)
-            && Filter.Colors.Colors.TryGetValue(repo.Language, out var entry)
-            && !string.IsNullOrWhiteSpace(entry.Color)
-            && Color.TryParse(entry.Color, out var color)
+            !string.IsNullOrWhiteSpace(repo.Language)
+            && _languageBrushCache.TryGetValue(repo.Language, out var brush)
         )
-            return repo.CloneWith(languageBrush: new SolidColorBrush(color));
+            return repo.CloneWith(languageBrush: brush);
 
         return repo.CloneWith(languageBrush: DefaultLanguageBrush);
     }
@@ -290,19 +329,19 @@ public sealed partial class MainWindowViewModel : INotifyPropertyChanged, IAsync
         TrendingRepositories.Insert(index, repo);
     }
 
-    private void OnPropertyChanged([CallerMemberName] string? name = null) =>
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-
     public async ValueTask DisposeAsync()
     {
+        AppSettings.Default.PropertyChanged -= OnSettingsPropertyChanged;
+
+        _autoRefreshTimer?.Dispose();
+
         _trendingCts?.Cancel();
         _trendingCts?.Dispose();
 
         foreach (var repo in TrendingRepositories)
             repo.Dispose();
 
-        if (_graphQlService is IAsyncDisposable asyncDisposable)
-            await asyncDisposable.DisposeAsync();
+        await _graphQlService.DisposeAsync();
 
         if (_trendingService is IAsyncDisposable trendingDisposable)
             await trendingDisposable.DisposeAsync();
@@ -310,11 +349,9 @@ public sealed partial class MainWindowViewModel : INotifyPropertyChanged, IAsync
         if (_colorsService is IAsyncDisposable colorsDisposable)
             await colorsDisposable.DisposeAsync();
 
-        if (_apiClient is IDisposable apiDisposable)
-            apiDisposable.Dispose();
+        _apiClient.Dispose();
 
-        if (_authService is IDisposable authDisposable)
-            authDisposable.Dispose();
+        _authService.Dispose();
 
         await _db.DisposeAsync();
     }
