@@ -1,29 +1,29 @@
 # GitHub Trend
 
-Desktop app to browse GitHub trending repos. Card-based UI, no browser needed.
+Desktop app that shows trending GitHub repos. Built it because I got tired of opening the browser every time I wanted to see what's trending.
 
-## Features
+## What it does
 
-- Browse trending repos (daily, weekly, monthly, all time)
-- Filter by language, search languages fast
-- Star/watch repos directly from the app (with GitHub login)
-- See description, topics, contributors, stars, forks, license, language, last update
-- Click to open repo in browser
-- Login through GitHub OAuth device flow, no manual token management
+- Shows trending repos from GitHub (daily, weekly, monthly, all time)
+- Filter by language (there are a lot of languages, there's a search box)
+- Lets you star/watch repos if you log in with GitHub
+- Shows repo details: description, topics, contributors, stars, forks, license, language, when it was last updated
+- Click a repo to open it in your browser
+- Login uses GitHub's OAuth device flow so you don't have to mess with tokens
 
-## Download
+## How to get it
 
-Pre-built packages on the [releases page](https://github.com/YoannDev90/Github-Trend/releases).
+Grab the latest release from the [releases page](https://github.com/YoannDev90/Github-Trend/releases).
 
 | OS      | Architectures  | Status                              |
 |---------|----------------|-------------------------------------|
-| Windows | x64, arm64     | Supported (installer)               |
-| Linux   | x64, arm64     | Supported (binary, DEB, RPM, AppImage) |
-| macOS   | x64, arm64     | Needs a tester/contributor          |
+| Windows | x64, arm64     | Works (installer)                   |
+| Linux   | x64, arm64     | Works (binary, DEB, RPM, AppImage)  |
+| macOS   | x64, arm64     | Haven't tested, need someone to try |
 
 ### Windows
 
-Download the `.exe` installer and run it.
+Download the `.exe` and run it.
 
 ### Linux
 
@@ -33,36 +33,22 @@ cd Github-Trend-linux-x64
 ./Github-Trend
 ```
 
-## Login
-
-Uses GitHub's OAuth device flow. No tokens to generate or manage. Stored locally.
-
-Token expired or got auth errors? Sign out and sign back in.
-
-## Interface
-
-- Dark theme cards
-- Language colors for quick scan
-- Contributor avatars
-- Language filter with search
-
 ## Screenshots
 
 ![Screenshot](Assets/screenshots/1.png)
 ![Screenshot](Assets/screenshots/2.png)
 
-## Requirements
-
-- Windows, macOS, or Linux
-- Internet connection
-
 ## FAQ
 
 **Q: Is my token safe?**  
-A: Stored locally, encrypted on disk.
+A: It stays on your machine and gets encrypted before hitting the disk.
 
 **Q: Do I need .NET installed?**  
-A: No, pre-built packages bundle everything. Only needed to build from source.
+A: Nope, the packages have everything bundled. You only need .NET if you're building from source.
 
-**Q: Why do I get auth errors?**  
-A: Some actions need specific permissions. Sign out and back in to refresh.
+**Q: Auth errors?**  
+A: Sign out and sign back in. Usually fixes it.
+
+---
+
+I'm not a native English speaker and I used AI to help write some of the code and this README. If something sucks feel free to open an issue or PR.
