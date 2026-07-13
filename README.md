@@ -38,17 +38,3 @@ cd Github-Trend-linux-x64
 ![Screenshot](Assets/screenshots/1.png)
 ![Screenshot](Assets/screenshots/2.png)
 
-## FAQ
-
-**Q: Is my token safe?**  
-A: It stays on your machine and gets encrypted before hitting the disk.
-
-**Q: Do I need .NET installed?**  
-A: Nope, the packages have everything bundled. You only need .NET if you're building from source.
-
-**Q: Auth errors?**  
-A: Sign out and sign back in. Usually fixes it.
-
----
-
-I'm not a native English speaker and I used AI to help write some of the code and this README. If something sucks feel free to open an issue or PR.
