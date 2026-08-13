@@ -172,8 +172,24 @@ jobs:
             } finally { $fs.Close() }
           }
 
+          function Test-IsManaged([string]$Path) {
+            $fs = [System.IO.File]::OpenRead($Path)
+            try {
+              $br = New-Object System.IO.BinaryReader($fs)
+              $br.BaseStream.Seek(0x3C, [System.IO.SeekOrigin]::Begin) | Out-Null
+              $peOff = $br.ReadInt32()
+              # COM descriptor RVA: optional header (PE32+) starts at peOff+24,
+              # data directories at +0x70, CLR header is entry 14 -> +0xE0.
+              $br.BaseStream.Seek($peOff + 0xF8, [System.IO.SeekOrigin]::Begin) | Out-Null
+              return ($br.ReadUInt32() -ne 0)
+            } finally { $fs.Close() }
+          }
+
           $mismatches = @()
           Get-ChildItem $scdDir -Include *.exe,*.dll -File -Recurse | ForEach-Object {
+            # IL-only managed assemblies are architecture-neutral (0x014C) and
+            # JIT-compiled by CoreCLR at run time -> only inspect native PEs.
+            if (Test-IsManaged $_.FullName) { return }
             $m = Get-PeMachineType $_.FullName
             if ($m -ne $expectedMachine) {
               $mismatches += ("{0} -> 0x{1:X4} (expected 0x{2:X4})" -f $_.FullName, $m, $expectedMachine)
