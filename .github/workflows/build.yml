@@ -182,7 +182,7 @@ jobs:
             $mismatches | ForEach-Object { Write-Host "::error::PE MISMATCH $_" }
             throw "PE architecture mismatch ($($mismatches.Count) file(s))"
           }
-          Write-Host "All Windows binaries match architecture 0x{0:X4}" -f $expectedMachine
+          Write-Host ("All Windows binaries match architecture 0x{0:X4}" -f $expectedMachine)
 
       # ════════════════════════════════════════════════════════════════════════
       #  WINDOWS PACKAGING
