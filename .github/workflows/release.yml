@@ -11,7 +11,8 @@
 # ║    • PublishTrimmed=false  (Avalonia uses reflection — trim can break app)   ║
 # ║    • PublishReadyToRun=false                                                 ║
 # ║    • No debug symbols / PDBs                                                 ║
-# ║    • UPX --best --lzma  (Windows independent builds)                         ║
+# ║    • Windows installers check & install VC++ 2015-2022 redist on demand       ║
+# ║      (InnoDependencyInstaller) — no UPX: it corrupts .NET single-file apps    ║
 # ║    • strip --strip-all  (macOS — via portable [ -x ] test)                  ║
 # ║    • hdiutil UDZO zlib-9  (macOS DMG)                                        ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
@@ -93,7 +94,7 @@ jobs:
       # Trimming is intentionally DISABLED for Avalonia: it uses reflection for
       # XAML/styles/converters — the IL linker silently removes those, producing
       # a binary that crashes at startup. Size comes from EnableCompression +
-      # no debug info + UPX at packaging time.
+      # no debug info + lzma2 installer payload.
       - name: Publish SCD
         shell: bash
         run: |
@@ -148,6 +149,43 @@ jobs:
             echo
           done
 
+      # Guard: assert every Windows PE binary matches the target RID architecture.
+      # Catches "This app can't run on your PC" (architecture mismatch / bad image)
+      # before it reaches users.
+      - name: Verify · Windows PE architecture
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          $rid = "${{ matrix.rid }}"
+          $scdDir = "out/scd/$rid"
+          # IMAGE_FILE_MACHINE_AMD64 = 0x8664, IMAGE_FILE_MACHINE_ARM64 = 0xAA64
+          $expectedMachine = if ($rid -like '*arm64*') { 0xAA64 } else { 0x8664 }
+
+          function Get-PeMachineType([string]$Path) {
+            $fs = [System.IO.File]::OpenRead($Path)
+            try {
+              $br = New-Object System.IO.BinaryReader($fs)
+              $br.BaseStream.Seek(0x3C, [System.IO.SeekOrigin]::Begin) | Out-Null
+              $peOff = $br.ReadInt32()
+              $br.BaseStream.Seek($peOff + 4, [System.IO.SeekOrigin]::Begin) | Out-Null
+              return $br.ReadUInt16()
+            } finally { $fs.Close() }
+          }
+
+          $mismatches = @()
+          Get-ChildItem $scdDir -Include *.exe,*.dll -File -Recurse | ForEach-Object {
+            $m = Get-PeMachineType $_.FullName
+            if ($m -ne $expectedMachine) {
+              $mismatches += ("{0} -> 0x{1:X4} (expected 0x{2:X4})" -f $_.FullName, $m, $expectedMachine)
+            }
+          }
+
+          if ($mismatches.Count -gt 0) {
+            $mismatches | ForEach-Object { Write-Host "::error::PE MISMATCH $_" }
+            throw "PE architecture mismatch ($($mismatches.Count) file(s))"
+          }
+          Write-Host "All Windows binaries match architecture 0x{0:X4}" -f $expectedMachine
+
       # ════════════════════════════════════════════════════════════════════════
       #  WINDOWS PACKAGING
       #  Independent build → Inno Setup Custom Installer
@@ -170,20 +208,20 @@ jobs:
           $cleanVersion = $version -replace '-.*', ''
           if ([string]::IsNullOrWhiteSpace($cleanVersion)) { $cleanVersion = "1.0.0" }
 
-          # Ensure UPX is available
-          if (!(Get-Command upx -ErrorAction SilentlyContinue)) { choco install upx --no-progress }
+          # UPX is intentionally NOT applied: it corrupts .NET single-file hosts and
+          # native DLLs (coreclr/hostfxr/e_sqlite3), causing "This app can't run on
+          # your PC" / bad-image startup failures on Windows. Compression still comes
+          # from EnableCompressionInSingleFile + the lzma2/ultra64 installer payload.
 
           $scdDir = "out/scd/$rid"
-          Write-Host "Running UPX over $scdDir..."
-          
-          $filesToUpx = Get-ChildItem $scdDir -Include *.exe,*.dll -File -Recurse
-          foreach ($f in $filesToUpx) {
-              & upx -q --best --lzma --force $f.FullName 2>$null
-          }
-          
           # Write Inno Setup Script
           $issPath = "installer_$rid.iss"
           $issContent = @"
+          ; Visual C++ 2015-2022 Redistributable (x64/arm64) is checked at install time and
+          ; downloaded/installed only when missing or outdated (InnoDependencyInstaller).
+          ; Required by CoreCLR + native e_sqlite3.dll (Microsoft.Data.Sqlite).
+          #include "packaging\innosetup\CodeDependencies.iss"
+
           [Setup]
           AppName=Github Trend
           AppVersion=$cleanVersion
@@ -193,8 +231,9 @@ jobs:
           OutputBaseFilename=$app-$version-$rid-setup
           Compression=lzma2/ultra64
           SolidCompression=yes
+          ArchitecturesAllowed=$(if ($rid -like '*arm64*') {'arm64'} else {'x64'})
           ArchitecturesInstallIn64BitMode=$(if ($rid -like '*arm64*') {'arm64'} else {'x64'})
-          PrivilegesRequired=lowest
+          PrivilegesRequired=admin
           SetupIconFile=$($PWD.Path)\Assets\icon.ico
           UninstallDisplayIcon={app}\Github-Trend.exe
 
@@ -207,6 +246,13 @@ jobs:
 
           [Tasks]
           Name: "desktopicon"; Description: "Create a &desktop icon"; GroupDescription: "Additional icons:"
+
+          [Code]
+          function InitializeSetup(): Boolean;
+          begin
+            Dependency_AddVC2015To2022;
+            Result := True;
+          end;
           "@
           Set-Content -Path $issPath -Value $issContent -Encoding UTF8
           
