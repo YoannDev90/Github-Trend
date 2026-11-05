@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0-android</TargetFramework>
+        <SupportedOSPlatformVersion>21.0</SupportedOSPlatformVersion>
+        <RootNamespace>Github_Trend</RootNamespace>
+        <ApplicationId>com.githubtrend.app</ApplicationId>
+        <ApplicationVersion>1</ApplicationVersion>
+        <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="Avalonia.Android" Version="12.0.3" />
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\Github-Trend.Core\Github-Trend.Core.csproj" />
+    </ItemGroup>
+</Project>
