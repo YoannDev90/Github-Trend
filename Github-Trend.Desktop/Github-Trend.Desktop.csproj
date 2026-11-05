@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <RootNamespace>Github_Trend</RootNamespace>
+        <AssemblyName>Github-Trend</AssemblyName>
+        <Nullable>enable</Nullable>
+        <ApplicationManifest>../Github-Trend.Core/app.manifest</ApplicationManifest>
+        <ApplicationIcon>../Github-Trend.Core/Assets/icon.ico</ApplicationIcon>
+        <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Avalonia.Desktop" Version="12.0.3"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Github-Trend.Core\Github-Trend.Core.csproj" />
+    </ItemGroup>
+</Project>
