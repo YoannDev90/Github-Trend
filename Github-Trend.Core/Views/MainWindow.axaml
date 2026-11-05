@@ -1,0 +1,401 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Name="MainWindowRoot"
+        xmlns:vm="using:Github_Trend"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+         xmlns:controls="using:Github_Trend.Controls"
+         xmlns:loc="using:Github_Trend.Localization"
+         xmlns:converters="using:Github_Trend"
+         xmlns:main="using:Github_Trend.Views.Main"
+        mc:Ignorable="d"
+        x:DataType="vm:MainWindowViewModel"
+        x:Class="Github_Trend.MainWindow"
+         Background="{DynamicResource BackgroundPrimaryBrush}"
+         UseLayoutRounding="True"
+         WindowState="Maximized"
+         Icon="avares://Github-Trend/Assets/icon.ico"
+         Title="GitHub Trend"
+         KeyDown="OnWindowKeyDown">
+    <Window.Resources>
+        <converters:BoolToStarredBrushConverter x:Key="StarredBrushConverter" />
+        <converters:BoolToWatchedBrushConverter x:Key="WatchedBrushConverter" />
+        <converters:BoolAndConverter x:Key="BoolAndConverter" />
+    </Window.Resources>
+    <Grid RowDefinitions="*,Auto">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="340" MinWidth="260" MaxWidth="500" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Border Background="{DynamicResource BackgroundSecondaryBrush}"
+                BorderBrush="{DynamicResource BorderPrimaryBrush}"
+                BorderThickness="0,0,0.5,0">
+            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          ClipToBounds="True">
+                <StackPanel Margin="12" Spacing="6">
+                    <main:SidebarPanel x:Name="Sidebar" />
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <GridSplitter Grid.Column="1"
+                       Width="4"
+                       Background="Transparent"
+                       ResizeDirection="Columns"
+                       ResizeBehavior="PreviousAndNext" />
+
+        <ScrollViewer x:Name="TrendingScrollViewer"
+                       Grid.Column="2"
+                       Background="{DynamicResource BackgroundPrimaryBrush}"
+                       Padding="20"
+                       VerticalScrollBarVisibility="Auto"
+                       HorizontalScrollBarVisibility="Disabled"
+                       ClipToBounds="True">
+            <StackPanel Spacing="16"
+                        Width="{Binding Viewport.Width, ElementName=TrendingScrollViewer}">
+                <Border Background="{DynamicResource BackgroundSecondaryBrush}"
+                        BorderBrush="{DynamicResource BorderPrimaryBrush}"
+                        BorderThickness="1"
+                        CornerRadius="{DynamicResource CornerXLarge}"
+                        Margin="8,0,8,0"
+                        HorizontalAlignment="Stretch"
+                        ClipToBounds="True"
+                        Padding="{DynamicResource PaddingXLarge}">
+                    <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="8" ColumnSpacing="12">
+                        <StackPanel Grid.Row="0" Spacing="6">
+                            <TextBlock
+                                Text="{Binding Source={x:Static loc:Localization.Instance}, Path=TrendingRepositoriesTitle}"
+                                Foreground="{DynamicResource TextPrimaryBrush}"
+                                FontSize="{DynamicResource FontSizeXLarge}"
+                                FontWeight="SemiBold"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="0"
+                                    Grid.Column="1"
+                                    Orientation="Horizontal"
+                                    Spacing="8"
+                                    VerticalAlignment="Top">
+                            <Border Background="{DynamicResource BackgroundElevatedBrush}"
+                                    BorderBrush="{DynamicResource BorderPrimaryBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="{DynamicResource CornerPill}"
+                                    Padding="10,5">
+                                <TextBlock Text="{Binding Filter.SelectedCount}"
+                                           Foreground="{DynamicResource TextTertiaryBrush}"
+                                           FontSize="{DynamicResource FontSizeXSmall}"
+                                           FontWeight="SemiBold" />
+                            </Border>
+
+                            <Border Background="{DynamicResource BackgroundElevatedBrush}"
+                                    BorderBrush="{DynamicResource BorderPrimaryBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="{DynamicResource CornerPill}"
+                                    Padding="10,5">
+                                <TextBlock Text="{Binding Filter.VisibleCount}"
+                                           Foreground="{DynamicResource TextTertiaryBrush}"
+                                           FontSize="{DynamicResource FontSizeXSmall}"
+                                           FontWeight="SemiBold" />
+                            </Border>
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="1"
+                                   Grid.Column="0"
+                                   Text="{Binding TrendingLabel}"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   FontSize="{DynamicResource FontSizeSmall}" />
+                    </Grid>
+                </Border>
+
+                <Border Background="{DynamicResource BackgroundSecondaryBrush}"
+                        BorderBrush="{DynamicResource BorderPrimaryBrush}"
+                        BorderThickness="1"
+                        CornerRadius="{DynamicResource CornerXLarge}"
+                        Margin="8,0,8,0"
+                        Padding="{DynamicResource PaddingXLarge}">
+                    <StackPanel Spacing="12">
+
+                        <!-- Loading state -->
+                        <Border IsVisible="{Binding ShowTrendingLoading}"
+                                Padding="40"
+                                HorizontalAlignment="Center">
+                            <StackPanel Spacing="12"
+                                        HorizontalAlignment="Center">
+                                <ProgressBar IsIndeterminate="True"
+                                             Width="200"
+                                             Height="4"
+                                             Foreground="{DynamicResource AccentPrimaryBrush}"
+                                             Background="{DynamicResource BackgroundTertiaryBrush}" />
+                                <TextBlock Text="Loading trending repositories..."
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="{DynamicResource FontSizeSmall}"
+                                           HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Empty state -->
+                        <Border IsVisible="{Binding ShowTrendingEmpty}"
+                                Padding="40"
+                                HorizontalAlignment="Center">
+                            <StackPanel Spacing="8"
+                                        HorizontalAlignment="Center">
+                                <TextBlock Text="No repositories found"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           FontSize="{DynamicResource FontSizeLarge}"
+                                           FontWeight="SemiBold"
+                                           HorizontalAlignment="Center" />
+                                <TextBlock Text="Try changing your language filter or trending period."
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="{DynamicResource FontSizeSmall}"
+                                           HorizontalAlignment="Center"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Repository list -->
+                        <ItemsControl x:Name="TrendingItemsControl"
+                                      IsVisible="{Binding ShowTrendingContent}"
+                                      HorizontalAlignment="Stretch"
+                                      ItemsSource="{Binding TrendingRepositories}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:GithubTrendingRepository">
+                                    <Border Background="{DynamicResource BackgroundPrimaryBrush}"
+                                            BorderBrush="{DynamicResource BorderPrimaryBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="{DynamicResource CornerMedium}"
+                                            Padding="0"
+                                            Margin="0,0,0,12"
+                                            Classes="repo-card"
+                                            ClipToBounds="True"
+                                            MinHeight="240">
+                                        <Grid ColumnDefinitions="1.25*,1.75*,180"
+                                              MinHeight="240">
+                                            <Border Background="{DynamicResource BackgroundSecondaryBrush}"
+                                                    CornerRadius="14,0,0,14"
+                                                    MinHeight="240"
+                                                    HorizontalAlignment="Stretch"
+                                                    VerticalAlignment="Stretch"
+                                                    ClipToBounds="True"
+                                                    IsVisible="{Binding ViewModel.Settings.ShowBanners, ElementName=MainWindowRoot}">
+                                                <Grid>
+                                                    <Image Source="{Binding BannerImage}"
+                                                           Stretch="Uniform"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center" />
+                                                </Grid>
+                                            </Border>
+
+                                            <StackPanel Grid.Column="1"
+                                                        Spacing="12"
+                                                        Margin="18"
+                                                        VerticalAlignment="Stretch"
+                                                        HorizontalAlignment="Stretch">
+                                                <StackPanel Spacing="4">
+                                                    <TextBlock Text="{Binding DisplayTitle}"
+                                                               Foreground="{DynamicResource TextPrimaryBrush}"
+                                                               FontWeight="SemiBold"
+                                                               FontSize="{DynamicResource FontSizeLarge}"
+                                                               TextWrapping="Wrap" />
+                                                    <TextBlock Text="{Binding Description}"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               FontSize="{DynamicResource FontSizeSmall}"
+                                                               TextWrapping="Wrap" />
+                                                </StackPanel>
+
+                                                <StackPanel Spacing="8"
+                                                            IsVisible="{Binding HasContributors}">
+                                                    <TextBlock
+                                                        Text="{Binding Source={x:Static loc:Localization.Instance}, Path=ContributorsTitle}"
+                                                        Foreground="{DynamicResource TextPrimaryBrush}"
+                                                        FontSize="{DynamicResource FontSizeXSmall}"
+                                                        FontWeight="SemiBold"
+                                                        Opacity="0.9" />
+
+                                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                                        <ItemsControl ItemsSource="{Binding Contributors}">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate>
+                                                                    <StackPanel Orientation="Horizontal" />
+                                                                </ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate x:DataType="vm:GithubContributorPreview">
+                                                                    <Border Width="32"
+                                                                            Height="32"
+                                                                            CornerRadius="{DynamicResource CornerPill}"
+                                                                            ClipToBounds="True"
+                                                                            Margin="0,0,6,0"
+                                                                            BorderBrush="{DynamicResource BorderSecondaryBrush}"
+                                                                            BorderThickness="1">
+                                                                        <Image Source="{Binding AvatarImage}"
+                                                                               Stretch="UniformToFill" />
+                                                                    </Border>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+
+                                                    </Grid>
+                                                </StackPanel>
+
+                                                <WrapPanel>
+                                                    <Border Background="{Binding LanguageBrush}"
+                                                            CornerRadius="{DynamicResource CornerPill}"
+                                                            Padding="10,5"
+                                                            Margin="0,0,8,8">
+                                                        <TextBlock Text="{Binding LanguageBadgeText}"
+                                                                   Foreground="{DynamicResource TextOnAccentBrush}"
+                                                                   FontSize="{DynamicResource FontSizeXSmall}"
+                                                                   FontWeight="SemiBold" />
+                                                    </Border>
+
+                                                    <Border Background="{DynamicResource BackgroundTertiaryBrush}"
+                                                            CornerRadius="{DynamicResource CornerPill}"
+                                                            Padding="10,5"
+                                                            Margin="0,0,8,8">
+                                                        <TextBlock Text="{Binding LicenseBadgeText}"
+                                                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                                                   FontSize="{DynamicResource FontSizeXSmall}"
+                                                                   FontWeight="SemiBold" />
+                                                    </Border>
+
+                                                    <Border Background="{DynamicResource BackgroundTertiaryBrush}"
+                                                            CornerRadius="{DynamicResource CornerPill}"
+                                                            Padding="10,5"
+                                                            Margin="0,0,8,8">
+                                                        <TextBlock Text="{Binding LastUpdatedBadgeText}"
+                                                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                                                   FontSize="{DynamicResource FontSizeXSmall}"
+                                                                   FontWeight="SemiBold" />
+                                                    </Border>
+
+                                                </WrapPanel>
+
+                                                <ItemsControl ItemsSource="{Binding Topics}">
+                                                    <ItemsControl.IsVisible>
+                                                        <MultiBinding Converter="{StaticResource BoolAndConverter}">
+                                                            <Binding Path="HasTopics" />
+                                                            <Binding Path="ViewModel.Settings.ShowTopics" ElementName="MainWindowRoot" />
+                                                        </MultiBinding>
+                                                    </ItemsControl.IsVisible>
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <WrapPanel />
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Border Background="{DynamicResource BackgroundTertiaryBrush}"
+                                                                    BorderBrush="{DynamicResource BorderPrimaryBrush}"
+                                                                    BorderThickness="1"
+                                                                    CornerRadius="{DynamicResource CornerPill}"
+                                                                    Padding="10,5"
+                                                                    Margin="0,0,8,8">
+                                                                <TextBlock Text="{Binding}"
+                                                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                                                           FontSize="{DynamicResource FontSizeXSmall}"
+                                                                           FontWeight="SemiBold" />
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+
+                                            </StackPanel>
+
+                                            <Border Grid.Column="2"
+                                                    Background="{DynamicResource BackgroundPrimaryBrush}"
+                                                    BorderBrush="{DynamicResource BorderPrimaryBrush}"
+                                                    BorderThickness="1,0,0,0"
+                                                    Padding="{DynamicResource PaddingLarge}"
+                                                    ClipToBounds="True">
+                                                <StackPanel Spacing="8"
+                                                            VerticalAlignment="Top">
+                                                     <Button Classes="repo-action-button"
+                                                              HorizontalAlignment="Stretch"
+                                                              ToolTip.Tip="Open in browser"
+                                                              AutomationProperties.Name="Open in browser"
+                                                              Command="{Binding ViewModel.OpenRepositoryCommand, ElementName=MainWindowRoot}"
+                                                              CommandParameter="{Binding}">
+                                                         <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                                             <controls:SvgImage
+                                                                 SourceUri="avares://Github-Trend/Assets/Icons/open.svg"
+                                                                 Width="18" Height="18" />
+                                                             <TextBlock Text="Open" VerticalAlignment="Center" />
+                                                         </StackPanel>
+                                                     </Button>
+
+                                                     <Button Classes="repo-action-button"
+                                                              HorizontalAlignment="Stretch"
+                                                              ToolTip.Tip="Star on GitHub"
+                                                              AutomationProperties.Name="Star on GitHub"
+                                                              Background="{Binding IsStarred, Converter={StaticResource StarredBrushConverter}}"
+                                                              Command="{Binding ViewModel.StarRepositoryCommand, ElementName=MainWindowRoot}"
+                                                              CommandParameter="{Binding}">
+                                                         <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                                             <controls:SvgImage
+                                                                 SourceUri="avares://Github-Trend/Assets/Icons/star.svg"
+                                                                 Width="18" Height="18" />
+                                                             <TextBlock Text="Star" VerticalAlignment="Center" />
+                                                         </StackPanel>
+                                                     </Button>
+
+                                                     <Button Classes="repo-action-button"
+                                                              HorizontalAlignment="Stretch"
+                                                              ToolTip.Tip="Watch on GitHub"
+                                                              AutomationProperties.Name="Watch on GitHub"
+                                                              Background="{Binding IsWatched, Converter={StaticResource WatchedBrushConverter}}"
+                                                              Command="{Binding ViewModel.WatchRepositoryCommand, ElementName=MainWindowRoot}"
+                                                              CommandParameter="{Binding}">
+                                                         <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                                             <controls:SvgImage
+                                                                 SourceUri="avares://Github-Trend/Assets/Icons/watch.svg"
+                                                                 Width="18" Height="18" />
+                                                             <TextBlock Text="Watch" VerticalAlignment="Center" />
+                                                         </StackPanel>
+                                                     </Button>
+
+                                                     <Button Classes="repo-action-button"
+                                                               HorizontalAlignment="Stretch"
+                                                               ToolTip.Tip="Dismiss"
+                                                               AutomationProperties.Name="Dismiss"
+                                                               Command="{Binding ViewModel.DismissRepositoryCommand, ElementName=MainWindowRoot}"
+                                                               CommandParameter="{Binding}">
+                                                           <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                                               <controls:SvgImage
+                                                                   SourceUri="avares://Github-Trend/Assets/Icons/close.svg"
+                                                                   Width="18" Height="18" />
+                                                               <TextBlock Text="Dismiss" VerticalAlignment="Center" />
+                                                           </StackPanel>
+                                                       </Button>
+
+                                                      <Button Classes="repo-action-button"
+                                                                HorizontalAlignment="Stretch"
+                                                                ToolTip.Tip="Save for later"
+                                                                AutomationProperties.Name="Save for later"
+                                                                Command="{Binding ViewModel.SaveRepositoryCommand, ElementName=MainWindowRoot}"
+                                                               CommandParameter="{Binding}">
+                                                           <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                                               <controls:SvgImage
+                                                                   SourceUri="avares://Github-Trend/Assets/Icons/save.svg"
+                                                                   Width="18" Height="18" />
+                                                               <TextBlock Text="Save" VerticalAlignment="Center" />
+                                                           </StackPanel>
+                                                       </Button>
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <main:StatusBar Grid.Row="1" Grid.ColumnSpan="3" />
+    </Grid>
+</Window>

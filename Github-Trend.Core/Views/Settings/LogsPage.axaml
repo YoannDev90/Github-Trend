@@ -1,0 +1,127 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Github_Trend"
+             xmlns:controls="using:Github_Trend.Controls"
+             x:Class="Github_Trend.Views.Settings.LogsPage"
+             x:DataType="vm:SettingsWindowViewModel">
+    <StackPanel Spacing="28">
+        <StackPanel Spacing="6">
+            <TextBlock Classes="page-title" Text="Logs" />
+            <TextBlock Classes="section-desc" Text="View application logs for troubleshooting and diagnostics." />
+        </StackPanel>
+        <Border Classes="settings-card" Padding="0" MinHeight="500">
+            <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="20">
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                        <TextBlock Classes="section-title" Text="Application Logs" FontSize="16" />
+                        <Border Background="{DynamicResource BackgroundTertiaryBrush}" CornerRadius="6" Padding="8,3">
+                            <TextBlock Text="{Binding Debug.FilterSummary}" Foreground="{DynamicResource TextTertiaryBrush}"
+                                       FontSize="11" FontWeight="SemiBold" />
+                        </Border>
+                    </StackPanel>
+                    <Button Grid.Column="1" Classes="btn-secondary" Command="{Binding Debug.ReloadLogsCommand}" AutomationProperties.Name="Reload logs">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/refresh.svg"
+                                               Width="14" Height="14" VerticalAlignment="Center" />
+                            <TextBlock Text="Reload" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Margin="0,0,0,12">
+                    <Button Classes="log-filter" x:Name="TrcButton" Content="Trace"
+                            Command="{Binding Debug.ToggleLevelCommand}" CommandParameter="TRC" AutomationProperties.Name="Filter trace logs" />
+                    <Button Classes="log-filter" x:Name="DbgButton" Content="Debug"
+                            Command="{Binding Debug.ToggleLevelCommand}" CommandParameter="DBG" AutomationProperties.Name="Filter debug logs" />
+                    <Button Classes="log-filter" x:Name="InfButton" Content="Info"
+                            Command="{Binding Debug.ToggleLevelCommand}" CommandParameter="INF" AutomationProperties.Name="Filter info logs" />
+                    <Button Classes="log-filter" x:Name="WrnButton" Content="Warning"
+                            Command="{Binding Debug.ToggleLevelCommand}" CommandParameter="WRN" AutomationProperties.Name="Filter warning logs" />
+                    <Button Classes="log-filter" x:Name="ErrButton" Content="Error"
+                            Command="{Binding Debug.ToggleLevelCommand}" CommandParameter="ERR" AutomationProperties.Name="Filter error logs" />
+                    <Button Classes="log-filter" x:Name="FtlButton" Content="Fatal"
+                            Command="{Binding Debug.ToggleLevelCommand}" CommandParameter="FTL" AutomationProperties.Name="Filter fatal logs" />
+                </StackPanel>
+                <Border Grid.Row="2" Background="{DynamicResource BackgroundTertiaryBrush}" CornerRadius="10" Padding="0">
+                    <ListBox x:Name="LogListBox"
+                             ItemsSource="{Binding Debug.FilteredLogEntries}"
+                             SelectedItem="{Binding Debug.SelectedLogEntry}"
+                             Background="Transparent" BorderThickness="0" Padding="4"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.Styles>
+                            <Style Selector="ListBoxItem">
+                                <Setter Property="Padding" Value="1" />
+                                <Setter Property="Margin" Value="2,1" />
+                                <Setter Property="BorderThickness" Value="0" />
+                                <Setter Property="Background" Value="Transparent" />
+                                <Setter Property="CornerRadius" Value="6" />
+                                <Setter Property="Cursor" Value="Hand" />
+                            </Style>
+                            <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+                                <Setter Property="Background" Value="Transparent" />
+                            </Style>
+                            <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+                                <Setter Property="Background" Value="Transparent" />
+                            </Style>
+                        </ListBox.Styles>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:LogEntry">
+                                <Border Background="{Binding Level, Converter={StaticResource LogLevelBackgroundConverter}}"
+                                        CornerRadius="6" Padding="10,6">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <TextBlock Text="{Binding Timestamp}" Foreground="{DynamicResource TextTertiaryBrush}"
+                                                   FontSize="11" FontFamily="Consolas" VerticalAlignment="Center" Opacity="0.5" />
+                                        <Border Background="{Binding Level, Converter={StaticResource LogLevelConverter}}"
+                                                CornerRadius="4" Padding="7,2" MinWidth="48" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Level, Converter={StaticResource LogLevelDisplayNameConverter}}"
+                                                       Foreground="{DynamicResource TextOnAccentBrush}" FontSize="10"
+                                                       FontWeight="Bold" FontFamily="Consolas" HorizontalAlignment="Center" />
+                                        </Border>
+                                        <TextBlock Text="{Binding Message}" Foreground="{DynamicResource TextPrimaryBrush}"
+                                                   FontSize="12" FontFamily="Consolas" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Border>
+                <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto" Margin="0,10,0,6">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Button Classes="btn-secondary" Command="{Binding Debug.CopySelectedLogCommand}" AutomationProperties.Name="Copy selected log entry">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/content-copy.svg"
+                                                   Width="14" Height="14" VerticalAlignment="Center" />
+                                <TextBlock Text="Copy" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="btn-secondary" Command="{Binding Debug.CopyAllFilteredCommand}" AutomationProperties.Name="Copy all filtered log entries">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/content-copy.svg"
+                                                   Width="14" Height="14" VerticalAlignment="Center" />
+                                <TextBlock Text="Copy all" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
+                        <Button Classes="btn-danger" Command="{Binding Debug.DeleteCurrentLogCommand}" AutomationProperties.Name="Delete current log file">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/delete.svg"
+                                                   Width="14" Height="14" VerticalAlignment="Center" />
+                                <TextBlock Text="Delete file" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="btn-danger" Command="{Binding Debug.DeleteAllLogsCommand}" AutomationProperties.Name="Delete all log files">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/delete.svg"
+                                                   Width="14" Height="14" VerticalAlignment="Center" />
+                                <TextBlock Text="Delete all" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+                <TextBlock Grid.Row="4" Text="{Binding Debug.CurrentLogFileName}"
+                           Foreground="{DynamicResource TextTertiaryBrush}" FontSize="11"
+                           FontFamily="Consolas" Opacity="0.4" Margin="2,0" />
+            </Grid>
+        </Border>
+    </StackPanel>
+</UserControl>

@@ -1,0 +1,12 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Github_Trend"
+             x:Class="Github_Trend.Views.Main.StatusBar"
+             x:DataType="vm:MainWindowViewModel">
+    <Border Background="{DynamicResource BackgroundSecondaryBrush}"
+            BorderBrush="{DynamicResource BorderPrimaryBrush}"
+            BorderThickness="0,1,0,0" Padding="16,8">
+        <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource TextSecondaryBrush}"
+                   FontSize="{DynamicResource FontSizeSmall}" TextTrimming="CharacterEllipsis" />
+    </Border>
+</UserControl>

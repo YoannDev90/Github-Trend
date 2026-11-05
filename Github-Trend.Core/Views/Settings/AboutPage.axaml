@@ -1,0 +1,79 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Github_Trend"
+             xmlns:controls="using:Github_Trend.Controls"
+             x:Class="Github_Trend.Views.Settings.AboutPage"
+             x:DataType="vm:SettingsWindowViewModel">
+    <StackPanel Spacing="28">
+        <StackPanel Spacing="6">
+            <TextBlock Classes="page-title" Text="About" />
+            <TextBlock Classes="section-desc" Text="Application information and useful resources." />
+        </StackPanel>
+        <Border Classes="settings-card">
+            <StackPanel Spacing="14">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="section-title" Text="Useful Links" />
+                    <TextBlock Classes="section-desc" Text="Quick access to project resources." />
+                </StackPanel>
+                <ItemsControl ItemsSource="{Binding ExternalLinks}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Spacing="8" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ExternalLink">
+                            <Border Background="{DynamicResource BackgroundTertiaryBrush}" CornerRadius="10"
+                                    Padding="14" Cursor="Hand" PointerPressed="OnLinkPointerPressed" AutomationProperties.Name="{Binding Title}" Tag="{Binding Url}">
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+                                    <Border Background="{DynamicResource BackgroundSecondaryBrush}" CornerRadius="8"
+                                            Width="36" Height="36" VerticalAlignment="Center">
+                                        <controls:SvgImage SourceUri="{Binding Icon}" Width="18" Height="18"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Title}" Foreground="{DynamicResource TextPrimaryBrush}"
+                                                   FontSize="14" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding Url}" Foreground="{DynamicResource TextTertiaryBrush}"
+                                                   FontSize="11" TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                    <controls:SvgImage Grid.Column="2"
+                                                       SourceUri="avares://Github-Trend/Assets/Icons/open.svg"
+                                                       Width="16" Height="16" VerticalAlignment="Center" Opacity="0.5" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+        <Border Classes="settings-card">
+            <StackPanel Spacing="14">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="section-title" Text="Info" />
+                    <TextBlock Classes="section-desc" Text="Application version and system details." />
+                </StackPanel>
+                <Border Background="{DynamicResource BackgroundTertiaryBrush}" CornerRadius="10" Padding="14">
+                    <StackPanel Spacing="8">
+                        <Grid ColumnDefinitions="120,*" ColumnSpacing="12">
+                            <TextBlock Classes="label-text" Text="Version" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Classes="value-text" Text="{Binding AppVersion}" />
+                        </Grid>
+                        <Grid ColumnDefinitions="120,*" ColumnSpacing="12">
+                            <TextBlock Classes="label-text" Text="OS" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Classes="value-text" Text="{Binding OsVersion}" />
+                        </Grid>
+                        <Grid ColumnDefinitions="120,*" ColumnSpacing="12">
+                            <TextBlock Classes="label-text" Text="Architecture" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Classes="value-text" Text="{Binding OsArchitecture}" />
+                        </Grid>
+                        <Grid ColumnDefinitions="120,*" ColumnSpacing="12">
+                            <TextBlock Classes="label-text" Text=".NET" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Classes="value-text" Text="{Binding DotNetVersion}" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

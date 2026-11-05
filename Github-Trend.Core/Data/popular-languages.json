@@ -1,0 +1,28 @@
+{
+  "$schema": "schema.json",
+  "description": "Languages considered popular, sorted by estimated developer community size.",
+  "popularLanguages": [
+    "JavaScript",
+    "TypeScript",
+    "Python",
+    "Rust",
+    "Go",
+    "Java",
+    "C#",
+    "C++",
+    "C",
+    "Swift",
+    "Kotlin",
+    "Ruby",
+    "PHP",
+    "Shell",
+    "HTML",
+    "CSS",
+    "SCSS",
+    "Vue",
+    "React",
+    "Solidity",
+    "Zig",
+    "Lua"
+  ]
+}
