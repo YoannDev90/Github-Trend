@@ -190,7 +190,7 @@ public partial class SettingsWindow : Window
             Log.Information("Deleting log file: {Path}", path);
             Serilog.Log.CloseAndFlush();
             vm.Debug.DeleteLogFile(path);
-            Program.ConfigureLogging();
+            Github_Trend.Utils.LoggingConfigurator.Configure();
             vm.Debug.ReloadLogsCommand.Execute(null);
             Log.Information("Log file deleted: {Path}", path);
         }
@@ -211,7 +211,7 @@ public partial class SettingsWindow : Window
             Log.Information("Deleting all log files");
             Serilog.Log.CloseAndFlush();
             vm.Debug.DeleteAllLogFiles();
-            Program.ConfigureLogging();
+            Github_Trend.Utils.LoggingConfigurator.Configure();
             vm.Debug.ReloadLogsCommand.Execute(null);
             Log.Information("All log files deleted");
         }
