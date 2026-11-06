@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using Avalonia;
 using Github_Trend.Services;
+using Github_Trend.Utils;
 using Serilog;
 
 namespace Github_Trend;
@@ -12,7 +13,7 @@ internal class Program
     public static void Main(string[] args)
     {
         AppConfig.Load();
-        ConfigureLogging();
+        LoggingConfigurator.Configure();
 
         try
         {
@@ -39,24 +40,5 @@ internal class Program
             .WithInterFont()
             .LogToTrace();
 
-    public static void ConfigureLogging()
-    {
-        var logDirectory = Path.Combine(
-            AppContext.BaseDirectory,
-            AppConfig.Logging.DirectoryName
-        );
-        Directory.CreateDirectory(logDirectory);
-
-        Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Debug()
-            .Enrich.FromLogContext()
-            .WriteTo.Console(restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Information)
-            .WriteTo.File(
-                Path.Combine(logDirectory, AppConfig.Logging.FilePattern),
-                rollingInterval: RollingInterval.Day,
-                retainedFileCountLimit: AppConfig.Logging.RetainedFileCount,
-                restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Debug
-            )
-            .CreateLogger();
-    }
+    public static void ConfigureLogging() => LoggingConfigurator.Configure();
 }
