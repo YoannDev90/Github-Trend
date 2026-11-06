@@ -21,14 +21,14 @@
                         <Button Classes="seg-control" x:Name="DarkThemeButton" CornerRadius="8,0,0,8"
                                 Click="OnDarkThemeClick" AutomationProperties.Name="Dark theme">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/weather-night.svg" Width="16" Height="16" />
+                                <controls:SvgImage SourceUri="avares://Github-Trend.Core/Assets/Icons/weather-night.svg" Width="16" Height="16" />
                                 <TextBlock Text="Dark" />
                             </StackPanel>
                         </Button>
                         <Button Grid.Column="1" Classes="seg-control" x:Name="LightThemeButton" CornerRadius="0,8,8,0"
                                 Click="OnLightThemeClick" AutomationProperties.Name="Light theme">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/weather-sunny.svg" Width="16" Height="16" />
+                                <controls:SvgImage SourceUri="avares://Github-Trend.Core/Assets/Icons/weather-sunny.svg" Width="16" Height="16" />
                                 <TextBlock Text="Light" />
                             </StackPanel>
                         </Button>

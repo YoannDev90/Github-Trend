@@ -14,7 +14,7 @@
          Background="{DynamicResource BackgroundPrimaryBrush}"
          UseLayoutRounding="True"
          WindowState="Maximized"
-         Icon="avares://Github-Trend/Assets/icon.ico"
+         Icon="avares://Github-Trend.Core/Assets/icon.ico"
          Title="GitHub Trend"
          KeyDown="OnWindowKeyDown">
     <Window.Resources>
@@ -321,7 +321,7 @@
                                                               CommandParameter="{Binding}">
                                                          <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                                                              <controls:SvgImage
-                                                                 SourceUri="avares://Github-Trend/Assets/Icons/open.svg"
+                                                                 SourceUri="avares://Github-Trend.Core/Assets/Icons/open.svg"
                                                                  Width="18" Height="18" />
                                                              <TextBlock Text="Open" VerticalAlignment="Center" />
                                                          </StackPanel>
@@ -336,7 +336,7 @@
                                                               CommandParameter="{Binding}">
                                                          <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                                                              <controls:SvgImage
-                                                                 SourceUri="avares://Github-Trend/Assets/Icons/star.svg"
+                                                                 SourceUri="avares://Github-Trend.Core/Assets/Icons/star.svg"
                                                                  Width="18" Height="18" />
                                                              <TextBlock Text="Star" VerticalAlignment="Center" />
                                                          </StackPanel>
@@ -351,7 +351,7 @@
                                                               CommandParameter="{Binding}">
                                                          <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                                                              <controls:SvgImage
-                                                                 SourceUri="avares://Github-Trend/Assets/Icons/watch.svg"
+                                                                 SourceUri="avares://Github-Trend.Core/Assets/Icons/watch.svg"
                                                                  Width="18" Height="18" />
                                                              <TextBlock Text="Watch" VerticalAlignment="Center" />
                                                          </StackPanel>
@@ -365,7 +365,7 @@
                                                                CommandParameter="{Binding}">
                                                            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                                                                <controls:SvgImage
-                                                                   SourceUri="avares://Github-Trend/Assets/Icons/close.svg"
+                                                                   SourceUri="avares://Github-Trend.Core/Assets/Icons/close.svg"
                                                                    Width="18" Height="18" />
                                                                <TextBlock Text="Dismiss" VerticalAlignment="Center" />
                                                            </StackPanel>
@@ -379,7 +379,7 @@
                                                                CommandParameter="{Binding}">
                                                            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                                                                <controls:SvgImage
-                                                                   SourceUri="avares://Github-Trend/Assets/Icons/save.svg"
+                                                                   SourceUri="avares://Github-Trend.Core/Assets/Icons/save.svg"
                                                                    Width="18" Height="18" />
                                                                <TextBlock Text="Save" VerticalAlignment="Center" />
                                                            </StackPanel>

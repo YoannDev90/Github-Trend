@@ -102,7 +102,7 @@
                 BorderThickness="0,0,0,1" Padding="32,16,32,16">
             <Grid ColumnDefinitions="Auto,*,Auto">
                 <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                    <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/settings.svg" Width="24" Height="24" />
+                    <controls:SvgImage SourceUri="avares://Github-Trend.Core/Assets/Icons/settings.svg" Width="24" Height="24" />
                     <TextBlock Text="Settings" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="22" FontWeight="Bold" VerticalAlignment="Center" />
                 </StackPanel>
                 <TextBlock Grid.Column="1" Text="{Binding SelectedPage.Description}" Foreground="{DynamicResource TextTertiaryBrush}"

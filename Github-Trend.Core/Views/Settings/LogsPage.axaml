@@ -21,7 +21,7 @@
                     </StackPanel>
                     <Button Grid.Column="1" Classes="btn-secondary" Command="{Binding Debug.ReloadLogsCommand}" AutomationProperties.Name="Reload logs">
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/refresh.svg"
+                            <controls:SvgImage SourceUri="avares://Github-Trend.Core/Assets/Icons/refresh.svg"
                                                Width="14" Height="14" VerticalAlignment="Center" />
                             <TextBlock Text="Reload" VerticalAlignment="Center" />
                         </StackPanel>
@@ -88,14 +88,14 @@
                     <StackPanel Orientation="Horizontal" Spacing="6">
                         <Button Classes="btn-secondary" Command="{Binding Debug.CopySelectedLogCommand}" AutomationProperties.Name="Copy selected log entry">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/content-copy.svg"
+                                <controls:SvgImage SourceUri="avares://Github-Trend.Core/Assets/Icons/content-copy.svg"
                                                    Width="14" Height="14" VerticalAlignment="Center" />
                                 <TextBlock Text="Copy" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
                         <Button Classes="btn-secondary" Command="{Binding Debug.CopyAllFilteredCommand}" AutomationProperties.Name="Copy all filtered log entries">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/content-copy.svg"
+                                <controls:SvgImage SourceUri="avares://Github-Trend.Core/Assets/Icons/content-copy.svg"
                                                    Width="14" Height="14" VerticalAlignment="Center" />
                                 <TextBlock Text="Copy all" VerticalAlignment="Center" />
                             </StackPanel>
@@ -104,14 +104,14 @@
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
                         <Button Classes="btn-danger" Command="{Binding Debug.DeleteCurrentLogCommand}" AutomationProperties.Name="Delete current log file">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/delete.svg"
+                                <controls:SvgImage SourceUri="avares://Github-Trend.Core/Assets/Icons/delete.svg"
                                                    Width="14" Height="14" VerticalAlignment="Center" />
                                 <TextBlock Text="Delete file" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
                         <Button Classes="btn-danger" Command="{Binding Debug.DeleteAllLogsCommand}" AutomationProperties.Name="Delete all log files">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/delete.svg"
+                                <controls:SvgImage SourceUri="avares://Github-Trend.Core/Assets/Icons/delete.svg"
                                                    Width="14" Height="14" VerticalAlignment="Center" />
                                 <TextBlock Text="Delete all" VerticalAlignment="Center" />
                             </StackPanel>

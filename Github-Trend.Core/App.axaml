@@ -6,7 +6,7 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceInclude Source="avares://Github-Trend/Themes/ThemeColors.axaml" />
+                <ResourceInclude Source="avares://Github-Trend.Core/Themes/ThemeColors.axaml" />
             </ResourceDictionary.MergedDictionaries>
             <converters:LogLevelToBrushConverter x:Key="LogLevelConverter" />
             <converters:LogLevelToBackgroundConverter x:Key="LogLevelBackgroundConverter" />
@@ -17,6 +17,6 @@
 
     <Application.Styles>
         <FluentTheme />
-        <StyleInclude Source="avares://Github-Trend/Themes/Styles.axaml" />
+        <StyleInclude Source="avares://Github-Trend.Core/Themes/Styles.axaml" />
     </Application.Styles>
 </Application>
