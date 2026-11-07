@@ -1,3 +1,5 @@
+![GitHub Trend banner](Github-Trend.Core/Assets/banner.svg)
+
 # GitHub Trend
 
 Desktop app that shows trending GitHub repos. Built it because I got tired of opening the browser every time I wanted to see what's trending.
