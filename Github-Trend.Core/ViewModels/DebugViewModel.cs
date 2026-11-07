@@ -93,7 +93,7 @@ public sealed partial class DebugViewModel : ViewModelBase
 
     public string LogsContent => $"{DebugInfo}\n\n=== APPLICATION LOGS ===\n\n{AppLogs}";
 
-    public string LogDirPath => Path.Combine(AppContext.BaseDirectory, AppConfig.Logging.DirectoryName);
+    public string LogDirPath => Utils.LoggingConfigurator.LogDirectory;
 
     public string CurrentLogFileName => _currentLogPath is not null
         ? Path.GetFileName(_currentLogPath)
