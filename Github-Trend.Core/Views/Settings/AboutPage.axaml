@@ -38,7 +38,7 @@
                                                    FontSize="11" TextTrimming="CharacterEllipsis" />
                                     </StackPanel>
                                     <controls:SvgImage Grid.Column="2"
-                                                       SourceUri="avares://Github-Trend/Assets/Icons/open.svg"
+                                                       SourceUri="avares://Github-Trend.Core/Assets/Icons/open.svg"
                                                        Width="16" Height="16" VerticalAlignment="Center" Opacity="0.5" />
                                 </Grid>
                             </Border>

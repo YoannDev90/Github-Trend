@@ -20,7 +20,7 @@
                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
                         <Border Background="{DynamicResource BackgroundSecondaryBrush}" CornerRadius="10"
                                 Width="48" Height="48" VerticalAlignment="Center">
-                            <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/download.svg"
+                            <controls:SvgImage SourceUri="avares://Github-Trend.Core/Assets/Icons/download.svg"
                                                Width="24" Height="24" />
                         </Border>
                         <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
@@ -30,7 +30,7 @@
                                     Command="{Binding ExportSettingsCommand}"
                                     AutomationProperties.Name="Export settings">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/download.svg"
+                                    <controls:SvgImage SourceUri="avares://Github-Trend.Core/Assets/Icons/download.svg"
                                                        Width="14" Height="14" VerticalAlignment="Center" />
                                     <TextBlock Text="Export Settings" VerticalAlignment="Center" />
                                 </StackPanel>
@@ -51,7 +51,7 @@
                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
                         <Border Background="{DynamicResource BackgroundSecondaryBrush}" CornerRadius="10"
                                 Width="48" Height="48" VerticalAlignment="Center">
-                            <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/upload.svg"
+                            <controls:SvgImage SourceUri="avares://Github-Trend.Core/Assets/Icons/upload.svg"
                                                Width="24" Height="24" />
                         </Border>
                         <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
@@ -63,7 +63,7 @@
                                     Command="{Binding ImportSettingsCommand}"
                                     AutomationProperties.Name="Import settings">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/upload.svg"
+                                    <controls:SvgImage SourceUri="avares://Github-Trend.Core/Assets/Icons/upload.svg"
                                                        Width="14" Height="14" VerticalAlignment="Center" />
                                     <TextBlock Text="Import Settings" VerticalAlignment="Center" />
                                 </StackPanel>

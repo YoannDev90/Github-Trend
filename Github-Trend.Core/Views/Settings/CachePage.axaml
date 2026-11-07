@@ -50,7 +50,7 @@
                                 <Button Grid.Column="1" Classes="btn-secondary" VerticalAlignment="Center"
                                         Command="{Binding ClearTrendingCacheCommand}" AutomationProperties.Name="Clear trending cache">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/delete.svg"
+                                        <controls:SvgImage SourceUri="avares://Github-Trend.Core/Assets/Icons/delete.svg"
                                                            Width="14" Height="14" VerticalAlignment="Center" />
                                         <TextBlock Text="Clear" VerticalAlignment="Center" />
                                     </StackPanel>
@@ -66,7 +66,7 @@
                                 <Button Grid.Column="1" Classes="btn-secondary" VerticalAlignment="Center"
                                         Command="{Binding ClearDetailsCacheCommand}" AutomationProperties.Name="Clear repository details cache">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/delete.svg"
+                                        <controls:SvgImage SourceUri="avares://Github-Trend.Core/Assets/Icons/delete.svg"
                                                            Width="14" Height="14" VerticalAlignment="Center" />
                                         <TextBlock Text="Clear" VerticalAlignment="Center" />
                                     </StackPanel>
@@ -82,7 +82,7 @@
                                 <Button Grid.Column="1" Classes="btn-secondary" VerticalAlignment="Center"
                                         Command="{Binding ClearImageCacheCommand}" AutomationProperties.Name="Clear image cache">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/delete.svg"
+                                        <controls:SvgImage SourceUri="avares://Github-Trend.Core/Assets/Icons/delete.svg"
                                                            Width="14" Height="14" VerticalAlignment="Center" />
                                         <TextBlock Text="Clear" VerticalAlignment="Center" />
                                     </StackPanel>
@@ -93,7 +93,7 @@
                 </Border>
                 <Button Classes="btn-danger" HorizontalAlignment="Left" Command="{Binding ClearAllCacheCommand}" AutomationProperties.Name="Clear all cached data">
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/database-outline.svg"
+                        <controls:SvgImage SourceUri="avares://Github-Trend.Core/Assets/Icons/database-outline.svg"
                                            Width="16" Height="16" VerticalAlignment="Center" />
                         <TextBlock Text="Clear All Cached Data" VerticalAlignment="Center" />
                     </StackPanel>

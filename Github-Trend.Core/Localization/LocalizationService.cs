@@ -17,7 +17,7 @@ public sealed class LocalizationService
     private static readonly ILogger Logger = Log.ForContext<LocalizationService>();
 
     private static readonly ResourceManager ResourceManager = new(
-        "Github-Trend.Localization.Resources",
+        "Github_Trend.Localization.Resources",
         typeof(LocalizationService).Assembly
     );
 

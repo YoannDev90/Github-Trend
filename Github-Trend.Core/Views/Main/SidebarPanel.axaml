@@ -13,13 +13,13 @@
                     Background="Transparent" Foreground="{DynamicResource TextSecondaryBrush}" BorderThickness="0"
                     CornerRadius="{DynamicResource CornerSmall}"
                     AutomationProperties.Name="Sign in with GitHub">
-                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/github.svg" Width="16" Height="16" />
+                <controls:SvgImage SourceUri="avares://Github-Trend.Core/Assets/Icons/github.svg" Width="16" Height="16" />
             </Button>
             <Button Grid.Column="2" Click="OnSettingsButtonClick" Width="32" Height="32" Padding="0"
                     Background="Transparent" Foreground="{DynamicResource TextSecondaryBrush}" BorderThickness="0"
                     CornerRadius="{DynamicResource CornerSmall}"
                     AutomationProperties.Name="Settings">
-                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/settings.svg" Width="16" Height="16" />
+                <controls:SvgImage SourceUri="avares://Github-Trend.Core/Assets/Icons/settings.svg" Width="16" Height="16" />
             </Button>
         </Grid>
 

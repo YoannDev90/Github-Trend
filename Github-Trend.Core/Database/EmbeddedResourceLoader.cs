@@ -8,7 +8,7 @@ internal static class EmbeddedResourceLoader
     public static string Load(string resourceName)
     {
         var assembly = Assembly.GetExecutingAssembly();
-        var fullName = $"{assembly.GetName().Name}.{resourceName}";
+        var fullName = $"Github_Trend.{resourceName}";
         using var stream = assembly.GetManifestResourceStream(fullName);
         if (stream is null)
             throw new FileNotFoundException($"Embedded resource not found: {fullName}");

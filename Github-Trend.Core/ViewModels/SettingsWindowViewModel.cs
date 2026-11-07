@@ -35,14 +35,14 @@ public sealed class SettingsWindowViewModel : ViewModelBase, IDisposable
 
         Pages =
         [
-            new(SettingsPageType.Appearance, "Appearance", "avares://Github-Trend/Assets/Icons/theme-light-dark.svg", "Theme, language & display"),
-            new(SettingsPageType.General, "General", "avares://Github-Trend/Assets/Icons/tune.svg", "Behavior & preferences"),
-            new(SettingsPageType.Account, "Account", "avares://Github-Trend/Assets/Icons/github.svg", "GitHub authentication & session"),
-            new(SettingsPageType.Trending, "Trending", "avares://Github-Trend/Assets/Icons/star.svg", "Default filters & trending options"),
-            new(SettingsPageType.Cache, "Cache", "avares://Github-Trend/Assets/Icons/database.svg", "Storage & cached data management"),
-            new(SettingsPageType.Logs, "Logs", "avares://Github-Trend/Assets/Icons/code-braces.svg", "Application logs & diagnostics"),
-            new(SettingsPageType.Backup, "Backup", "avares://Github-Trend/Assets/Icons/backup-restore.svg", "Export & import settings"),
-            new(SettingsPageType.About, "About", "avares://Github-Trend/Assets/Icons/information.svg", "Version & system information"),
+            new(SettingsPageType.Appearance, "Appearance", "avares://Github-Trend.Core/Assets/Icons/theme-light-dark.svg", "Theme, language & display"),
+            new(SettingsPageType.General, "General", "avares://Github-Trend.Core/Assets/Icons/tune.svg", "Behavior & preferences"),
+            new(SettingsPageType.Account, "Account", "avares://Github-Trend.Core/Assets/Icons/github.svg", "GitHub authentication & session"),
+            new(SettingsPageType.Trending, "Trending", "avares://Github-Trend.Core/Assets/Icons/star.svg", "Default filters & trending options"),
+            new(SettingsPageType.Cache, "Cache", "avares://Github-Trend.Core/Assets/Icons/database.svg", "Storage & cached data management"),
+            new(SettingsPageType.Logs, "Logs", "avares://Github-Trend.Core/Assets/Icons/code-braces.svg", "Application logs & diagnostics"),
+            new(SettingsPageType.Backup, "Backup", "avares://Github-Trend.Core/Assets/Icons/backup-restore.svg", "Export & import settings"),
+            new(SettingsPageType.About, "About", "avares://Github-Trend.Core/Assets/Icons/information.svg", "Version & system information"),
         ];
 
         SelectedPage = Pages[0];
@@ -323,13 +323,13 @@ public sealed class SettingsWindowViewModel : ViewModelBase, IDisposable
             var links = new List<ExternalLink>();
 
             if (TryGetString(infos, "Repository", out var repoUrl))
-                links.Add(new ExternalLink("GitHub Repository", repoUrl, "avares://Github-Trend/Assets/Icons/github.svg"));
+                links.Add(new ExternalLink("GitHub Repository", repoUrl, "avares://Github-Trend.Core/Assets/Icons/github.svg"));
             if (TryGetString(infos, "Issues", out var issuesUrl))
-                links.Add(new ExternalLink("Report an Issue", issuesUrl, "avares://Github-Trend/Assets/Icons/open.svg"));
+                links.Add(new ExternalLink("Report an Issue", issuesUrl, "avares://Github-Trend.Core/Assets/Icons/open.svg"));
             if (TryGetString(infos, "Releases", out var releasesUrl))
-                links.Add(new ExternalLink("Releases", releasesUrl, "avares://Github-Trend/Assets/Icons/update.svg"));
+                links.Add(new ExternalLink("Releases", releasesUrl, "avares://Github-Trend.Core/Assets/Icons/update.svg"));
             if (TryGetString(infos, "AuthorUrl", out var authorUrl))
-                links.Add(new ExternalLink("Author", authorUrl, "avares://Github-Trend/Assets/Icons/github.svg"));
+                links.Add(new ExternalLink("Author", authorUrl, "avares://Github-Trend.Core/Assets/Icons/github.svg"));
 
             return links.Count > 0 ? links : GetDefaultLinks();
         }
@@ -344,9 +344,9 @@ public sealed class SettingsWindowViewModel : ViewModelBase, IDisposable
     {
         return
         [
-            new("GitHub Repository", "https://github.com/YoannDev90/Github-Trend", "avares://Github-Trend/Assets/Icons/github.svg"),
-            new("Report an Issue", "https://github.com/YoannDev90/Github-Trend/issues", "avares://Github-Trend/Assets/Icons/open.svg"),
-            new("Releases", "https://github.com/YoannDev90/Github-Trend/releases", "avares://Github-Trend/Assets/Icons/update.svg"),
+            new("GitHub Repository", "https://github.com/YoannDev90/Github-Trend", "avares://Github-Trend.Core/Assets/Icons/github.svg"),
+            new("Report an Issue", "https://github.com/YoannDev90/Github-Trend/issues", "avares://Github-Trend.Core/Assets/Icons/open.svg"),
+            new("Releases", "https://github.com/YoannDev90/Github-Trend/releases", "avares://Github-Trend.Core/Assets/Icons/update.svg"),
         ];
     }
 

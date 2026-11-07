@@ -60,7 +60,7 @@
                                    FontWeight="Bold" FontSize="{DynamicResource FontSizeLarge}" TextWrapping="Wrap" />
                         <Button Command="{Binding Auth.CopyDeviceCodeCommand}" Classes="btn-secondary" HorizontalAlignment="Left" AutomationProperties.Name="Copy device code to clipboard">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/content-copy.svg" Width="14" Height="14" />
+                                <controls:SvgImage SourceUri="avares://Github-Trend.Core/Assets/Icons/content-copy.svg" Width="14" Height="14" />
                                 <TextBlock Text="{Binding Source={x:Static loc:Localization.Instance}, Path=CopyCodeButtonText}" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
@@ -69,16 +69,16 @@
                 <StackPanel Orientation="Horizontal" Spacing="8">
                     <Button Command="{Binding Auth.SignInCommand}" Classes="btn-primary" Background="{DynamicResource AccentPrimaryBrush}" AutomationProperties.Name="Sign in with GitHub">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/github.svg" Width="14" Height="14" />
+                            <controls:SvgImage SourceUri="avares://Github-Trend.Core/Assets/Icons/github.svg" Width="14" Height="14" />
                             <TextBlock Text="{Binding Source={x:Static loc:Localization.Instance}, Path=GitHubSignInButtonText}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
                     <Button Command="{Binding Auth.RefreshSessionCommand}" Classes="btn-secondary" IsVisible="{Binding Auth.IsConnected}" AutomationProperties.Name="Refresh GitHub session">
-                        <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/refresh.svg" Width="14" Height="14" />
+                        <controls:SvgImage SourceUri="avares://Github-Trend.Core/Assets/Icons/refresh.svg" Width="14" Height="14" />
                     </Button>
                     <Button Command="{Binding Auth.SignOutCommand}" Classes="btn-danger" IsVisible="{Binding Auth.IsConnected}" AutomationProperties.Name="Sign out of GitHub">
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <controls:SvgImage SourceUri="avares://Github-Trend/Assets/Icons/logout.svg" Width="14" Height="14" />
+                            <controls:SvgImage SourceUri="avares://Github-Trend.Core/Assets/Icons/logout.svg" Width="14" Height="14" />
                             <TextBlock Text="{Binding Source={x:Static loc:Localization.Instance}, Path=GitHubSignOutButtonText}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
