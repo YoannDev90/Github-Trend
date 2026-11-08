@@ -43,7 +43,7 @@ permissions:
   contents: write
 
 env:
-  PROJECT: Github-Trend.csproj
+  PROJECT: Github-Trend.Desktop/Github-Trend.Desktop.csproj
   APP_NAME: github-trend
   DOTNET_VERSION: '10.0.x'
 
@@ -412,11 +412,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           pattern: pkg-*
-          path: ./assets
+          path: ./release-assets
           merge-multiple: true
 
       - name: List release assets
-        run: find assets -type f | sort
+        run: find release-assets -type f | sort
 
       - name: Generate Dynamic Packaging Files
         shell: bash
@@ -425,17 +425,17 @@ jobs:
           VERSION="${VERSION#v}"
           
           # Calcul silencieux des SHA (s'ils n'existent pas car le job a ignoré une plateforme, le sha sera vide, ce qui importe peu tant qu'on fournit l'autre)
-          LINUX_X64_SHA=$(sha256sum assets/github-trend-${VERSION}-linux-x64.tar.gz 2>/dev/null | awk '{ print $1 }' || echo "SKIP")
-          LINUX_ARM_SHA=$(sha256sum assets/github-trend-${VERSION}-linux-arm64.tar.gz 2>/dev/null | awk '{ print $1 }' || echo "SKIP")
+          LINUX_X64_SHA=$(sha256sum release-assets/github-trend-${VERSION}-linux-x64.tar.gz 2>/dev/null | awk '{ print $1 }' || echo "SKIP")
+          LINUX_ARM_SHA=$(sha256sum release-assets/github-trend-${VERSION}-linux-arm64.tar.gz 2>/dev/null | awk '{ print $1 }' || echo "SKIP")
           
           # Templates
-          cp packaging/arch/PKGBUILD assets/PKGBUILD
-          cp packaging/homebrew/github-trend.rb assets/github-trend.rb 2>/dev/null || true
+          cp packaging/arch/PKGBUILD release-assets/PKGBUILD
+          cp packaging/homebrew/github-trend.rb release-assets/github-trend.rb 2>/dev/null || true
           
           # PKGBUILD injection
-          sed -i "s/@VERSION@/$VERSION/g" assets/PKGBUILD
-          sed -i "s/@LINUX_X64_SHA@/$LINUX_X64_SHA/g" assets/PKGBUILD
-          sed -i "s/@LINUX_ARM_SHA@/$LINUX_ARM_SHA/g" assets/PKGBUILD
+          sed -i "s/@VERSION@/$VERSION/g" release-assets/PKGBUILD
+          sed -i "s/@LINUX_X64_SHA@/$LINUX_X64_SHA/g" release-assets/PKGBUILD
+          sed -i "s/@LINUX_ARM_SHA@/$LINUX_ARM_SHA/g" release-assets/PKGBUILD
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -446,7 +446,7 @@ jobs:
           generate_release_notes: true
           fail_on_unmatched_files: false
           files: |
-            assets/**/*
+            release-assets/**/*
       - name: Release summary
         if: always()
         run: |

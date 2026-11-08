@@ -29,7 +29,7 @@ permissions:
   contents: write
 
 env:
-  PROJECT: Github-Trend.csproj
+  PROJECT: Github-Trend.Desktop/Github-Trend.Desktop.csproj
   APP_NAME: github-trend
   DOTNET_VERSION: '10.0.x'
 
@@ -232,6 +232,8 @@ jobs:
           ArchitecturesAllowed=$(if ($rid -like '*arm64*') {'arm64'} else {'x64'})
           ArchitecturesInstallIn64BitMode=$(if ($rid -like '*arm64*') {'arm64'} else {'x64'})
           PrivilegesRequired=admin
+          SetupIconFile=$($PWD.Path)\Github-Trend.Core\Assets\icon.ico
+          UninstallDisplayIcon={app}\Github-Trend.exe
 
           [Files]
           Source: "$($PWD.Path)\$scdDir\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
