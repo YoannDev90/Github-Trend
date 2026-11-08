@@ -100,6 +100,7 @@ jobs:
         run: |
           dotnet publish "${{ env.PROJECT }}" \
             -c Release \
+            -f net10.0 \
             -r "${{ matrix.rid }}" \
             --self-contained true \
             -p:PublishTrimmed=false \
