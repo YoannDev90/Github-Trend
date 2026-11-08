@@ -32,5 +32,5 @@ package() {
     # Metadonnées bureau : Exec ne doit viser que /usr/bin/github-trend
     sed -i 's|^Exec=.*|Exec=github-trend|' "${srcdir}/Github-Trend.desktop"
     install -Dm644 "${srcdir}/Github-Trend.desktop" "${pkgdir}/usr/share/applications/github-trend.desktop"
-    install -Dm644 "${srcdir}/Assets/Icons/github.svg" "${pkgdir}/usr/share/pixmaps/github-trend.svg"
+    install -Dm644 "${srcdir}/Github-Trend.Core/Assets/Icons/github.svg" "${pkgdir}/usr/share/pixmaps/github-trend.svg"
 }

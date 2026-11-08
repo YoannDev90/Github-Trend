@@ -1,4 +1,4 @@
-![GitHub Trend banner](Github-Trend.Core/Assets/banner.svg)
+![GitHub Trend banner](assets/banner.svg)
 
 # GitHub Trend
 
@@ -37,6 +37,6 @@ cd Github-Trend-linux-x64
 
 ## Screenshots
 
-![Screenshot](Assets/screenshots/1.png)
-![Screenshot](Assets/screenshots/2.png)
+![Screenshot](assets/screenshots/1.png)
+![Screenshot](assets/screenshots/2.png)
 

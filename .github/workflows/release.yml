@@ -250,7 +250,7 @@ jobs:
           ArchitecturesAllowed=$(if ($rid -like '*arm64*') {'arm64'} else {'x64'})
           ArchitecturesInstallIn64BitMode=$(if ($rid -like '*arm64*') {'arm64'} else {'x64'})
           PrivilegesRequired=admin
-          SetupIconFile=$($PWD.Path)\Assets\icon.ico
+          SetupIconFile=$($PWD.Path)\Github-Trend.Core\Assets\icon.ico
           UninstallDisplayIcon={app}\Github-Trend.exe
 
           [Files]
