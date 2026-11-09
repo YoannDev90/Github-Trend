@@ -60,3 +60,6 @@ riderModule.iml
 *.sln.dotsettings.user
 *.sln.dotsettings.shared
 publish/
+out/
+packages/
+release-assets/

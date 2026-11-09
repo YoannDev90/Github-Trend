@@ -85,10 +85,16 @@ jobs:
           fi
 
       # ── Restore ────────────────────────────────────────────────────────────
+      # ⚠ dotnet restore's -f is --force, NOT --framework (build/publish differ).
+      # `-f net10.0` here parses `net10.0` as a second project -> MSB1008, which
+      # the old `|| true` swallowed. Pin the TFM with -p:TargetFramework instead:
+      # it skips Core's net10.0-android TFM, whose restore against a desktop RID
+      # asks NuGet for Microsoft.NETCore.App.Runtime.Mono.<rid>, absent on .NET 10
+      # (NU1102). Publish then runs with --no-restore against this restore.
       - name: Restore
         shell: bash
         run: |
-          dotnet restore "${{ env.PROJECT }}" -f net10.0 -p:_IsAndroidWorkloadRestore=false --runtime "${{ matrix.rid }}" || true
+          dotnet restore "${{ env.PROJECT }}" -p:TargetFramework=net10.0 --runtime "${{ matrix.rid }}"
 
       # ── SCD publish ────────────────────────────────────────────────────────
       # Trimming is intentionally DISABLED for Avalonia: it uses reflection for
@@ -99,8 +105,9 @@ jobs:
         shell: bash
         run: |
           dotnet publish "${{ env.PROJECT }}" \
+            --no-restore \
             -c Release \
-            -f net10.0 \
+            -p:TargetFramework=net10.0 \
             -r "${{ matrix.rid }}" \
             --self-contained true \
             -p:PublishTrimmed=false \
